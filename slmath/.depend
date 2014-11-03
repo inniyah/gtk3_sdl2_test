@@ -1,0 +1,10 @@
+float_util.o: src/float_util.cpp
+random.o: src/random.cpp
+random_util.o: src/random_util.cpp
+mat4.o: src/mat4.cpp
+intersect_util.o: src/intersect_util.cpp
+quat.o: src/quat.cpp
+vec4.o: src/vec4.cpp
+vec3.o: src/vec3.cpp
+runtime_checks.o: src/runtime_checks.cpp
+vec2.o: src/vec2.cpp

@@ -1,0 +1,134 @@
+Index: libsdl2-2.0.2+dfsg1/include/SDL_video.h
+===================================================================
+--- libsdl2-2.0.2+dfsg1.orig/include/SDL_video.h
++++ libsdl2-2.0.2+dfsg1/include/SDL_video.h
+@@ -64,6 +64,7 @@ typedef struct
+  *
+  *  \sa SDL_CreateWindow()
+  *  \sa SDL_CreateWindowFrom()
++ *  \sa SDL_CreateWindowWithFlagsFrom()
+  *  \sa SDL_DestroyWindow()
+  *  \sa SDL_GetWindowData()
+  *  \sa SDL_GetWindowFlags()
+@@ -421,6 +422,20 @@ extern DECLSPEC SDL_Window * SDLCALL SDL
+ extern DECLSPEC SDL_Window * SDLCALL SDL_CreateWindowFrom(const void *data);
+ 
+ /**
++ *  \brief Create an SDL window from an existing native window, with.
++ *         support for OpenGL.
++ *
++ *  \param data   A pointer to driver-dependent window creation data
++ *  \param flags  The flags for the window, a mask of any of the following:
++ *                ::SDL_WINDOW_OPENGL
++ *
++ *  \return The id of the window created, or zero if window creation failed.
++ *
++ *  \sa SDL_DestroyWindow()
++ */
++extern DECLSPEC SDL_Window * SDLCALL SDL_CreateWindowWithFlagsFrom(const void *data, Uint32 flags);
++
++/**
+  *  \brief Get the numeric ID of a window, for logging purposes.
+  */
+ extern DECLSPEC Uint32 SDLCALL SDL_GetWindowID(SDL_Window * window);
+Index: libsdl2-2.0.2+dfsg1/src/video/SDL_video.c
+===================================================================
+--- libsdl2-2.0.2+dfsg1.orig/src/video/SDL_video.c
++++ libsdl2-2.0.2+dfsg1/src/video/SDL_video.c
+@@ -1336,6 +1336,53 @@ SDL_CreateWindowFrom(const void *data)
+     return window;
+ }
+ 
++SDL_Window *
++SDL_CreateWindowWithFlagsFrom(const void *data, Uint32 flags)
++{
++    SDL_Window *window;
++
++    if (!_this) {
++        SDL_UninitializedVideo();
++        return NULL;
++    }
++    window = (SDL_Window *)SDL_calloc(1, sizeof(*window));
++    if (!window) {
++        SDL_OutOfMemory();
++        return NULL;
++    }
++    window->magic = &_this->window_magic;
++    window->id = _this->next_object_id++;
++    window->flags = SDL_WINDOW_FOREIGN;
++    if (flags & SDL_WINDOW_OPENGL)
++        window->flags |= SDL_WINDOW_OPENGL;   // we want to support OpenGL
++    window->last_fullscreen_flags = window->flags;
++    window->is_destroying = SDL_FALSE;
++    window->brightness = 1.0f;
++    window->next = _this->windows;
++    if (_this->windows) {
++        _this->windows->prev = window;
++    }
++    _this->windows = window;
++
++    /* copied from SDL_CreateWindow */
++    if (window->flags & SDL_WINDOW_OPENGL) {
++       if (!_this->GL_CreateContext) {
++           SDL_SetError("No OpenGL support in video driver");
++           return NULL;
++       }
++       if (SDL_GL_LoadLibrary(NULL) < 0) {
++           return NULL;
++       }
++   }
++
++    if (!_this->CreateWindowFrom ||
++        _this->CreateWindowFrom(_this, window, data) < 0) {
++        SDL_DestroyWindow(window);
++        return NULL;
++    }
++    return window;
++}
++
+ int
+ SDL_RecreateWindow(SDL_Window * window, Uint32 flags)
+ {
+Index: libsdl2-2.0.2+dfsg1/src/video/windows/SDL_windowswindow.c
+===================================================================
+--- libsdl2-2.0.2+dfsg1.orig/src/video/windows/SDL_windowswindow.c
++++ libsdl2-2.0.2+dfsg1/src/video/windows/SDL_windowswindow.c
+@@ -339,6 +339,14 @@ WIN_CreateWindowFrom(_THIS, SDL_Window *
+         return -1;
+     }
+ 
++    /* Added code to setup the pixel format */
++    if (window->flags & SDL_WINDOW_OPENGL) {
++        if (WIN_GL_SetupWindow(_this, window) < 0) {
++            WIN_DestroyWindow(_this, window);
++            return -1;
++        }
++    } 
++
+ #if SDL_VIDEO_OPENGL_WGL
+     {
+         const char *hint = SDL_GetHint(SDL_HINT_VIDEO_WINDOW_SHARE_PIXEL_FORMAT);
+Index: libsdl2-2.0.2+dfsg1/src/dynapi/SDL_dynapi_overrides.h
+===================================================================
+--- libsdl2-2.0.2+dfsg1.orig/src/dynapi/SDL_dynapi_overrides.h
++++ libsdl2-2.0.2+dfsg1/src/dynapi/SDL_dynapi_overrides.h
+@@ -516,6 +516,7 @@
+ #define SDL_GetWindowPixelFormat SDL_GetWindowPixelFormat_REAL
+ #define SDL_CreateWindow SDL_CreateWindow_REAL
+ #define SDL_CreateWindowFrom SDL_CreateWindowFrom_REAL
++#define SDL_CreateWindowWithFlagsFrom SDL_CreateWindowWithFlagsFrom_REAL
+ #define SDL_GetWindowID SDL_GetWindowID_REAL
+ #define SDL_GetWindowFromID SDL_GetWindowFromID_REAL
+ #define SDL_GetWindowFlags SDL_GetWindowFlags_REAL
+Index: libsdl2-2.0.2+dfsg1/src/dynapi/SDL_dynapi_procs.h
+===================================================================
+--- libsdl2-2.0.2+dfsg1.orig/src/dynapi/SDL_dynapi_procs.h
++++ libsdl2-2.0.2+dfsg1/src/dynapi/SDL_dynapi_procs.h
+@@ -545,6 +545,7 @@ SDL_DYNAPI_PROC(int,SDL_GetWindowDisplay
+ SDL_DYNAPI_PROC(Uint32,SDL_GetWindowPixelFormat,(SDL_Window *a),(a),return)
+ SDL_DYNAPI_PROC(SDL_Window*,SDL_CreateWindow,(const char *a, int b, int c, int d, int e, Uint32 f),(a,b,c,d,e,f),return)
+ SDL_DYNAPI_PROC(SDL_Window*,SDL_CreateWindowFrom,(const void *a),(a),return)
++SDL_DYNAPI_PROC(SDL_Window*,SDL_CreateWindowWithFlagsFrom,(const void *a, Uint32 b),(a,b),return)
+ SDL_DYNAPI_PROC(Uint32,SDL_GetWindowID,(SDL_Window *a),(a),return)
+ SDL_DYNAPI_PROC(SDL_Window*,SDL_GetWindowFromID,(Uint32 a),(a),return)
+ SDL_DYNAPI_PROC(Uint32,SDL_GetWindowFlags,(SDL_Window *a),(a),return)
