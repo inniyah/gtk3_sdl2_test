@@ -204,7 +204,7 @@ struct CompilerNode : public GC::Collectable {
 		CompilerNode* node3,
 		CompilerNode* node4,
 		NameID name,
-		TypeInfo* type,
+		TypeInfo* typeinfo,
 		Value* value,
 		int op);
 	// append a new node to the list

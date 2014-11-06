@@ -25,8 +25,9 @@
  * DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdarg.h>
+#include <cstdio>
+#include <cstring>
+#include <cstdarg>
 
 #include "scriptix.h"
 #include "compiler.h"

@@ -28,7 +28,7 @@
 #ifndef SCRIPTIX_FUNCTION_H
 #define SCRIPTIX_FUNCTION_H
 
-#include "scriptix/sysdep.h"
+#include "sysdep.h"
 
 namespace Scriptix {
 

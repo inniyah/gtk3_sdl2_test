@@ -28,7 +28,7 @@
 #ifndef SCRIPTIX_VIMPL_H
 #define SCRIPTIX_VIMPL_H
 
-#include "scriptix/sysdep.h"
+#include "sysdep.h"
 
 #include <iostream>
 

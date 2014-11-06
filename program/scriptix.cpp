@@ -25,12 +25,13 @@
  * DAMAGE.
  */
 
+#include "scriptix.h"
+
 #include <sys/time.h>
 #include <gc/gc.h>
 
+#include <cstring>
 #include <iostream>
-
-#include "scriptix.h"
 
 using namespace std;
 using namespace Scriptix;

@@ -25,73 +25,45 @@
  * DAMAGE.
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdarg.h>
-
 #include "scriptix.h"
-#include "system.h"
+#include "config.h"
+
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <cstdarg>
+
+#include <set>
+#include <string>
 
 using namespace Scriptix;
 
-static
-const char *sx_error_names[] =
-{
-	"OK",
-	"Out of memory",
-	"Invalid type",
-	"Undefined",
-	"Nil call",
-	"Invalid operator",
-	"Out of bounds",
-	"Not ready",
-	"Invalid request",
-	"Disabled",
-	"Busy",
-	"Internal error",
-	"Incorrect arguments",
-	"Already exists",
-	"Divide by zero",
-	NULL
-};
-
-int
-System::RaiseError (int err, const char *format, ...) {
-	char buf[256]; /* big enough */
-	va_list va;
-
-	va_start (va, format);
-	vsnprintf (buf, sizeof(buf), format, va);
-	va_end (va);
-	if (!frames.empty())
-		HandleError (GetFrame().GetFile() ? GetFrame().GetFile()->GetCStr(): "n/a", GetFrame().GetLine(), buf);
-	else
-		HandleError ("n/a", 0, buf);
-
-	PushValue(Number::Create(err));
-	state = STATE_FAILED;
-	return state;
+namespace {
+	typedef Scriptix::GC::set<BaseString> NameMap;
+	NameMap names;
 }
 
-int
-System::RaiseArgError (const char* func, const char* arg, const char* type)
-{
-	return RaiseError(SXE_BADARGS, "Argument '%s' to '%s' is not a '%s'", arg, func, type);
-}
+#define NAME_TO_ID(name) ((intptr_t)&(name) >> 2)
+#define ID_TO_NAME(id) (*((BaseString*)(id << 2)))
 
-int
-System::RaiseSecurityError (const char* func)
-{
-	return RaiseError(SXE_BADARGS, "System does not have security access for '%s'", func);
+NameID
+Scriptix::NameToID(const char *name) {
+	// have it already?
+	NameMap::iterator i = names.find(name);
+	if (i != names.end()) {
+		// construct ID: address w/ lower 2 bits shifted out
+		return NAME_TO_ID(*i);
+	}
+
+	// add it
+	i = names.insert(names.begin(), name);
+	return NAME_TO_ID(*i);
 }
 
 const char *
-Scriptix::StrError (sx_err_type err)
-{
-	/* out of bounds */
-	if (err < 0 || (size_t)err >= sizeof(sx_error_names)/sizeof(sx_error_names[0]))
+Scriptix::IDToName (NameID id) {
+	if (!id)
 		return NULL;
 
-	/* return name */
-	return sx_error_names[err];
+	return ID_TO_NAME(id).c_str();
 }

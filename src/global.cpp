@@ -25,12 +25,12 @@
  * DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-
 #include "scriptix.h"
+
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <cstdarg>
 
 using namespace Scriptix;
 

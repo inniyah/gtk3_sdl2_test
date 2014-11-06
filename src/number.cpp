@@ -25,45 +25,28 @@
  * DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-
-#include <set>
-#include <string>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <cstdarg>
 
 #include "scriptix.h"
-#include "config.h"
+#include "system.h"
 
 using namespace Scriptix;
 
-namespace {
-	typedef Scriptix::GC::set<BaseString> NameMap;
-	NameMap names;
+Value*
+Number::MethodToString (size_t argc, Value** argv)
+{
+	char buf[20];
+	snprintf (buf, 20, "%ld", Number::ToInt(argv[0]));
+	return new String(buf);
 }
 
-#define NAME_TO_ID(name) ((intptr_t)&(name) >> 2)
-#define ID_TO_NAME(id) (*((BaseString*)(id << 2)))
+SX_BEGINMETHODS(Number)
+	SX_DEFMETHOD(Number::MethodToString, "toString", 0, 0)
+SX_ENDMETHODS
 
-NameID
-Scriptix::NameToID(const char *name) {
-	// have it already?
-	NameMap::iterator i = names.find(name);
-	if (i != names.end()) {
-		// construct ID: address w/ lower 2 bits shifted out
-		return NAME_TO_ID(*i);
-	}
-
-	// add it
-	i = names.insert(names.begin(), name);
-	return NAME_TO_ID(*i);
-}
-
-const char *
-Scriptix::IDToName (NameID id) {
-	if (!id)
-		return NULL;
-
-	return ID_TO_NAME(id).c_str();
+namespace Scriptix {
+	SX_TYPEIMPL(Number, "Int", Value, SX_TYPECREATENONE(Number))
 }

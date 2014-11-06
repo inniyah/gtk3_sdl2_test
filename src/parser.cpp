@@ -25,15 +25,15 @@
  * DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include <algorithm>
-
 #include "scriptix.h"
 #include "system.h"
 #include "compiler.h"
+
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+
+#include <algorithm>
 
 using namespace Scriptix;
 using namespace Scriptix::Compiler;

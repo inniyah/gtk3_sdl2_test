@@ -26,16 +26,16 @@
  */
 
 %{
-	#include <stdlib.h>
-	#include <stdio.h>
-	#include <string.h>
+	#include <cstdlib>
+	#include <cstdio>
+	#include <cstring>
 	#include <errno.h>
 	#include <gc/gc.h>
 
 	#include "scriptix.h"
 	#include "system.h"
 	#include "compiler.h"
-	
+
 	using namespace Scriptix;
 	using namespace Scriptix::Compiler;
 

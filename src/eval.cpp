@@ -46,12 +46,11 @@ char *alloca ();
 # endif
 #endif
 
-
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 #include "scriptix.h"
+
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
 
 using namespace Scriptix;
 

@@ -28,7 +28,7 @@
 #ifndef SCRIPTIX_ACCESS_H
 #define SCRIPTIX_ACCESS_H
 
-#include "scriptix/sysdep.h"
+#include "sysdep.h"
 
 namespace Scriptix {
 

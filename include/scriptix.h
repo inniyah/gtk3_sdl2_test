@@ -29,27 +29,27 @@
  * Scriptix script engine.
  * C++ based high-performance scripting engine for games.
  * @author AwesomePlay Produtions, Inc.
- * @pkgdoc Scriptix http://www.awemud.net/scriptix/
+ * @pkgdoc Scriptix http://www.awemud.net/
  */
 
 #ifndef __SCRIPTIX_H__
 #define __SCRIPTIX_H__
 
-#include "scriptix/collectable.h"
-#include "scriptix/error.h"
-#include "scriptix/access.h"
-#include "scriptix/opcodes.h"
-#include "scriptix/name.h"
-#include "scriptix/value.h"
-#include "scriptix/type.h"
-#include "scriptix/number.h"
-#include "scriptix/sxstring.h"
-#include "scriptix/iterator.h"
-#include "scriptix/struct.h"
-#include "scriptix/array.h"
-#include "scriptix/function.h"
-#include "scriptix/thread.h"
-#include "scriptix/system.h"
-#include "scriptix/vimpl.h"
+#include "collectable.h"
+#include "error.h"
+#include "access.h"
+#include "opcodes.h"
+#include "name.h"
+#include "value.h"
+#include "type.h"
+#include "number.h"
+#include "sxstring.h"
+#include "iterator.h"
+#include "struct.h"
+#include "array.h"
+#include "function.h"
+#include "thread.h"
+#include "system.h"
+#include "vimpl.h"
 
 #endif

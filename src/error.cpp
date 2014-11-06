@@ -25,29 +25,73 @@
  * DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <stdlib.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstdarg>
 
 #include "scriptix.h"
 #include "system.h"
 
 using namespace Scriptix;
 
-Value*
-Number::MethodToString (size_t argc, Value** argv)
+static
+const char *sx_error_names[] =
 {
-	char buf[20];
-	snprintf (buf, 20, "%d", Number::ToInt(argv[0]));
-	return new String(buf);
+	"OK",
+	"Out of memory",
+	"Invalid type",
+	"Undefined",
+	"Nil call",
+	"Invalid operator",
+	"Out of bounds",
+	"Not ready",
+	"Invalid request",
+	"Disabled",
+	"Busy",
+	"Internal error",
+	"Incorrect arguments",
+	"Already exists",
+	"Divide by zero",
+	NULL
+};
+
+int
+System::RaiseError (int err, const char *format, ...) {
+	char buf[256]; /* big enough */
+	va_list va;
+
+	va_start (va, format);
+	vsnprintf (buf, sizeof(buf), format, va);
+	va_end (va);
+	if (!frames.empty())
+		HandleError (GetFrame().GetFile() ? GetFrame().GetFile()->GetCStr(): "n/a", GetFrame().GetLine(), buf);
+	else
+		HandleError ("n/a", 0, buf);
+
+	PushValue(Number::Create(err));
+	state = STATE_FAILED;
+	return state;
 }
 
-SX_BEGINMETHODS(Number)
-	SX_DEFMETHOD(Number::MethodToString, "toString", 0, 0)
-SX_ENDMETHODS
+int
+System::RaiseArgError (const char* func, const char* arg, const char* type)
+{
+	return RaiseError(SXE_BADARGS, "Argument '%s' to '%s' is not a '%s'", arg, func, type);
+}
 
-namespace Scriptix {
-	SX_TYPEIMPL(Number, "Int", Value, SX_TYPECREATENONE(Number))
+int
+System::RaiseSecurityError (const char* func)
+{
+	return RaiseError(SXE_BADARGS, "System does not have security access for '%s'", func);
+}
+
+const char *
+Scriptix::StrError (sx_err_type err)
+{
+	/* out of bounds */
+	if (err < 0 || (size_t)err >= sizeof(sx_error_names)/sizeof(sx_error_names[0]))
+		return NULL;
+
+	/* return name */
+	return sx_error_names[err];
 }
