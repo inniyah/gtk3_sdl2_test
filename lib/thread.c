@@ -121,12 +121,12 @@ push_context (THREAD *thread, VALUE *block, unsigned char flags) {
 	CONTEXT *new_stack;
 
 	if (thread->context == thread->context_size) {
-		new_stack = sx_malloc (thread->system, (thread->context_size + STACK_CHUNK_SIZE) * sizeof (CONTEXT));
+		new_stack = sx_malloc (thread->system, (thread->context_size + CONTEXT_STACK_CHUNK_SIZE) * sizeof (CONTEXT));
 		if (new_stack == NULL) {
 			return NULL;
 		}
 		memcpy (new_stack, thread->context_stack, thread->context_size * sizeof (CONTEXT));
-		thread->context_size += STACK_CHUNK_SIZE;
+		thread->context_size += CONTEXT_STACK_CHUNK_SIZE;
 		sx_free (thread->context_stack);
 		thread->context_stack = new_stack;
 	}
@@ -164,13 +164,13 @@ push_value (THREAD *thread, VALUE *value) {
 
 	if (thread->data == thread->data_size) {
 		lock_value (value);
-		new_stack = sx_malloc (thread->system, (thread->data_size + STACK_CHUNK_SIZE) * sizeof (VALUE *));
+		new_stack = sx_malloc (thread->system, (thread->data_size + DATA_STACK_CHUNK_SIZE) * sizeof (VALUE *));
 		unlock_value (value);
 		if (new_stack == NULL) {
 			return new_nil ();
 		}
 		memcpy (new_stack, thread->data_stack, thread->data_size * sizeof (VALUE *));
-		thread->data_size += STACK_CHUNK_SIZE;
+		thread->data_size += DATA_STACK_CHUNK_SIZE;
 		sx_free (thread->data_stack);
 		thread->data_stack = new_stack;
 	}

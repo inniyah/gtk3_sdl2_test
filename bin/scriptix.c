@@ -62,7 +62,7 @@ main (int argc, char **argv) {
 	if (ret != STATE_EXIT) {
 		return 1;
 	}
-
+ 
 	ret = IS_NUM (thread->ret) ? TO_INT (thread->ret) : is_true (thread->ret);
 
 	free_system (system);

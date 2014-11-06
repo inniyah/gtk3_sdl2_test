@@ -870,84 +870,89 @@ YY_RULE_SETUP
 			return TIN;
 		} else if (!strcasecmp (yytext, "for")) {
 			return TFOR;
+		} else if (!strcasecmp (yytext, "step")) {
+			return TSTEP;
+		} else if (!strcasecmp (yytext, "to")) {
+			return TTO;
 		} else {
-			sxlval.value = new_str (parse_system, yytext);
+			strncpy (sxlval.name, yytext, MAX_NAME_LEN);
+			sxlval.name[MAX_NAME_LEN] = 0;
 			return TNAME;
 		}
 	}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 115 "lexer.l"
+#line 120 "lexer.l"
 { sxlval.value = new_num (atoi (yytext)); return TNUM; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 116 "lexer.l"
+#line 121 "lexer.l"
 { return TGTE; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 117 "lexer.l"
+#line 122 "lexer.l"
 { return TLTE; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 118 "lexer.l"
+#line 123 "lexer.l"
 { return TEQUALS; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 119 "lexer.l"
+#line 124 "lexer.l"
 { return TADDASSIGN; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 120 "lexer.l"
+#line 125 "lexer.l"
 { return TSUBASSIGN; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 121 "lexer.l"
+#line 126 "lexer.l"
 { return TINCREMENT; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 122 "lexer.l"
+#line 127 "lexer.l"
 { return TDECREMENT; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 123 "lexer.l"
+#line 128 "lexer.l"
 { return TMETHOD; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 124 "lexer.l"
+#line 129 "lexer.l"
 { return TNE; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 125 "lexer.l"
+#line 130 "lexer.l"
 { return TRANGE; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 126 "lexer.l"
+#line 131 "lexer.l"
 { return yytext[0]; }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(bcomment):
 case YY_STATE_EOF(lcomment):
-#line 127 "lexer.l"
+#line 132 "lexer.l"
 { return 0; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 129 "lexer.l"
+#line 134 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 951 "lex.sx.c"
+#line 956 "lex.sx.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1835,5 +1840,5 @@ int main()
 	return 0;
 	}
 #endif
-#line 129 "lexer.l"
+#line 134 "lexer.l"
 

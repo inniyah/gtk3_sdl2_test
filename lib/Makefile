@@ -1,5 +1,5 @@
 CFLAGS := -g -Wall -I../include -O2
-SXOBJ := eval.o value.o var.o thread.o node.o mem.o system.o stdlib.o loop.o
+SXOBJ := eval.o value.o var.o thread.o mem.o system.o stdlib.o
 YYOBJ := y.tab.o lex.sx.o
 OBJECTS := $(SXOBJ) $(YYOBJ)
 #CC = ccmalloc gcc

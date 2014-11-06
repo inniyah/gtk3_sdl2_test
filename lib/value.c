@@ -254,20 +254,8 @@ new_user_class (SYSTEM *system, VALUE *parent, void *data, void (*free_data)(voi
 }
 
 VALUE *
-new_range (SYSTEM *system, int start, int end, int step) {
+new_range (SYSTEM *system, int start, int end) {
 	VALUE *value;
-
-	if (step == 0) {
-		step = 1;
-	}
-
-	if (step > 0 && end < start) {
-		step = -step;
-	}
-
-	if (step < 0 && end > start) {
-		step = -step;
-	}
 
 	value = (VALUE *)sx_malloc (system, sizeof (VALUE));
 	if (value == NULL) {
@@ -277,7 +265,6 @@ new_range (SYSTEM *system, int start, int end, int step) {
 	value->type = VALUE_RANGE;
 	value->data.range.start = start;
 	value->data.range.end = end;
-	value->data.range.step = step;
 	value->locks = 0;
 	value->flags = 0;
 	value->gc_next = NULL;
@@ -301,11 +288,11 @@ class_is_a (VALUE *klass, VALUE *par) {
 }
 
 VAR *
-set_member (SYSTEM *system, VALUE *klass, char *name, VALUE *value) {
+set_member (SYSTEM *system, VALUE *klass, VALUE *name, VALUE *value) {
 	VAR *var;
 
 	for (var = klass->data.klass.members; var != NULL; var = var->next) {
-		if (!strcmp (var->name->data.str.str, name)) {
+		if (are_equal (name, var->name)) {
 			var->value = value;
 			return var;
 		}
@@ -313,32 +300,33 @@ set_member (SYSTEM *system, VALUE *klass, char *name, VALUE *value) {
 
 	lock_value (klass);
 	lock_value (value);
+	lock_value (name);
 
 	var = (VAR *)sx_malloc (system, sizeof (VAR));
+
+	unlock_value (klass);
+	unlock_value (value);
+	unlock_value (name);
+
 	if (var == NULL) {
-		lock_value (klass);
-		lock_value (value);
 		return NULL;
 	}
 
-	var->name = new_str (system, name);
+	var->name = name;
 	var->value = value;
 	var->next = klass->data.klass.members;
 	klass->data.klass.members = var;
-
-	lock_value (klass);
-	lock_value (value);
 
 	return var;
 }
 
 VALUE *
-get_member (VALUE *klass, char *name) {
+get_member (VALUE *klass, VALUE *name) {
 	VAR *var;
 
 	while (klass != NULL) {
 		for (var = klass->data.klass.members; var != NULL; var = var->next) {
-			if (!strcmp (var->name->data.str.str, name)) {
+			if (are_equal (name, var->name)) {
 				return var->value;
 			}
 		}
@@ -351,12 +339,16 @@ get_member (VALUE *klass, char *name) {
 void
 free_value (VALUE *value) {
 	VAR *rnext;
-	NODE *next;
+	struct _scriptix_node *next;
+
+	if (IS_NIL (value) || IS_NUM (value)) {
+		return;
+	}
 
 	if (IS_BLOCK (value)) {
 		while (value->data.nodes != NULL) {
 			next = value->data.nodes->next;
-			free_node (value->data.nodes);
+			sx_free (value->data.nodes);
 			value->data.nodes = next;
 		}
 	} else if (IS_ARRAY (value)) {
@@ -420,7 +412,7 @@ are_equal (VALUE *one, VALUE *two) {
 			return one->data.cfunc == two->data.cfunc;
 			break;
 		case VALUE_RANGE:
-			return one->data.range.start == two->data.range.start && one->data.range.end == two->data.range.end && one->data.range.step == two->data.range.step;
+			return one->data.range.start == two->data.range.start && one->data.range.end == two->data.range.end;
 			break;
 		default:
 			/* everything else must be *exact* value match, handled by pointer compare aboue */
@@ -430,16 +422,66 @@ are_equal (VALUE *one, VALUE *two) {
 }
 
 VALUE *
-add_stmt (VALUE *block, NODE *node) {
-	NODE *f;
+add_value (SYSTEM *system, VALUE *block, VALUE *value) {
+	struct _scriptix_node *f;
 
 	if (IS_BLOCK (block)) {
 		if (block->data.nodes == NULL) {
-			block->data.nodes = node;
+			lock_value (value);
+			block->data.nodes = sx_malloc (system, sizeof (struct _scriptix_node));
+			unlock_value (value);
+			if (block->data.nodes == NULL) {
+				return new_nil ();
+			}
+			block->data.nodes->next = NULL;
+			block->data.nodes->value = value;
+			block->data.nodes->op = 0;
+			block->data.nodes->count = 0;
 		} else {
 			for (f = block->data.nodes; f->next != NULL; f = f->next)
 				;
-			f->next = node;
+			lock_value (value);
+			f->next = sx_malloc (system, sizeof (struct _scriptix_node));
+			unlock_value (value);
+			if (f->next == NULL) {
+				return new_nil ();
+			}
+			f->next->next = NULL;
+			f->next->value = value;
+			f->next->op = 0;
+			f->next->count = 0;
+		}
+		return block;
+	} else {
+		return new_nil ();
+	}
+}
+
+VALUE *
+add_stmt (SYSTEM *system, VALUE *block, int op, unsigned int count) {
+	struct _scriptix_node *f;
+
+	if (IS_BLOCK (block)) {
+		if (block->data.nodes == NULL) {
+			block->data.nodes = sx_malloc (system, sizeof (struct _scriptix_node));
+			if (block->data.nodes == NULL) {
+				return new_nil ();
+			}
+			block->data.nodes->next = NULL;
+			block->data.nodes->value = NULL;
+			block->data.nodes->op = op;
+			block->data.nodes->count = count;
+		} else {
+			for (f = block->data.nodes; f->next != NULL; f = f->next)
+				;
+			f->next = sx_malloc (system, sizeof (struct _scriptix_node));
+			if (f->next == NULL) {
+				return new_nil ();
+			}
+			f->next->next = NULL;
+			f->next->value = NULL;
+			f->next->op = op;
+			f->next->count = count;
 		}
 		return block;
 	} else {
@@ -489,7 +531,7 @@ print_value (VALUE *value) {
 			}
 			break;
 		case VALUE_RANGE:
-			printf ("(%d..%d:%d)", value->data.range.start, value->data.range.end, value->data.range.step);
+			printf ("(%d..%d)", value->data.range.start, value->data.range.end);
 			break;
 		default:
 			printf ("<unknown:%d/%p>", type_of (value), value);
@@ -514,19 +556,22 @@ unlock_value (VALUE *value) {
 void
 mark_value (SYSTEM *system, VALUE *value) {
 	VAR *var;
-	NODE *node;
+	struct _scriptix_node *node;
 	int i;
 
 	switch (type_of (value)) {
 		case VALUE_CFUNC:
 		case VALUE_STRING:
 		case VALUE_RANGE:
+		case VALUE_NODE:
 			value->flags |= VFLAG_MARK;
 			break;
 		case VALUE_BLOCK:
 			value->flags |= VFLAG_MARK;
 			for (node = value->data.nodes; node != NULL; node = node->next) {
-				mark_node (system, node);
+				if (node->op == 0) {
+					mark_value (system, node->value);
+				}
 			}
 			break;
 		case VALUE_FUNC:

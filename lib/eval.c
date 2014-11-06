@@ -31,9 +31,10 @@
 
 #include "scriptix.h"
 
-int call_func (THREAD *thread, VALUE *func, unsigned int argc, unsigned int top, VALUE *self);
-int value_to_int (VALUE *value);
-int eval_node (THREAD *thread, NODE *node);
+__INLINE__ int call_func (THREAD *thread, VALUE *func, unsigned int argc, unsigned int top, VALUE *self);
+__INLINE__ int value_to_int (VALUE *value);
+__INLINE__ VALUE *eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top);
+int eval_node (THREAD *thread, int op, int count);
 
 int
 call_func (THREAD *thread, VALUE *func, unsigned int argc, unsigned int top, VALUE *self) {
@@ -108,23 +109,13 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 			break;
 		case OP_CALL:
 			if (IS_FUNC (get_value (thread, top))) {
-				if (argc > 2) {
-					call_func (thread, get_value (thread, top), argc - 2, top + 2, get_value (thread, top + 1));
-				} else if (argc > 1) {
-					call_func (thread, get_value (thread, top), 0, top + 2, get_value (thread, top + 1));
-				} else {
-					call_func (thread, get_value (thread, top), 0, top + 1, NULL);
-				}
+				call_func (thread, get_value (thread, top), argc - 1, top + 1, NULL);
 				ret = get_value (thread, -1);
-				pop_value (thread, -1, 1);
+				return ret;
 			} else if (IS_CFUNC (get_value (thread, top))) {
-				if (argc > 2) {
-					ret = get_value (thread, top)->data.cfunc (thread, get_value (thread, top + 1), argc - 2, top + 2);
-				} else if (argc > 1) {
-					ret = get_value (thread, top)->data.cfunc (thread, get_value (thread, top + 1), 0, top + 2);
-				} else {
-					ret = get_value (thread, top)->data.cfunc (thread, new_nil (), 0, top + 1);
-				}
+				ret = get_value (thread, top)->data.cfunc (thread, NULL, argc - 1, top + 1);
+				push_value (thread, ret);
+				return ret;
 			}
 			break;
 		case OP_GT:
@@ -219,17 +210,31 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 			}
 			break;
 		case OP_LOOKUP:
-			if (type_of (get_value (thread, top)) == VALUE_STRING && get_value (thread, top)->data.str.len > 0) {
-				var = do_get_var (thread, get_value (thread, top), TO_INT (get_value (thread, top + 1)));
-				if (var) {
-					ret = var->value;
+			var = NULL;
+			if (argc == 1) {
+				if (type_of (get_value (thread, top)) == VALUE_STRING && get_value (thread, top)->data.str.len > 0) {
+					var = do_get_var (thread, get_value (thread, top), SCOPE_DEF);
 				}
+			} else if (argc == 2) {
+				if (type_of (get_value (thread, top + 1)) == VALUE_STRING && get_value (thread, top + 1)->data.str.len > 0) {
+					var = do_get_var (thread, get_value (thread, top + 1), TO_INT (get_value (thread, top)));
+				}
+			}
+			if (var) {
+				ret = var->value;
 			}
 			break;
 		case OP_ASSIGN:
-			if (IS_STRING (get_value (thread, top)) && get_value (thread, top)->data.str.len > 0 && argc > 1) {
-				ret = get_value (thread, top + 1);
-				do_define_var (thread, get_value (thread, top), get_value (thread, top + 1), TO_INT (get_value (thread, top + 2)));
+			if (argc == 2) {
+				if (IS_STRING (get_value (thread, top)) && get_value (thread, top)->data.str.len > 0) {
+					ret = get_value (thread, top + 1);
+					do_define_var (thread, get_value (thread, top), get_value (thread, top + 1), SCOPE_DEF);
+				}
+			} else {
+				if (IS_STRING (get_value (thread, top + 1)) && get_value (thread, top + 1)->data.str.len > 0) {
+					ret = get_value (thread, top + 2);
+					do_define_var (thread, get_value (thread, top + 1), get_value (thread, top + 2), TO_INT (get_value (thread, top)));
+				}
 			}
 			break;
 		case OP_INDEX:
@@ -243,7 +248,11 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 			if (IS_STRING (get_value (thread, top)) && get_value (thread, top)->data.str.len > 0) {
 				var = get_var (thread, get_value (thread, top));
 				if (var) {
-					ret = var->value = new_num (value_to_int (var->value) + value_to_int (get_value (thread, top + 1)));
+					if (argc == 2) {
+						ret = var->value = new_num (value_to_int (var->value) + value_to_int (get_value (thread, top + 1)));
+					} else {
+						ret = var->value = new_num (value_to_int (var->value) + 1);
+					}
 				}
 			}
 			break;
@@ -252,7 +261,11 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 				var = get_var (thread, get_value (thread, top));
 				if (var) {
 					ret = var->value;
-					var->value = new_num (value_to_int (var->value) + value_to_int (get_value (thread, top + 1)));
+					if (argc == 2) {
+						var->value = new_num (value_to_int (var->value) + value_to_int (get_value (thread, top + 1)));
+					} else {
+						var->value = new_num (value_to_int (var->value) + 1);
+					}
 				}
 			}
 			break;
@@ -260,7 +273,11 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 			if (IS_STRING (get_value (thread, top)) && get_value (thread, top)->data.str.len > 0) {
 				var = get_var (thread, get_value (thread, top));
 				if (var) {
-					ret = var->value = new_num (value_to_int (var->value) - value_to_int (get_value (thread, top + 1)));
+					if (argc == 2) {
+						ret = var->value = new_num (value_to_int (var->value) - value_to_int (get_value (thread, top + 1)));
+					} else {
+						ret = var->value = new_num (value_to_int (var->value) - 1);
+					}
 				}
 			}
 			break;
@@ -269,7 +286,11 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 				var = get_var (thread, get_value (thread, top));
 				if (var) {
 					ret = var->value;
-					var->value = new_num (value_to_int (var->value) - value_to_int (get_value (thread, top + 1)));
+					if (argc == 2) {
+						var->value = new_num (value_to_int (var->value) - value_to_int (get_value (thread, top + 1)));
+					} else {
+						var->value = new_num (value_to_int (var->value) - 1);
+					}
 				}
 			}
 			break;
@@ -293,7 +314,7 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 			break;
 		case OP_SETMEMBER:
 			if (IS_CLASS (get_value (thread, top)) && IS_STRING (get_value (thread, top + 1)) && get_value (thread, top + 1)->data.str.len > 0) {
-				if (set_member (thread->system, get_value (thread, top), get_value (thread, top + 1)->data.str.str, get_value (thread, top + 2))) {
+				if (set_member (thread->system, get_value (thread, top), get_value (thread, top + 1), get_value (thread, top + 2))) {
 					ret = get_value (thread, top + 2);
 				}
 			}
@@ -306,33 +327,40 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 			}
 			break;
 		case OP_NEWCLASS:
-			if (argc > 0 && IS_CLASS (get_value (thread, top))) {
+			if (argc == 2) {
 				ret = new_class (thread->system, get_value (thread, top));
-			} else {
-				ret = new_class (thread->system, NULL);
-			}
-			if (argc > 1 && IS_BLOCK (get_value (thread, top + 1))) {
 				if (push_context (thread, get_value (thread, top + 1), 0) != NULL) {
 					eval (thread, get_value (thread, top + 1));
+					pop_value (thread, -1, 1);
 
 					/* cheat, steal arguments */
 					ret->data.klass.members = thread->context_stack[thread->context - 1].vars;
 					thread->context_stack[thread->context - 1].vars = NULL;
 					pop_context (thread);
+				}
+			} else {
+				ret = new_class (thread->system, NULL);
+				if (push_context (thread, get_value (thread, top), 0) != NULL) {
+					eval (thread, get_value (thread, top));
 					pop_value (thread, -1, 1);
+
+					/* cheat, steal arguments */
+					ret->data.klass.members = thread->context_stack[thread->context - 1].vars;
+					thread->context_stack[thread->context - 1].vars = NULL;
+					pop_context (thread);
 				}
 			}
 			break;
 		case OP_MEMBER:
-			if (IS_CLASS (get_value (thread, top)) && IS_STRING (get_value (thread, top + 1)) && get_value (thread, top + 1)->data.str.len > 0) {
-				ret = get_member (get_value (thread, top), get_value (thread, top + 1)->data.str.str);
+			if (IS_CLASS (get_value (thread, top))) {
+				ret = get_member (get_value (thread, top), get_value (thread, top + 1));
 			}
 			break;
 		case OP_NEWINSTANCE:
 			if (argc > 0 && IS_CLASS (get_value (thread, top))) {
 				ret = new_class (thread->system, get_value (thread, top));
 				if (ret) {
-					value = get_member (ret, "init");
+					value = get_member (ret, new_str (thread->system, "init"));
 					if (IS_FUNC (value)) {
 						call_func (thread, value, 0, top + 2, ret);
 						pop_value (thread, -1, 1);
@@ -348,76 +376,28 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 		case OP_TYPEOF:
 			ret = new_num (type_of (get_value (thread, top)));
 			break;
+		case OP_NEWFUNC:
+			ret = new_func (thread->system, get_value (thread, top), get_value (thread, top + 1));
+			break;
+		case OP_METHOD:
+			ret = get_member (get_value (thread, top), get_value (thread, top + 1));
+			if (IS_FUNC (ret)) {
+				call_func (thread, ret, argc - 2, top + 2, get_value (thread, top));
+				ret = get_value (thread, -1);
+				return ret;
+			} else if (IS_CFUNC (ret)) {
+				ret = ret->data.cfunc (thread, get_value (thread, top), argc - 2, top + 2);
+				push_value (thread, ret);
+				return ret;
+			}
+			break;
+		case OP_NEWRANGE:
+			ret = new_range (thread->system, value_to_int (get_value (thread, top)), value_to_int (get_value (thread, top + 1)));
+			break;
 	}
 
 	push_value (thread, ret);
 	return ret;
-}
-
-int
-eval_for (THREAD *thread, NODE *node) {
-	int i;
-	VALUE *loop;
-
-	if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-		return thread->state;
-	}
-	if (!IS_STRING (get_value (thread, -1))) {
-		pop_value (thread, -1, 1);
-		push_value (thread, new_nil ());
-		/* raise error */
-		return thread->state;
-	}
-	if (eval_node (thread, node->data.expr.nodes[2]) != STATE_RUN) {
-		pop_value (thread, -2, 1);
-		return thread->state;
-	}
-	if (eval_node (thread, node->data.expr.nodes[1]) != STATE_RUN) {
-		pop_value (thread, -3, 2);
-		return thread->state;
-	}
-	loop = get_value (thread, -1);
-	if (IS_ARRAY (loop)) {
-		if (loop->data.array.count == 0) {
-			pop_value (thread, -3, 3);
-			push_value (thread, new_nil ());
-			return thread->state;
-		}
-		push_context (thread, get_value (thread, -2), 0);
-		i = 0;
-		do {
-			if (i > 0) {
-				pop_value (thread, -1, 1);
-			}
-			define_local_var (thread, get_value (thread, -3), loop->data.array.list[i]);
-			if (eval (thread, get_value (thread, -2)) != STATE_RUN) {
-				break;
-			}
-			++ i;
-		} while (i < loop->data.array.count);
-	} else if (IS_RANGE (get_value (thread, -1))) {
-		push_context (thread, get_value (thread, -2), 0);
-		push_value (thread, new_nil ());
-		for (i = loop->data.range.start; loop->data.range.step > 0 ? (i <= loop->data.range.end) : (i >= loop->data.range.end); i += loop->data.range.step) {
-			pop_value (thread, -1, 1);
-			define_local_var (thread, get_value (thread, -3), new_num (i));
-			if (eval (thread, get_value (thread, -2)) != STATE_RUN) {
-				break;
-			}
-		}
-	} else {
-		pop_value (thread, -3, 3);
-		push_value (thread, new_nil ());
-		/* raise error */
-		return thread->state;
-	}
-
-	pop_value (thread, -4, 3);
-	pop_context (thread);
-	if (thread->state == STATE_BREAK) {
-		thread->state = STATE_RUN;
-	}
-	return thread->state;
 }
 
 int
@@ -440,202 +420,181 @@ value_to_int (VALUE *value) {
 }
 
 int
-eval_node (THREAD *thread, NODE *node) {
+eval_node (THREAD *thread, int op, int count) {
 	unsigned int i;
+	int step;
+	VALUE *loop, *name;
 
-	if (node == NULL) {
-		push_value (thread, new_nil ());
-		return thread->state;
-	}
-
-	if (node->type == NODE_VALUE) {
-		push_value (thread, node->data.value);
-	} else {
-		if (node->data.expr.op >= 100) { /* special operator */
-			switch (node->data.expr.op) {
-				case OP_IF:
-					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-						break;
-					}
-					if (is_true (get_value (thread, -1))) {
-						pop_value (thread, -1, 1);
-						if (eval_node (thread, node->data.expr.nodes[1]) != STATE_RUN) {
-							break;
-						}
-						eval (thread, get_value (thread, -1));
-						pop_value (thread, -2, 1);
-					} else if (node->data.expr.count > 2) {
-						pop_value (thread, -1, 1);
-						if (eval_node (thread, node->data.expr.nodes[2]) != STATE_RUN) {
-							break;
-						}
-						eval (thread, get_value (thread, -1));
-						pop_value (thread, -2, 1);
-					} else {
-						pop_value (thread, -1, 1);
-						push_value (thread, new_nil ());
-					}
-					break;
-				case OP_WHILE:
-					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-						break;
-					}
-					if (!is_true (get_value (thread, -1))) {
-						pop_value (thread, -1, 1);
-						push_value (thread, new_nil ());
-						break;
-					}
-					while (thread->state == STATE_RUN) {
-						pop_value (thread, -1, 1);
-						if (eval_node (thread, node->data.expr.nodes[1]) != STATE_RUN) {
-							if (thread->state == STATE_BREAK) {
-								thread->state = STATE_RUN;
-							}
-						}
-						push_context (thread, get_value (thread, -1), 0);
-						if (eval (thread, get_value (thread, -1)) != STATE_RUN) {
-							pop_value (thread, -2, 1);
-							if (thread->state == STATE_BREAK) {
-								thread->state = STATE_RUN;
-								pop_context (thread);
-								break;
-							}
-						}
-						pop_context (thread);
-						pop_value (thread, -2, 1);
-						if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-							pop_value (thread, -2, 1);
-							break;
-						}
-						if (!is_true (get_value (thread, -1))) {
-							pop_value (thread, -1, 1);
-							break;
-						}
-					}
-					break;
-				case OP_TRY:
-					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-						break;
-					}
-					push_context (thread, get_value (thread, -1), 0);
-					if (eval (thread, get_value (thread, -1)) != STATE_RUN) {
-						pop_value (thread, -2, 1);
-						if (thread->state != STATE_ERROR) {
-							pop_context (thread);
-							break;
-						}
-						thread->state = STATE_RUN;
-						if (eval_node (thread, node->data.expr.nodes[1]) != STATE_RUN) {
-							pop_value (thread, -2, 1);
-							pop_context (thread);
-							break;
-						}
-						define_local_var (thread, new_str (thread->system, "error"), get_value (thread, -2));
-						eval (thread, get_value (thread, -1));
-						pop_value (thread, -3, 2);
-					}
-					pop_context (thread);
-					pop_value (thread, -2, 1);
-					break;
-				case OP_FOR:
-					eval_for (thread, node);
-					break;
-				case OP_BREAK:
-					if (node->data.expr.count > 0) {
-						eval_node (thread, node->data.expr.nodes[0]);
-					} else {
-						push_value (thread, new_nil ());
-					}
-					if (thread->state == STATE_RUN) {
-						thread->state = STATE_BREAK;
-					}
-					break;
-				case OP_EVAL:
-					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-						break;
-					}
-					push_context (thread, get_value (thread, -1), 0);
+	if (op >= 100) { /* special operator */
+		switch (op) {
+			case OP_IF:
+				if (is_true (get_value (thread, -3))) {
+					eval (thread, get_value (thread, -2));
+				} else {
 					eval (thread, get_value (thread, -1));
-					pop_context (thread);
-					pop_value (thread, -2, 1);
-					break;
-				case OP_RETURN:
-					if (node->data.expr.count > 0) {
-						eval_node (thread, node->data.expr.nodes[0]);
-					} else {
-						push_value (thread, new_nil ());
-					}
-					if (thread->state == STATE_RUN || thread->state == STATE_BREAK) {
-						thread->state = STATE_RETURN;
-					}
-					break;
-				case OP_RAISE:
-					eval_node (thread, node->data.expr.nodes[0]);
-					thread->state = STATE_ERROR;
-					break;
-				case OP_AND:
-					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-						return thread->state;
+				}
+				break;
+			case OP_WHILE:
+				push_context (thread, get_value (thread, -1), 0);
+				while (thread->state == STATE_RUN) {
+					if (eval (thread, get_value (thread, -2)) != STATE_RUN) {
+						break;
 					}
 					if (!is_true (get_value (thread, -1))) {
-						pop_value (thread, -1, 1);
-						push_value (thread, new_nil ());
-						return thread->state;
+						pop_value (thread, -1, 2);
+						break;
 					}
 					pop_value (thread, -1, 1);
-					if (eval_node (thread, node->data.expr.nodes[1]) != STATE_RUN) {
-						return thread->state;
-					}
-					if (is_true (get_value (thread, -1))) {
-						pop_value (thread, -1, 1);
-						push_value (thread, new_num (1));
-					} else {
-						pop_value (thread, -1, 1);
-						push_value (thread, new_nil ());
-					}
-					break;
-				case OP_OR:
-					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-						return thread->state;
-					}
-					if (is_true (get_value (thread, -1))) {
-						pop_value (thread, -1, 1);
-						push_value (thread, new_nil ());
-						return thread->state;
+					if (eval (thread, get_value (thread, -1)) != STATE_RUN) {
+						break;
 					}
 					pop_value (thread, -1, 1);
-					if (eval_node (thread, node->data.expr.nodes[1]) != STATE_RUN) {
-						return thread->state;
-					}
-					if (is_true (get_value (thread, -1))) {
-						pop_value (thread, -1, 1);
-						push_value (thread, new_num (1));
-					} else {
-						pop_value (thread, -1, 1);
-						push_value (thread, new_nil ());
-					}
-					break;
-			}
-		} else { /* normal operator */
-			for (i = 0; i < node->data.expr.count; i ++) {
-				if (eval_node (thread, node->data.expr.nodes[i]) != STATE_RUN) {
-					if (i > 0) {
-						pop_value (thread, -1 - i, i);
-					}
-					return thread->state;
 				}
-			}
-			eval_expr (thread, node->data.expr.op, node->data.expr.count, thread->data - node->data.expr.count);
-			pop_value (thread, -1 - node->data.expr.count, node->data.expr.count);
+				pop_context (thread);
+				if (thread->state == STATE_BREAK) {
+					thread->state = STATE_RUN;
+				} else if (thread->state == STATE_RUN) {
+					push_value (thread, new_nil ());
+				}
+				break;
+			case OP_FOR:
+				if (count == 4) {
+					name = get_value (thread, -4);
+					loop = get_value (thread, -3);
+					step = value_to_int (get_value (thread, -2));
+				} else {
+					name = get_value (thread, -3);
+					loop = get_value (thread, -2);
+					step = 1;
+				}
+				if (IS_ARRAY (loop)) {
+					if (loop->data.array.count == 0) {
+						push_value (thread, new_nil ());
+						break;
+					}
+					push_context (thread, get_value (thread, -1), 0);
+					i = (step > 0) ? 0 : (loop->data.array.count - 1);
+					push_value (thread, new_nil ());
+					do {
+						pop_value (thread, -1, 1);
+						define_local_var (thread, name, loop->data.array.list[i]);
+						if (eval (thread, get_value (thread, -1)) != STATE_RUN) {
+							break;
+						}
+						i += step;
+					} while ((step > 0) ? (i < loop->data.array.count) : (i >= 0));
+					pop_context (thread);
+				} else if (IS_RANGE (loop)) {
+					push_context (thread, get_value (thread, -1), 0);
+					push_value (thread, new_nil ());
+					for (i = loop->data.range.start; step > 0 ? (i <= loop->data.range.end) : (i >= loop->data.range.end); i += step) {
+						pop_value (thread, -1, 1);
+						define_local_var (thread, name, new_num (i));
+						if (eval (thread, get_value (thread, -1)) != STATE_RUN) {
+							break;
+						}
+					}
+					pop_context (thread);
+				} else {
+					push_value (thread, new_nil ());
+					/* raise error */
+					break;
+				}
+
+				if (thread->state == STATE_BREAK) {
+					thread->state = STATE_RUN;
+				}
+				break;
+			case OP_TRY:
+				push_context (thread, get_value (thread, -2), 0);
+				if (eval (thread, get_value (thread, -2)) != STATE_RUN) {
+					if (thread->state != STATE_ERROR) {
+						pop_context (thread);
+						break;
+					}
+					thread->state = STATE_RUN;
+					define_local_var (thread, new_str (thread->system, "error"), get_value (thread, -1));
+					pop_value (thread, -1, 1);
+					thread->context_stack[thread->context - 1].block = get_value (thread, -1);
+					eval (thread, get_value (thread, -1));
+				}
+				pop_context (thread);
+				break;
+			case OP_BREAK:
+				if (count == 0) {
+					push_value (thread, new_nil ());
+				} else {
+					push_value (thread, get_value (thread, -1));
+				}
+				if (thread->state == STATE_RUN) {
+					thread->state = STATE_BREAK;
+				}
+				break;
+			case OP_EVAL:
+				push_context (thread, get_value (thread, -1), 0);
+				eval (thread, get_value (thread, -1));
+				pop_context (thread);
+				break;
+			case OP_RETURN:
+				if (count == 0) {
+					push_value (thread, new_nil ());
+				} else {
+					push_value (thread, get_value (thread, -1));
+				}
+				if (thread->state == STATE_RUN || thread->state == STATE_BREAK) {
+					thread->state = STATE_RETURN;
+				}
+				break;
+			case OP_RAISE:
+				push_value (thread, get_value (thread, -1));
+				thread->state = STATE_ERROR;
+				break;
+			case OP_AND:
+				eval (thread, get_value (thread, -2));
+				if (!is_true (get_value (thread, -1))) {
+					pop_value (thread, -1, 1);
+					push_value (thread, new_nil ());
+					break;
+				}
+				eval (thread, get_value (thread, -1));
+				if (!is_true (get_value (thread, -1))) {
+					push_value (thread, new_nil ());
+				} else {
+					push_value (thread, new_num (1));
+				}
+				pop_value (thread, -2, 1);
+				break;
+			case OP_OR:
+				eval (thread, get_value (thread, -2));
+				if (is_true (get_value (thread, -1))) {
+					pop_value (thread, -1, 1);
+					push_value (thread, new_num (1));
+					break;
+				}
+				eval (thread, get_value (thread, -1));
+				if (!is_true (get_value (thread, -1))) {
+					push_value (thread, new_nil ());
+				} else {
+					push_value (thread, new_num (1));
+				}
+				pop_value (thread, -2, 1);
+				break;
+			case OP_POP:
+				pop_value (thread, -1, 1);
+				break;
 		}
+	} else { /* normal operator */
+		eval_expr (thread, op, count, thread->data - count);
 	}
+
+	pop_value (thread, -1 - count, count);
 
 	return thread->state;
 }
 
 int
 eval (THREAD *thread, VALUE *block) {
-	NODE *node;
+	struct _scriptix_node *node;
 
 	if (!IS_BLOCK (block)) {
 		push_value (thread, block);
@@ -644,12 +603,13 @@ eval (THREAD *thread, VALUE *block) {
 
 	lock_value (block);
 
-	push_value (thread, new_nil ());
-
 	for (node = block->data.nodes; node != NULL; node = node->next) {
-		pop_value (thread, -1, 1);
-		if (eval_node (thread, node) != STATE_RUN) {
-			break;
+		if (node->op == 0) {
+			push_value (thread, node->value);
+		} else {
+			if (eval_node (thread, node->op, node->count) != STATE_RUN) {
+				break;
+			}
 		}
 	}
 

@@ -4,7 +4,8 @@
 #ifndef YYSTYPE
 typedef union {
 	VALUE *value;
-	NODE *node;
+	char name[MAX_NAME_LEN + 1];
+	unsigned int count;
 } yystype;
 # define YYSTYPE yystype
 #endif
@@ -47,10 +48,12 @@ typedef union {
 # define	TIN	293
 # define	TFOR	294
 # define	TMETHOD	295
-# define	TISA	296
-# define	CUNARY	297
-# define	CPARAN	298
-# define	TTYPE	299
+# define	TSTEP	296
+# define	TTO	297
+# define	TISA	298
+# define	CUNARY	299
+# define	CPARAN	300
+# define	TTYPE	301
 
 
 extern YYSTYPE sxlval;

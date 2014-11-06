@@ -8,24 +8,23 @@ class k
 	end
 end
 k.test = function ()
-	print ('in k.test')
 	return self.name
 end
 
 g = new k
 
 if k->test () != 'kclass' then
-	print ('k.test() failure')
+	print ('k->test() failure')
 	return 1
 end
 
-k.setvar ('hey')
+k->setvar ('hey')
 if k.var != 'hey' or g.var != 'hey' then
 	print ('*.var failure')
 	return 1
 end
 
-g.setvar ('hmm')
+g->setvar ('hmm')
 if k.var != 'hey' or g.var != 'hmm' then
 	print ('*.var failure 2')
 	return 1

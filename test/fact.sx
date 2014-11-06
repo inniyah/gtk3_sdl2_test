@@ -1,25 +1,16 @@
-function fact1(arg)
+function nfact1(arg)
 	if !arg then 0 else arg + fact (arg - 1) end
 end
 
-function fact2 (arg)
+function fact (arg)
 	return (arg + 1) * arg / 2
 end
 
 max = argv[1]
-fact = fact1
-
-if argv[2] == 'fact2' then
-	fact = fact2
-end
-
-if ! max then
-	max = 0
-end
 
 num = 0
 while fact (num + 1) <= max do
-	num ++
+	num = num + 1
 end 
 
 print ('Smallest factorial within ', max, ': fact(', num, ') = ', fact (num))

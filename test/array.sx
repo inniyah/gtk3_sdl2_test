@@ -1,9 +1,8 @@
 a = {'abc','def','ghi'}
 
 function test ()
-	print (a)
 	for i in a do
-		for n in 1..5 do
+		for n in 3..9 step 3 do
 			print ('In - ', n, ':', i)
 		end
 	end

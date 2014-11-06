@@ -32,9 +32,10 @@
 extern "C" {
 #endif
 
-#define SCRIPTIX_VERSION "0.7"
+#define SCRIPTIX_VERSION "0.8"
 
-#define STACK_CHUNK_SIZE 50
+#define DATA_STACK_CHUNK_SIZE 50
+#define CONTEXT_STACK_CHUNK_SIZE 10
 #define GC_THRESH_SIZE 200
 
 #ifdef __GNUC__
@@ -42,6 +43,8 @@ extern "C" {
 #else
 	#define __INLINE__
 #endif
+
+#define MAX_NAME_LEN 128
 
 #define VALUE_NIL 0
 #define VALUE_NUM 1
@@ -52,10 +55,12 @@ extern "C" {
 #define VALUE_ARRAY 6
 #define VALUE_CLASS 7
 #define VALUE_RANGE 8
+#define VALUE_NODE 9
 
 #define NODE_VALUE 1
 #define NODE_EXPR 2
 
+#define OP_NIL 0
 #define OP_ADD 1
 #define OP_SUBTRACT 2
 #define OP_NEGATE 3
@@ -86,6 +91,9 @@ extern "C" {
 #define OP_ISA 28
 #define OP_TYPEOF 29
 #define OP_EVAL 30
+#define OP_NEWFUNC 31
+#define OP_METHOD 32
+#define OP_NEWRANGE 33
 
 #define OP_FOR 100
 #define OP_IF 101
@@ -96,6 +104,7 @@ extern "C" {
 #define OP_OR 106
 #define OP_AND 107
 #define OP_TRY 108
+#define OP_POP 109
 
 #define VFLAG_MARK 0x01
 #define VFLAG_CONST 0x02
@@ -135,14 +144,15 @@ extern __INLINE__ void *sx_dupmem (SYSTEM *system, void *mem, unsigned long size
 #define TO_STR(s) ((s)->data.str.str)
 extern VALUE *new_str (SYSTEM *system, char *str);
 extern VALUE *new_block (SYSTEM *system);
-extern VALUE *add_stmt (VALUE *block, NODE *node);
+extern VALUE *add_value (SYSTEM *system, VALUE *block, VALUE *value);
+extern VALUE *add_stmt (SYSTEM *system, VALUE *block, int op, unsigned int count);
 extern VALUE *new_func (SYSTEM *system, VALUE *args, VALUE *body);
 extern VALUE *new_cfunc (SYSTEM *system, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int));
 extern VALUE *new_array (SYSTEM *system, unsigned int argc, VALUE **argv);
 extern VALUE *new_stack_array (THREAD *thread, unsigned int argc, unsigned int top);
 extern VALUE *new_class (SYSTEM *system, VALUE *parent);
 extern VALUE *new_user_class (SYSTEM *system, VALUE *parent, void *data, void (*free_data)(void *data), void (*ref_data)(SYSTEM *system, void *data));
-extern VALUE *new_range (SYSTEM *system, int start, int end, int step);
+extern VALUE *new_range (SYSTEM *system, int start, int end);
 extern VALUE *copy_value (SYSTEM *system, VALUE *value);
 extern __INLINE__ void mark_value (SYSTEM *system, VALUE *value);
 extern int is_true (VALUE *value);
@@ -151,8 +161,8 @@ extern void print_value (VALUE *value);
 extern __INLINE__ void lock_value (VALUE *value);
 extern __INLINE__ void unlock_value (VALUE *value);
 extern int class_is_a (VALUE *klass, VALUE *par);
-extern VAR *set_member (SYSTEM *system, VALUE *klass, char *name, VALUE *value);
-extern VALUE *get_member (VALUE *klass, char *name);
+extern VAR *set_member (SYSTEM *system, VALUE *klass, VALUE *name, VALUE *value);
+extern VALUE *get_member (VALUE *klass, VALUE *name);
 extern void free_value (VALUE *value);
 
 #define type_of(v) ((v) == (NULL) ? VALUE_NIL : ((long)(v) & NUM_MARK) ? VALUE_NUM : (v)->type)
@@ -165,11 +175,7 @@ extern void free_value (VALUE *value);
 #define IS_ARRAY(v) ((type_of ((v))) == VALUE_ARRAY)
 #define IS_CLASS(v) ((type_of ((v))) == VALUE_CLASS)
 #define IS_RANGE(v) ((type_of ((v))) == VALUE_RANGE)
-
-extern NODE *new_node (SYSTEM *system, VALUE *value);
-extern NODE *new_expr (SYSTEM *system, char op, int count, ...);
-extern void free_node (NODE *node);
-extern void mark_node (SYSTEM *system, NODE *node);
+#define IS_NODE(v) ((type_of ((v))) == VALUE_NODE)
 
 extern int eval (THREAD *thread, VALUE *value);
 #define thread_break(t) ((t) & BFLAG_BREAK || (t) & BFLAG_RETURN || (t) & BFLAG_EXIT)
@@ -208,6 +214,14 @@ extern __INLINE__ void pop_value (THREAD *thread, int start, unsigned int len);
 /* standard library calls */
 extern void init_stdlib (SYSTEM *system);
 
+/* special struct for nodes */
+struct _scriptix_node {
+	int op;
+	int count;
+	VALUE *value;
+	struct _scriptix_node *next;
+};
+
 struct scriptix_value {
 	char type;
 	unsigned char flags;
@@ -237,24 +251,10 @@ struct scriptix_value {
 		struct {
 			int start;
 			int end;
-			int step;
 		} range;
 		VALUE *(*cfunc)(THREAD *, VALUE *, unsigned int, unsigned int);
-		NODE *nodes;
+		struct _scriptix_node *nodes;
 	} data;
-};
-
-struct scriptix_node {
-	char type;
-	union {
-		VALUE *value;
-		struct {
-			unsigned char op;
-			unsigned int count;
-			NODE **nodes;
-		} expr;
-	} data;
-	NODE *next;
 };
 
 struct scriptix_var {

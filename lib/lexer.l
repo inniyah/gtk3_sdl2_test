@@ -107,8 +107,13 @@
 			return TIN;
 		} else if (!strcasecmp (yytext, "for")) {
 			return TFOR;
+		} else if (!strcasecmp (yytext, "step")) {
+			return TSTEP;
+		} else if (!strcasecmp (yytext, "to")) {
+			return TTO;
 		} else {
-			sxlval.value = new_str (parse_system, yytext);
+			strncpy (sxlval.name, yytext, MAX_NAME_LEN);
+			sxlval.name[MAX_NAME_LEN] = 0;
 			return TNAME;
 		}
 	}
