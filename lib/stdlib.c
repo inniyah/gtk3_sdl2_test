@@ -32,19 +32,30 @@
 
 #include "scriptix.h"
 
-VALUE *
-sx_stdlib_print (THREAD *thread, VALUE *self, unsigned int argc, unsigned int top) {
+SX_VALUE *
+sx_stdlib_thread_id (SX_THREAD *thread, SX_VALUE *self, unsigned int argc, unsigned top) {
+	return sx_new_num ((long)thread >> 2);
+}
+
+SX_VALUE *
+sx_stdlib_print (SX_THREAD *thread, SX_VALUE *self, unsigned int argc, unsigned int top) {
 	unsigned int i;
 	for (i = 0; i < argc; i ++) {
 		sx_print_value (sx_get_value (thread, top + i));
 	}
-	printf ("\n");
 	return sx_new_nil ();
 }
 
-VALUE *
-sx_stdlib_concat (THREAD *thread, VALUE *self, unsigned int argc, unsigned int top) {
-	VALUE *ret, *one, *two;
+SX_VALUE *
+sx_stdlib_printl (SX_THREAD *thread, SX_VALUE *self, unsigned int argc, unsigned int top) {
+	sx_stdlib_print (thread, self, argc, top);
+	putchar ('\n');
+	return sx_new_nil ();
+}
+
+SX_VALUE *
+sx_stdlib_concat (SX_THREAD *thread, SX_VALUE *self, unsigned int argc, unsigned int top) {
+	SX_VALUE *ret, *one, *two;
 
 	if (argc != 2) {
 		return sx_new_nil ();
@@ -77,7 +88,9 @@ sx_stdlib_concat (THREAD *thread, VALUE *self, unsigned int argc, unsigned int t
 }
 
 void
-sx_init_stdlib (SYSTEM *system) {
+sx_init_stdlib (SX_SYSTEM *system) {
 	sx_define_cfunc (system, "print", sx_stdlib_print);
+	sx_define_cfunc (system, "printl", sx_stdlib_printl);
 	sx_define_cfunc (system, "concat", sx_stdlib_concat);
+	sx_define_cfunc (system, "get_tid", sx_stdlib_thread_id);
 }

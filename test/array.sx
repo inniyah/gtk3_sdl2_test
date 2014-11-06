@@ -3,7 +3,7 @@ a = {'abc','def','ghi'}
 function test ()
 	for i in a do
 		for n in 3..9 step 3 do
-			print ('In - ', n, ':', i)
+			printl ('In - ', n, ':', i)
 		end
 	end
 end

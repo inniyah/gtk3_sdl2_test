@@ -7,6 +7,7 @@ package=scriptix
 build:
 	$(checkdir)
 	
+	./configure --prefix=/usr
 	$(MAKE)
 	touch build
 
@@ -28,7 +29,7 @@ binary-arch: checkroot build
 	-rm -rf debian/tmp
 	install -d debian/tmp
 	cd debian/tmp && install -d `cat ../dirs`
-	$(MAKE) install PREFIX=/usr DESTDIR=`pwd`/debian/tmp
+	$(MAKE) install DESTDIR=`pwd`/debian/tmp
 	rm -f `pwd`/debian/tmp/usr/share/doc/scriptix/COPYING
 # Must have debmake installed for this to work. Otherwise please copy
 # /usr/bin/debstd into the debian directory and change debstd to debian/debstd

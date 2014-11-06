@@ -41,3 +41,11 @@ dist: all
 	mv scriptix/ scriptix-@VERSION@/
 	tar -zcf scriptix-@VERSION@.tar.gz scriptix-@VERSION@/
 	rm -rf scriptix-@VERSION@/
+
+deb:
+	debuild
+
+rpm: dist
+	rpm -ta scriptix-@VERSION@.tar.gz
+
+.PHONY: deb rpm dist install clean all dist-clean

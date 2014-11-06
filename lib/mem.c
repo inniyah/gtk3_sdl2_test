@@ -33,7 +33,7 @@
 #include "scriptix.h"
 
 void *
-sx_malloc (SYSTEM *system, unsigned long size) {
+sx_malloc (SX_SYSTEM *system, unsigned long size) {
 	void *mem = malloc (size);
 	if (mem == NULL && system != NULL) {
 		sx_run_gc (system);
@@ -43,7 +43,7 @@ sx_malloc (SYSTEM *system, unsigned long size) {
 }
 
 void *
-sx_dupmem (SYSTEM *system, void *mem, unsigned long size) {
+sx_dupmem (SX_SYSTEM *system, void *mem, unsigned long size) {
 	void *new_mem = sx_malloc (system, size);
 	if (new_mem == NULL) {
 		return NULL;

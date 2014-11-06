@@ -1,11 +1,11 @@
 try
 	raise StackError
-	print ('oops - didnt raise')
+	printl ('oops - didnt raise')
 	return 1
 rescue SXError error
-	print ('ok, caught it')
+	printl ('ok, caught it')
 	return 0
 end
 
-print ('oops - didnt catch')
+printl ('oops - didnt catch')
 return 1

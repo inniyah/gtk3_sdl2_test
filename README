@@ -20,60 +20,24 @@ The list of current Scriptix features include:
 	While/until/do/for loops and blocks
 	Ranges
 
-Planned/future features include:
+Planned/future features (i.e. Todo list):
 
-	Regular expressions
+	1.0:
 	Pre-emptive threading
+	General cleanups and bug fixes
+	A moderate standard library, useful for simple embedding purposes
+	Use of exceptions where necessary
+
+	2.0:
 	Re-entrant/threadable parsers
 	Split up _scriptix_value
+	Security Model
+	Function statements, i.e. print 'notice lack of parans'
+	Constants
+	Virtual variables
+	Regular expressions
 
-The one needing the most explanation is likely the pre-emptive threading.  The
-idea there is that scripts, just like processes on a decent OS, should be
-fully threadable in a safe way.  A single miscreant script should not be able
-to deny other scripts the right to run, or (worse yet) lock up the controlling
-process.  In other words, even if a user writes a script with an infinite
-while loop or any such bug, your program will continue to run.
-
-The other advantage is that blocking calls (be they system I/O calls, or
-functions requesting and waiting for user response) similarly won't lock your
-application.  Your script can run a simple function that asks a user for a yes
-or no answer, and while it's waiting, the rest of the program can run.  No
-callbacks (in the script) are needed, making the scripting experience a lot
-simpler for the user.
-
-Example of threading usage:
-
-	answer = ask_yes_no ('Are you sure you want to do that?')
-	if answer == 'yes' then
-		ok = dialog ('Alright, here goes!')
-	end
-
-Now, in a normal scripting language, if your application ran a script similar
-to this, the ask_yes_no() function would cause the application to lock up.  It
-would wait for user input; but, since the hosting C application can't run again
-until the script ends, it would dead-lock.
-
-Even if you were using an event driven model, like GTK+ uses, for handling the
-user widgets and responses, what happens if you want to run two scripts at
-once?  Many popular interpreters are not re-entrant, and thus they will not
-allow two or more concurrent scripts to execute.  Also, things like
-disk/network I/O generally are not handled well even in event driven apps.
-And, assuming that you *do* have a well behaved application, the C stack would
-grow in size as more and more scripts are put on hold (waiting for a user who
-went to the restroom, say, while the scripts are being triggered by outside
-events), eventually causing a stack overflow and, thus, a crash.
-
-Now, even if you have all of that taken care of (there are some languages that
-avoid all the above issues well), there are also issues of speed.  If you are
-running, say, a network application, every incoming packet may trigger the
-running of a script.  Some of these scripts may be very long running.  You
-must continue handling packets.  This means the script(s) need to be
-interrupted, and control given back to your application's main logic loop, to
-handle the incoming data.  Then, of course, you need to resume the scripts.
-
-All of this is possible with pre-emptive script multi-tasking, which is the
-most important goal of Scriptix.
-
+Model:
 As some notes, Scriptix is not based on a VM model.  A true VM language can
 probably do everything Scriptix can, and (in many cases) do it much faster.
 I have yet to see a freely available language that can boast all of these
@@ -85,6 +49,7 @@ if given the chance, before deciding to use Scriptix for you project.  Of
 all the project out there, Lua seems to closest in terms of architecture,
 but its syntax and symantics aren't quite what they could be.
 
+Blocks:
 A block is merely a list of nodes that are evaluated in order.  Every bit
 of executable code is thus some form of expression.  And, all expressions
 must return a value (although it can be nil).  This means that code blocks,
@@ -106,6 +71,7 @@ the true case and the false case, each had a statement/node, with no return
 commands.  However, the last executed statement in either block would be
 returned.
 
+Classes:
 Classes work fairly simply.  Every class is just a group of variables, much
 like a nested scope.  You can get or set variables in a class, much like in
 a scope.  However, classes also have a parent class.  When you try to get a

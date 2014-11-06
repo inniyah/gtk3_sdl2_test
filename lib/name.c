@@ -41,6 +41,15 @@ struct _scriptix_name_id {
 struct _scriptix_name_id *_scriptix_name_id_list = NULL;
 unsigned int _scriptix_free_name_id = 1;
 
+/* globals */
+sx_id sx_parent_id = 0;
+sx_id sx_self_id = 0;
+sx_id sx_init_id = 0;
+sx_id sx_error_id = 0;
+sx_id sx_etype_id = 0;
+sx_id sx_estack_id = 0;
+sx_id sx_ename_id = 0;
+
 unsigned int
 sx_name_to_id (const char *name) {
 	struct _scriptix_name_id *ni;
@@ -83,4 +92,20 @@ sx_id_to_name (unsigned int id) {
 	}
 
 	return NULL;
+}
+
+void
+sx_init_ids (void) {
+	/* check if we're initialized already */
+	if (sx_parent_id != 0) {
+		return;
+	}
+
+	sx_parent_id = sx_name_to_id ("parent");
+	sx_self_id = sx_name_to_id ("self");
+	sx_init_id = sx_name_to_id ("init");
+	sx_error_id = sx_name_to_id ("error");
+	sx_etype_id = sx_name_to_id ("TypeError");
+	sx_estack_id = sx_name_to_id ("StackError");
+	sx_ename_id = sx_name_to_id ("NameError");
 }

@@ -33,34 +33,48 @@
 	#include "scriptix.h"
 	#include "y.tab.h"
 
+	#define SX_LEX_STR_MAX 1024
+
 	#define LEX_NAME(name,value) if (!strcmp (yytext, name)) { return value; } else 
 
-	extern SYSTEM *parse_system;
-	extern unsigned int parse_lineno;
+	char sx_lex_str[SX_LEX_STR_MAX + 1];
+	unsigned int sx_lex_str_i;
+	__INLINE__ void sx_lex_str_escape (char esc);
+	__INLINE__ void sx_lex_str_push (char c);
+
+	extern SX_SYSTEM *parse_system;
+	extern __INLINE__ void parser_add_line (void);
 
 	__INLINE__ void sxll_to_lower (char *buf);
 %}
 
-%s bcomment
-%s lcomment
+%x BCOMMENT
+%x LCOMMENT
+%x SSTRING
+%x DSTRING
 
 %%
 
-<bcomment>[^*\n]+ { /* IGNORE */ }
-<bcomment>[\n] { parse_lineno ++; }
-<bcomment>"*"+[^*/\n]	{ /* IGNORE */ }
-<bcomment>"*/" { BEGIN INITIAL; }
+<BCOMMENT>[^*\n]+ { /* IGNORE */ }
+<BCOMMENT>[\n] { parser_add_line (); }
+<BCOMMENT>"*"+[^*/\n]	{ /* IGNORE */ }
+<BCOMMENT>"*/" { BEGIN INITIAL; }
 
-<lcomment>[^\n]+ { /* IGNORE */ }
-<lcomment>[\n] { parse_lineno ++; BEGIN INITIAL; }
+<LCOMMENT>[^\n]+ { /* IGNORE */ }
+<LCOMMENT>[\n] { parser_add_line (); BEGIN INITIAL; }
+
+<SSTRING,DSTRING>\\. { sx_lex_str_escape (yytext[1]); }
+<SSTRING>[^'\n] { sx_lex_str_push (yytext[0]); }
+<DSTRING>[^"\n] { sx_lex_str_push (yytext[0]); }
+<SSTRING,DSTRING>[\n] { parser_add_line (); sx_lex_str_push ('\n'); }
+<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_system, sx_lex_str); return TSTR; } 
+<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_system, sx_lex_str); return TSTR; } 
 
 [ \t]+ { /* IGNORE */ }
-"/*"  { BEGIN bcomment; }
-# { BEGIN lcomment; }
-[\n] { parse_lineno ++; return TSEP; }
+"/*"  { BEGIN BCOMMENT; }
+# { BEGIN LCOMMENT; }
+[\n] { parser_add_line (); return TSEP; }
 ; { return TSEP; } 
-'[^\']*' { yytext[strlen (yytext) - 1] = '\0'; sxlval.value = sx_new_str (parse_system, yytext + 1); return TSTR; }
-"[^\"]*" { yytext[strlen (yytext) - 1] = '\0'; sxlval.value = sx_new_str (parse_system, yytext + 1); return TSTR; }
 [a-zA-Z_][a-zA-Z0-9_]* { 
 		sxll_to_lower (yytext);
 		LEX_NAME("if", TIF)
@@ -77,7 +91,6 @@
 		LEX_NAME("local", TLOCAL)
 		LEX_NAME("global", TGLOBAL)
 		LEX_NAME("length", TLENGTH)
-		LEX_NAME("thread", TTHREAD)
 		LEX_NAME("class", TCLASS)
 		LEX_NAME("new", TNEW)
 		LEX_NAME("type", TTYPE)
@@ -106,6 +119,8 @@
 "->" { return TMETHOD; }
 != { return TNE; }
 ".." { return TRANGE; }
+' { sx_lex_str_i = 0; BEGIN SSTRING; }
+\" { sx_lex_str_i = 0; BEGIN DSTRING; }
 . { return yytext[0]; }
 <<EOF>> { return 0; }
 
@@ -116,4 +131,27 @@ sxll_to_lower (char *buf) {
 		*buf = tolower (*buf);
 		++ buf;
 	}
+}
+
+void
+sx_lex_str_escape (char esc) {
+	if (esc == 'n') {
+		sx_lex_str_push ('\n');
+	} else if (esc == 'r') {
+		sx_lex_str_push ('\r');
+	} else if (esc == 't') {
+		sx_lex_str_push ('\t');
+	} else if (esc == 'b') {
+		sx_lex_str_push ('\b');
+	} else {
+		sx_lex_str_push (esc);
+	}
+}
+
+
+void
+sx_lex_str_push (char c) {
+	sx_lex_str[sx_lex_str_i] = c;
+	if (sx_lex_str_i < SX_LEX_STR_MAX) 
+		++ sx_lex_str_i;
 }

@@ -3,23 +3,13 @@ function attempt(a,b)
 	return 0 + a > 0 + b
 end
 function fail()
-	print ('Failure')
+	printl ('Failure')
 	return 1
 end
 function succeed()
-	print ('Success')
+	printl ('Success')
 	return 1
 end
 
-/*
-	damnit, short-cutting doesn't work right now
-*/
-if (attempt (argv[1], argv[2])) then
-	succeed ()
-	return 0
-else
-	fail ()
-	return 1
-end
-#(attempt (argv[1], argv[2]) and succeed()) and return 0
-#(attempt (argv[1], argv[2]) or fail()) and return 1
+(attempt (argv[1], argv[2]) and succeed()) and return 0
+(attempt (argv[1], argv[2]) or fail()) and return 1

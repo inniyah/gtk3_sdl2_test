@@ -6,11 +6,12 @@ a -= 5
 c = a --
 b = --a
 
-print ('a: ' + a)
-print ('b: ' + b)
-print ('c: ' + c)
+printl ('a: ', a)
+printl ('b: ', b)
+printl ('c: ', c)
 
 if a != 13 or c != 15 or b != 13 then
+	printl ('in here')
 	return 1
 end
 

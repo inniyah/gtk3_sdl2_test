@@ -4,6 +4,7 @@ class k
 		global init = 16
 	end
 	function setvar (value)
+		printl ('in setvar')
 		self.var = value
 	end
 end
@@ -13,32 +14,32 @@ end
 
 g = new k
 
-if k->test () != 'kclass' then
-	print ('k->test() failure')
+if k.test () != 'kclass' then
+	printl ('k.test() failure')
 	return 1
 end
 
-k->setvar ('hey')
+k.setvar ('hey')
 if k.var != 'hey' or g.var != 'hey' then
-	print ('*.var failure')
+	printl ('*.var failure')
 	return 1
 end
 
-g->setvar ('hmm')
+g.setvar ('hmm')
 if k.var != 'hey' or g.var != 'hmm' then
-	print ('*.var failure 2')
+	printl ('*.var failure 2')
 	return 1
 end
 
 if g.name != 'kclass' then
-	print ('g.name failure')
+	printl ('g.name failure')
 	return 1
 end
 
 g.name = 'g'
 
 if g.name != 'g' or k.name != 'kclass' then
-	print ('*.name failure')
+	printl ('*.name failure')
 	return 1
 end
 
@@ -47,10 +48,10 @@ if ! g isa k or k isa g then
 end
 
 if init != 16 then
-	print ('init failure')
+	printl ('init failure: ', init)
 	return 1
 end
 
-print ('all good')
+printl ('all good')
 
 return 0

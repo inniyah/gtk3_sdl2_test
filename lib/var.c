@@ -33,26 +33,22 @@
 #include "scriptix.h"
 
 __INLINE__
-VAR *
-_sx_search_context (CONTEXT *context, unsigned int id) {
-	VAR *var;
+SX_VAR *
+_sx_search_call (SX_CALL *call, unsigned int id) {
+	SX_VAR *var;
 
-	for (var = context->vars; var != NULL; var = var->next) {
+	for (var = call->vars; var != NULL; var = var->next) {
 		if (id == var->id) {
 			return var;
 		}
 	}
 
-	if (context->klass) {
-		return sx_find_member (context->klass, id);
-	}
-
 	return NULL;
 }
 
-VALUE *
-sx_define_cfunc (SYSTEM *system, char *name, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int)) {
-	VALUE *cfunc = sx_new_cfunc (system, func);
+SX_VALUE *
+sx_define_cfunc (SX_SYSTEM *system, char *name, SX_VALUE *(*func)(SX_THREAD *, SX_VALUE *, unsigned int, unsigned int)) {
+	SX_VALUE *cfunc = sx_new_cfunc (system, func);
 	if (cfunc == NULL) {
 		return NULL;
 	}
@@ -60,12 +56,22 @@ sx_define_cfunc (SYSTEM *system, char *name, VALUE *(*func)(THREAD *, VALUE *, u
 	return sx_define_system_var (system, sx_name_to_id (name), cfunc);
 }
 
-VALUE *
-sx_define_var (THREAD *thread, unsigned int id, VALUE *value, int scope) {
-	VAR *var;
+SX_VALUE *
+sx_define_var (SX_THREAD *thread, unsigned int id, SX_VALUE *value, int scope) {
+	SX_VAR *var;
+	int c;
 
 	if (scope == SX_SCOPE_GLOBAL) {
 		return sx_define_system_var (thread->system, id, value);
+	}
+
+	if (scope == SX_SCOPE_CLASS) {
+		if (thread->cur_class != NULL) {
+			var = sx_set_member (thread->system, thread->cur_class, id, value);
+			return var->value;
+		} else {
+			return sx_new_nil ();
+		}
 	}
 
 	var = sx_get_var (thread, id, scope);
@@ -75,7 +81,7 @@ sx_define_var (THREAD *thread, unsigned int id, VALUE *value, int scope) {
 	}
 
 	sx_lock_value (value);
-	var = (VAR *)sx_malloc (thread->system, sizeof (VAR));
+	var = (SX_VAR *)sx_malloc (thread->system, sizeof (SX_VAR));
 	sx_unlock_value (value);
 	
 	if (var == NULL) {
@@ -84,21 +90,25 @@ sx_define_var (THREAD *thread, unsigned int id, VALUE *value, int scope) {
 
 	var->id = id;
 	var->value = value;
+	var->flags = 0;
 
-	if (scope == SX_SCOPE_THREAD) {
-		var->next = thread->context_stack[0].vars;
-		thread->context_stack[0].vars = var;
-	} else {
-		var->next = thread->context_stack[thread->context - 1].vars;
-		thread->context_stack[thread->context - 1].vars = var;
+	for (c = thread->call - 1; c >= 0; -- c) {
+		if ((thread->call_stack[c].flags & SX_CFLAG_VARS) != 0) {
+			var->next = thread->call_stack[c].vars;
+			thread->call_stack[c].vars = var;
+			break;
+		}
+		if ((thread->call_stack[c].flags & SX_CFLAG_HARD) != 0 && c != 0) {
+			c = 1; /* next loop, c will == 0, thus scan thread scope */
+		}
 	}
 
 	return value;
 }
 
-VALUE *
-sx_define_system_var (SYSTEM *system, unsigned int id, VALUE *value) {
-	VAR *var;
+SX_VALUE *
+sx_define_system_var (SX_SYSTEM *system, unsigned int id, SX_VALUE *value) {
+	SX_VAR *var;
 
 	for (var = system->vars; var != NULL; var = var->next) {
 		if (id == var->id) {
@@ -108,7 +118,7 @@ sx_define_system_var (SYSTEM *system, unsigned int id, VALUE *value) {
 	}
 
 	sx_lock_value (value);
-	var = (VAR *)sx_malloc (system, sizeof (VAR));
+	var = (SX_VAR *)sx_malloc (system, sizeof (SX_VAR));
 	sx_unlock_value (value);
 
 	if (var == NULL) {
@@ -117,47 +127,58 @@ sx_define_system_var (SYSTEM *system, unsigned int id, VALUE *value) {
 
 	var->id = id;
 	var->value = value;
+	var->flags = 0;
 	var->next = system->vars;
 	system->vars = var;
 
 	return value;
 }
 
-VAR *
-sx_get_var (THREAD *thread, unsigned int id, int scope) {
-	VAR *var;
+SX_VAR *
+sx_get_var (SX_THREAD *thread, unsigned int id, int scope) {
+	SX_VAR *var;
 	int c = 0;
 
 	/* local search only */
 	if (scope == SX_SCOPE_LOCAL) {
-		return _sx_search_context (&thread->context_stack[thread->context - 1], id);
+		return _sx_search_call (&thread->call_stack[thread->call - 1], id);
 	}
 
-	/* thread search only */
-	if (scope == SX_SCOPE_THREAD) {
-		return _sx_search_context (&thread->context_stack[0], id);
-	}
-
-	/* default - search thru contexts until top/hard context break */
+	/* default - search thru calls until top/hard call break */
 	if (scope == SX_SCOPE_DEF) {
-		for (c = thread->context - 1; c >= 0; -- c) {
-			var = _sx_search_context (&thread->context_stack[c], id);
-			if (var != NULL) {
-				return var;
+		for (c = thread->call - 1; c >= 0; -- c) {
+			if ((thread->call_stack[c].flags & SX_CFLAG_VARS) != 0) {
+				var = _sx_search_call (&thread->call_stack[c], id);
+				if (var != NULL) {
+					return var;
+				}
 			}
-			if ((thread->context_stack[c].flags & SX_CFLAG_HARD) != 0 && c != 0) {
+			if ((thread->call_stack[c].flags & SX_CFLAG_HARD) != 0 && c != 0) {
 				c = 1; /* next loop, c will == 0, thus scan thread scope */
 			}
 		}
 	}
 
+	if (scope != SX_SCOPE_GLOBAL) {
+		if (thread->cur_class != NULL) {
+			var = sx_find_member (thread->cur_class, id);
+			if (var != NULL) {
+				return var;
+			}
+		}
+	}
+
 	/* only get here on system or def search */
-	return sx_get_system_var (thread->system, id);
+	if (scope != SX_SCOPE_CLASS) {
+		return sx_get_system_var (thread->system, id);
+	}
+
+	return NULL;
 }
 
-VAR *
-sx_get_system_var (SYSTEM *system, unsigned int id) {
-	VAR *var;
+SX_VAR *
+sx_get_system_var (SX_SYSTEM *system, unsigned int id) {
+	SX_VAR *var;
 	for (var = system->vars; var != NULL; var = var->next) {
 		if (id == var->id) {
 			return var;

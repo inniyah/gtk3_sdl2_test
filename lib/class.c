@@ -33,12 +33,12 @@
 
 #include "scriptix.h"
 
-VALUE *
-sx_new_class (SYSTEM *system, VALUE *parent) {
-	VALUE *value;
+SX_VALUE *
+sx_new_class (SX_SYSTEM *system, SX_VALUE *parent) {
+	SX_VALUE *value;
 
 	sx_lock_value (parent);
-	value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	sx_unlock_value (parent);
 	if (value == NULL) {
 		return NULL;
@@ -59,9 +59,9 @@ sx_new_class (SYSTEM *system, VALUE *parent) {
 	return value;
 }
 
-VALUE *
-sx_new_user_class (SYSTEM *system, VALUE *parent, void *data, void (*free_data)(void *data), void (*ref_data)(SYSTEM *system, void *data)) {
-	VALUE *value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+SX_VALUE *
+sx_new_user_class (SX_SYSTEM *system, SX_VALUE *parent, void *data, void (*free_data)(void *data), void (*ref_data)(SX_SYSTEM *system, void *data)) {
+	SX_VALUE *value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -82,7 +82,7 @@ sx_new_user_class (SYSTEM *system, VALUE *parent, void *data, void (*free_data)(
 }
 
 int
-sx_class_is_a (VALUE *klass, VALUE *par) {
+sx_class_is_a (SX_VALUE *klass, SX_VALUE *par) {
 	if (!SX_ISCLASS (klass) || !SX_ISCLASS (par)) {
 		return 0;
 	}
@@ -94,9 +94,9 @@ sx_class_is_a (VALUE *klass, VALUE *par) {
 	return klass != NULL;
 }
 
-VAR *
-sx_set_member (SYSTEM *system, VALUE *klass, unsigned int id, VALUE *value) {
-	VAR *var;
+SX_VAR *
+sx_set_member (SX_SYSTEM *system, SX_VALUE *klass, sx_id id, SX_VALUE *value) {
+	SX_VAR *var;
 
 	for (var = klass->data.klass.members; var != NULL; var = var->next) {
 		if (id == var->id) {
@@ -108,7 +108,7 @@ sx_set_member (SYSTEM *system, VALUE *klass, unsigned int id, VALUE *value) {
 	sx_lock_value (klass);
 	sx_lock_value (value);
 
-	var = (VAR *)sx_malloc (system, sizeof (VAR));
+	var = (SX_VAR *)sx_malloc (system, sizeof (SX_VAR));
 
 	sx_unlock_value (klass);
 	sx_unlock_value (value);
@@ -125,9 +125,15 @@ sx_set_member (SYSTEM *system, VALUE *klass, unsigned int id, VALUE *value) {
 	return var;
 }
 
-VALUE *
-sx_get_member (VALUE *klass, unsigned int id) {
-	VAR *var = sx_find_member (klass, id);
+SX_VALUE *
+sx_get_member (SX_VALUE *klass, sx_id id) {
+	SX_VAR *var;
+
+	if (id == sx_name_to_id ("parent")) {
+		return klass->data.klass.parent;
+	}
+
+	var = sx_find_member (klass, id);
 	if (var != NULL) {
 		return var->value;
 	} else {
@@ -135,9 +141,13 @@ sx_get_member (VALUE *klass, unsigned int id) {
 	}
 }
 
-VAR *
-sx_find_member (VALUE *klass, unsigned int id) {
-	VAR *var;
+SX_VAR *
+sx_find_member (SX_VALUE *klass, sx_id id) {
+	SX_VAR *var;
+
+	if (!SX_ISCLASS (klass)) {
+		return NULL;
+	}
 
 	while (klass != NULL) {
 		for (var = klass->data.klass.members; var != NULL; var = var->next) {

@@ -1,3 +1,15 @@
+scriptix (0.12-1) unstable; urgency=low
+
+  * New release. 
+
+ -- Sean Middleditch <elanthis@awesomeplay.com>  Thu, 11 Apr 2002 11:13:40 -0400
+
+scriptix (0.11-2) unstable; urgency=low
+
+  * Fix to build rules - install path. 
+
+ -- Sean Middleditch <elanthis@awesomeplay.com>  Mon,  8 Apr 2002 15:02:52 -0400
+
 scriptix (0.11-1) unstable; urgency=low
 
   * New release. 

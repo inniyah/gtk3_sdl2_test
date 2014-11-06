@@ -9,4 +9,4 @@ while fact (num + 1) <= max do
 	num ++
 end 
 
-print ('Smallest factorial within ', max, ': fact(', num, ') = ', fact (num))
+printl ('Smallest factorial within ', max, ': fact(', num, ') = ', fact (num))

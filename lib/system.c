@@ -33,10 +33,10 @@
 #include "scriptix.h"
 #include "config.h"
 
-SYSTEM *
+SX_SYSTEM *
 sx_create_system (int argc, char **argv) {
-	VALUE *args, *err;
-	SYSTEM *system = (SYSTEM *)sx_malloc (NULL, sizeof (SYSTEM));
+	SX_VALUE *args, *err;
+	SX_SYSTEM *system = (SX_SYSTEM *)sx_malloc (NULL, sizeof (SX_SYSTEM));
 	if (system == NULL) {
 		return system;
 	}
@@ -47,6 +47,10 @@ sx_create_system (int argc, char **argv) {
 	system->flags = 0;
 	system->gc_count = 0;
 	system->gc_thresh = SX_GC_THRESH;
+	system->gc_hook = NULL;
+	system->valid_threads = 0;
+
+	sx_init_ids ();
 
 	sx_define_system_var (system, sx_name_to_id ("VERSION"), sx_new_str (system, SX_VERSION));
 	sx_define_system_var (system, sx_name_to_id ("argc"), sx_new_num (argc));
@@ -58,20 +62,33 @@ sx_create_system (int argc, char **argv) {
 	sx_define_system_var (system, sx_name_to_id ("argv"), args);
 
 	sx_define_system_var (system, sx_name_to_id ("SXError"), (err = sx_new_class (system, sx_new_nil ())));
-	sx_define_system_var (system, sx_name_to_id ("NameError"), sx_new_class (system, err));
-	sx_define_system_var (system, sx_name_to_id ("TypeError"), sx_new_class (system, err));
+	sx_define_system_var (system, sx_ename_id, sx_new_class (system, err));
+	sx_define_system_var (system, sx_etype_id, sx_new_class (system, err));
 	sx_define_system_var (system, sx_name_to_id ("SysError"), sx_new_class (system, err));
 	sx_define_system_var (system, sx_name_to_id ("MemError"), sx_new_class (system, err));
-	sx_define_system_var (system, sx_name_to_id ("StackError"), sx_new_class (system, err));
+	sx_define_system_var (system, sx_estack_id, sx_new_class (system, err));
 
 	return system;
 }
 
 void
-sx_free_system (SYSTEM *system) {
-	THREAD *tnext;
-	VAR *rnext;
-	VALUE *vnext;
+sx_free_system (SX_SYSTEM *system) {
+	SX_THREAD *tnext;
+	SX_VAR *rnext;
+	SX_VALUE *vnext;
+	SX_SCRIPT *snext;
+
+	while (system->scripts != NULL) {
+		snext = system->scripts->next;
+		if (system->scripts->path) {
+			sx_free (system->scripts->path);
+		}
+		if (system->scripts->name) {
+			sx_free (system->scripts->name);
+		}
+		sx_free (system->scripts);
+		system->scripts = snext;
+	}
 
 	while (system->threads != NULL) {
 		tnext = system->threads->next;
@@ -95,7 +112,7 @@ sx_free_system (SYSTEM *system) {
 }
 
 void
-sx_add_gc_value (SYSTEM *system, VALUE *value) {
+sx_add_gc_value (SX_SYSTEM *system, SX_VALUE *value) {
 	if (system == NULL) {
 		return;
 	}
@@ -118,13 +135,22 @@ sx_add_gc_value (SYSTEM *system, VALUE *value) {
 }
 
 void
-sx_run_gc (SYSTEM *system) {
-	THREAD *thread;
-	VAR *var;
-	VALUE *value, *last;
+sx_run_gc (SX_SYSTEM *system) {
+	SX_THREAD *thread;
+	SX_VAR *var;
+	SX_VALUE *value, *last;
+	SX_SCRIPT *script;
 
 	if (system->flags & SX_SFLAG_GCOFF) {
 		return;
+	}
+
+	if (system->gc_hook != NULL) {
+		system->gc_hook (system);
+	}
+
+	for (script = system->scripts; script != NULL; script = script->next) {
+		sx_mark_value (system, script->block);
 	}
 
 	for (var = system->vars; var != NULL; var = var->next) {
@@ -148,6 +174,7 @@ sx_run_gc (SYSTEM *system) {
 	while (value != NULL) {
 		if ((value->flags & SX_VFLAG_MARK) == 0) {
 			-- system->gc_count;
+			printf ("deleting: %p\n", value);
 			if (last) {
 				last->gc_next = value->gc_next;
 				sx_free_value (value);
@@ -165,4 +192,49 @@ sx_run_gc (SYSTEM *system) {
 	}
 
 	system->gc_thresh = system->gc_count >= SX_GC_THRESH ? system->gc_count * 2 : SX_GC_THRESH;
+}
+
+sx_script_id
+sx_add_script (SX_SYSTEM *system, SX_SCRIPT *script) {
+	static unsigned int _free_id = 0;
+
+	script->id = ++_free_id;
+	script->next = system->scripts;
+	system->scripts = script;
+
+	return script->id;
+}
+
+void
+sx_run (SX_SYSTEM *system, unsigned int max) {
+	SX_THREAD *thread, *last;
+	int state;
+
+	last = NULL;
+	for (thread = system->threads; thread != NULL; ) {
+		state = sx_run_thread (thread, max);
+		switch (state) {
+			case SX_STATE_ERROR:
+			case SX_STATE_EXIT:
+				if (last != NULL) {
+					last->next = thread->next;
+					sx_free_thread (thread);
+					thread = last->next;
+				} else {
+					system->threads = thread->next;
+					sx_free_thread (thread);
+					thread = system->threads;
+				}
+				-- system->valid_threads;
+				break;
+			case SX_STATE_RUN:
+			case SX_STATE_READY:
+				/* ERROR: wtf? */
+
+				/* fall thry */
+			default:
+				thread = thread->next;
+				break;
+		}
+	}
 }

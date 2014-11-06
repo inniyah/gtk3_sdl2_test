@@ -34,17 +34,17 @@
 #include "scriptix.h"
 
 /* globals */
-VALUE *
-sx_new_str (SYSTEM *system, char *str) {
-	VALUE *value;
+SX_VALUE *
+sx_new_str (SX_SYSTEM *system, char *str) {
+	SX_VALUE *value;
 	unsigned int len;
 	
 	if (str == NULL) {
 		len = 0;
-		value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+		value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	} else {
 		len = strlen (str);
-		value = (VALUE *)sx_malloc (system, sizeof (VALUE) + (len + 1) * sizeof (char));
+		value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE) + (len + 1) * sizeof (char));
 	}
 	
 	if (value == NULL) {
@@ -68,11 +68,11 @@ sx_new_str (SYSTEM *system, char *str) {
 	return value;
 }
 
-VALUE *
-sx_new_str_len (SYSTEM *system, char *str, unsigned int len) {
-	VALUE *value;
+SX_VALUE *
+sx_new_str_len (SX_SYSTEM *system, char *str, unsigned int len) {
+	SX_VALUE *value;
 	
-	value = (VALUE *)sx_malloc (system, sizeof (VALUE) + (len + 1) * sizeof (char));
+	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE) + (len + 1) * sizeof (char));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -94,9 +94,9 @@ sx_new_str_len (SYSTEM *system, char *str, unsigned int len) {
 	return value;
 }
 
-VALUE *
-sx_new_block (SYSTEM *system) {
-	VALUE *value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+SX_VALUE *
+sx_new_block (SX_SYSTEM *system) {
+	SX_VALUE *value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -114,9 +114,9 @@ sx_new_block (SYSTEM *system) {
 	return value;
 }
 
-VALUE *
-sx_new_func (SYSTEM *system, VALUE *args, VALUE *body) {
-	VALUE *value;
+SX_VALUE *
+sx_new_func (SX_SYSTEM *system, SX_VALUE *args, SX_VALUE *body) {
+	SX_VALUE *value;
 
 	if (!SX_ISBLOCK (body)) {
 		return NULL;
@@ -125,7 +125,7 @@ sx_new_func (SYSTEM *system, VALUE *args, VALUE *body) {
 		return NULL;
 	}
 	
-	value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -133,6 +133,7 @@ sx_new_func (SYSTEM *system, VALUE *args, VALUE *body) {
 	value->type = SX_VALUE_FUNC;
 	value->data.func.args = args;
 	value->data.func.body = body;
+	value->data.func.cfunc = NULL;
 	value->locks = 0;
 	value->gc_next = NULL;
 	value->flags = 0;
@@ -142,15 +143,15 @@ sx_new_func (SYSTEM *system, VALUE *args, VALUE *body) {
 	return value;
 }
 
-VALUE *
-sx_new_cfunc (SYSTEM *system, VALUE *(*cfunc)(THREAD *, VALUE *self, unsigned int argc, unsigned int top)) {
-	VALUE *value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+SX_VALUE *
+sx_new_cfunc (SX_SYSTEM *system, SX_VALUE *(*cfunc)(SX_THREAD *, SX_VALUE *self, unsigned int argc, unsigned int top)) {
+	SX_VALUE *value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	if (value == NULL) {
 		return NULL;
 	}
 
-	value->type = SX_VALUE_CFUNC;
-	value->data.cfunc = cfunc;
+	value->type = SX_VALUE_FUNC;
+	value->data.func.cfunc = cfunc;
 	value->locks = 0;
 	value->flags = 0;
 	value->gc_next = NULL;
@@ -160,9 +161,9 @@ sx_new_cfunc (SYSTEM *system, VALUE *(*cfunc)(THREAD *, VALUE *self, unsigned in
 	return value;
 }
 
-VALUE *
-sx_new_array (SYSTEM *system, unsigned int argc, VALUE **argv) {
-	VALUE *value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+SX_VALUE *
+sx_new_array (SX_SYSTEM *system, unsigned int argc, SX_VALUE **argv) {
+	SX_VALUE *value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -172,18 +173,18 @@ sx_new_array (SYSTEM *system, unsigned int argc, VALUE **argv) {
 	value->data.array.size = argc;
 	if (argc > 0) {
 		if (argv != NULL) {
-			value->data.array.list = sx_dupmem (system, argv, argc * sizeof (VALUE *));
+			value->data.array.list = sx_dupmem (system, argv, argc * sizeof (SX_VALUE *));
 			if (value->data.array.list == NULL) {
 				sx_free_value (value);
 				return NULL;
 			}
 		} else {
-			value->data.array.list = sx_malloc (system, argc * sizeof (VALUE *));
+			value->data.array.list = sx_malloc (system, argc * sizeof (SX_VALUE *));
 			if (value->data.array.list == NULL) {
 				sx_free_value (value);
 				return NULL;
 			}
-			memset (value->data.array.list, 0, argc * sizeof (VALUE *));
+			memset (value->data.array.list, 0, argc * sizeof (SX_VALUE *));
 		}
 	} else {
 		value->data.array.list = NULL;
@@ -199,10 +200,10 @@ sx_new_array (SYSTEM *system, unsigned int argc, VALUE **argv) {
 	return value;
 }
 
-VALUE *
-sx_new_stack_array (THREAD *thread, unsigned int argc, unsigned int top) {
+SX_VALUE *
+sx_new_stack_array (SX_THREAD *thread, unsigned int argc, unsigned int top) {
 	unsigned int i;
-	VALUE *value = (VALUE *)sx_malloc (thread->system, sizeof (VALUE));
+	SX_VALUE *value = (SX_VALUE *)sx_malloc (thread->system, sizeof (SX_VALUE));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -211,7 +212,7 @@ sx_new_stack_array (THREAD *thread, unsigned int argc, unsigned int top) {
 	value->data.array.count = argc;
 	value->data.array.size = argc;
 	if (argc > 0) {
-		value->data.array.list = sx_malloc (thread->system, argc * sizeof (VALUE *));
+		value->data.array.list = sx_malloc (thread->system, argc * sizeof (SX_VALUE *));
 		if (value->data.array.list == NULL) {
 			sx_free_value (value);
 			return NULL;
@@ -233,11 +234,11 @@ sx_new_stack_array (THREAD *thread, unsigned int argc, unsigned int top) {
 	return value;
 }
 
-VALUE *
-sx_new_range (SYSTEM *system, int start, int end) {
-	VALUE *value;
+SX_VALUE *
+sx_new_range (SX_SYSTEM *system, int start, int end) {
+	SX_VALUE *value;
 
-	value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -255,8 +256,8 @@ sx_new_range (SYSTEM *system, int start, int end) {
 }
 
 void
-sx_free_value (VALUE *value) {
-	VAR *rnext;
+sx_free_value (SX_VALUE *value) {
+	SX_VAR *rnext;
 
 	if (SX_ISNIL (value) || SX_ISNUM (value)) {
 		return;
@@ -285,7 +286,7 @@ sx_free_value (VALUE *value) {
 }
 
 int
-sx_is_true (VALUE *value) {
+sx_is_true (SX_VALUE *value) {
 	if (value == NULL) {
 		return 0;
 	}
@@ -301,7 +302,7 @@ sx_is_true (VALUE *value) {
 }
 
 int
-sx_are_equal (VALUE *one, VALUE *two) {
+sx_are_equal (SX_VALUE *one, SX_VALUE *two) {
 	if (one == two) {
 		return 1;
 	}
@@ -321,10 +322,11 @@ sx_are_equal (VALUE *one, VALUE *two) {
 			return !strcmp (one->data.str.str, two->data.str.str);
 			break;
 		case SX_VALUE_FUNC:
-			return one->data.func.args == two->data.func.args && one->data.func.body == two->data.func.body;
-			break;
-		case SX_VALUE_CFUNC:
-			return one->data.cfunc == two->data.cfunc;
+			if (one->data.func.cfunc != NULL) {
+				return one->data.func.cfunc == two->data.func.cfunc;
+			} else {
+				return one->data.func.args == two->data.func.args && one->data.func.body == two->data.func.body;
+			}
 			break;
 		case SX_VALUE_RANGE:
 			return one->data.range.start == two->data.range.start && one->data.range.end == two->data.range.end;
@@ -337,7 +339,7 @@ sx_are_equal (VALUE *one, VALUE *two) {
 }
 
 int
-sx_compare (VALUE *one, VALUE *two) {
+sx_compare (SX_VALUE *one, SX_VALUE *two) {
 	int n1, n2;
 
 	if (one == two) {
@@ -377,8 +379,8 @@ sx_compare (VALUE *one, VALUE *two) {
 	}
 }
 
-VALUE *
-sx_add_to_block (SYSTEM *system, VALUE *block, VALUE *value, int op, unsigned int count) {
+SX_VALUE *
+sx_add_to_block (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *value, int op) {
 	struct _scriptix_node *sx_new_nodes;
 
 	if (SX_ISBLOCK (block)) {
@@ -401,7 +403,6 @@ sx_add_to_block (SYSTEM *system, VALUE *block, VALUE *value, int op, unsigned in
 		}
 		block->data.block.nodes[block->data.block.count].value = value;
 		block->data.block.nodes[block->data.block.count].op = op;
-		block->data.block.nodes[block->data.block.count].count = count;
 		++ block->data.block.count;
 		return block;
 	} else {
@@ -409,8 +410,8 @@ sx_add_to_block (SYSTEM *system, VALUE *block, VALUE *value, int op, unsigned in
 	}
 }
 
-VALUE *
-sx_get_index (SYSTEM *system, VALUE *cont, int index) {
+SX_VALUE *
+sx_get_index (SX_SYSTEM *system, SX_VALUE *cont, int index) {
 	unsigned int len;
 
 	if (SX_ISSTRING (cont)) {
@@ -450,8 +451,8 @@ sx_get_index (SYSTEM *system, VALUE *cont, int index) {
 	}
 }
 
-VALUE *
-sx_get_section (SYSTEM *system, VALUE *base, int start, int end) {
+SX_VALUE *
+sx_get_section (SX_SYSTEM *system, SX_VALUE *base, int start, int end) {
 	unsigned int len;
 	if (SX_ISSTRING (base)) {
 		len = base->data.str.len;
@@ -483,7 +484,7 @@ sx_get_section (SYSTEM *system, VALUE *base, int start, int end) {
 }
 
 void
-sx_print_value (VALUE *value) {
+sx_print_value (SX_VALUE *value) {
 	int i;
 
 	switch (sx_type_of (value)) {
@@ -503,9 +504,6 @@ sx_print_value (VALUE *value) {
 			break;
 		case SX_VALUE_FUNC:
 			printf ("<func:%p>", value);
-			break;
-		case SX_VALUE_CFUNC:
-			printf ("<cfunc:%p>", value);
 			break;
 		case SX_VALUE_CLASS:
 			printf ("<class:%p>", value);
@@ -533,26 +531,25 @@ sx_print_value (VALUE *value) {
 }
 
 void
-sx_lock_value (VALUE *value) {
+sx_lock_value (SX_VALUE *value) {
 	if (!SX_ISNUM (value) && !SX_ISNIL (value)) {
 		++ value->locks;
 	}
 }
 
 void
-sx_unlock_value (VALUE *value) {
+sx_unlock_value (SX_VALUE *value) {
 	if (!SX_ISNUM (value) && !SX_ISNIL (value) && value->locks > 0) {
 		-- value->locks;
 	}
 }
 
 void
-sx_mark_value (SYSTEM *system, VALUE *value) {
-	VAR *var;
+sx_mark_value (SX_SYSTEM *system, SX_VALUE *value) {
+	SX_VAR *var;
 	unsigned int i;
 
 	switch (sx_type_of (value)) {
-		case SX_VALUE_CFUNC:
 		case SX_VALUE_STRING:
 		case SX_VALUE_RANGE:
 			value->flags |= SX_VFLAG_MARK;
@@ -567,8 +564,10 @@ sx_mark_value (SYSTEM *system, VALUE *value) {
 			break;
 		case SX_VALUE_FUNC:
 			value->flags |= SX_VFLAG_MARK;
-			sx_mark_value (system, value->data.func.args);
-			sx_mark_value (system, value->data.func.body);
+			if (value->data.func.cfunc != NULL) {
+				sx_mark_value (system, value->data.func.args);
+				sx_mark_value (system, value->data.func.body);
+			}
 			break;
 		case SX_VALUE_ARRAY:
 			value->flags |= SX_VFLAG_MARK;
