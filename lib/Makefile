@@ -1,5 +1,5 @@
 CFLAGS := -g -Wall -I../include -O2 $(CFLAGS)
-LIBS := libscriptix.a libsxparse.a libsxstdlib.a
+LIBS := libscriptix.a libsxparse.a
 SXOBJ := \
 	eval.o \
 	value.o \
@@ -11,22 +11,22 @@ SXOBJ := \
 	name.o \
 	error.o \
 	function.o \
-	userdata.o \
-	script.o
+	script.o \
+	block.o \
+	array.o \
+	string.o \
+	range.o \
+	stdlib.o
 YYOBJ := lex.sx.o y.tab.o 
-SLOBJ := stdlib.o
-OBJECTS := $(SXOBJ) $(YYOBJ) $(SLOBJ)
+OBJECTS := $(SXOBJ) $(YYOBJ)
 #CC = ccmalloc gcc
 
-all: libscriptix.a libsxparse.a libsxstdlib.a
+all: libscriptix.a libsxparse.a
 
 libscriptix.a: $(SXOBJ)
 	$(AR) -cr $@ $^
 
 libsxparse.a: $(YYOBJ)
-	$(AR) -cr $@ $^
-
-libsxstdlib.a: $(SLOBJ)
 	$(AR) -cr $@ $^
 
 lex.sx.c: lexer.l y.tab.h ../include/scriptix.h

@@ -25,27 +25,66 @@
  * DAMAGE.
  */
 
-#include <malloc.h>
+#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
 #include "scriptix.h"
+#include "system.h"
 
-SX_VALUE *
-sx_new_userdata (SX_SYSTEM *system, void *data, sx_userdata_mark mark, sx_userdata_free free) {
-	SX_VALUE *ud = sx_malloc (system, sizeof (SX_VALUE));
-	if (ud == NULL) {
+void
+_sx_range_print (SX_SYSTEM *system, SX_VALUE *value) {
+	system->print_hook ("(%d..%d)", value->data.range.start, value->data.range.end);
+}
+
+int
+_sx_range_equal (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
+	return one->data.range.start == two->data.range.start && one->data.range.end == two->data.range.end;
+}
+
+int
+_sx_range_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
+	int n1 = one->data.range.end - one->data.range.start;
+	int n2 = two->data.range.end - two->data.range.start;
+	n1 = n1 < 0 ? -n1 : n1;
+	n2 = n2 < 0 ? -n2 : n2;
+	return n1 < n2 ? -1 : n1 > n2 ? 1 : 0;
+}
+
+SX_CLASS *
+sx_init_range (SX_SYSTEM *system) {
+	SX_CLASS *klass;
+
+	klass = sx_new_core_class (system, sx_name_to_id ("Range"));
+	if (klass == NULL) {
 		return NULL;
 	}
 
-	ud->data.userdata.data = data;
-	ud->data.userdata.mark = mark;
-	ud->data.userdata.free = free;
-	ud->type = SX_VALUE_USERDATA;
-	ud->locks = 0;
-	ud->flags = 0;
-	ud->gc_next = NULL;
+	klass->core->fprint = _sx_range_print;
+	klass->core->fequal = _sx_range_equal;
+	klass->core->fcompare = _sx_range_compare;
 
-	sx_add_gc_value (system, ud);
+	return klass;
+}
 
-	return ud;
+SX_VALUE *
+sx_new_range (SX_SYSTEM *system, int start, int end) {
+	SX_VALUE *value;
+
+	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
+	if (value == NULL) {
+		return NULL;
+	}
+
+	value->klass = system->crange;
+	value->members = NULL;
+	value->data.range.start = start;
+	value->data.range.end = end;
+	value->locks = 0;
+	value->flags = 0;
+	value->gc_next = NULL;
+
+	sx_add_gc_value (system, value);
+
+	return value;
 }

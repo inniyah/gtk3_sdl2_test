@@ -35,14 +35,16 @@
 
 SX_SYSTEM *
 sx_create_system (int argc, char **argv) {
-	SX_VALUE *args, *err;
+	SX_VALUE *args;
 	SX_SYSTEM *system = (SX_SYSTEM *)sx_malloc (NULL, sizeof (SX_SYSTEM));
 	if (system == NULL) {
 		return system;
 	}
 
 	system->threads = NULL;
+	system->scripts = NULL;
 	system->vars = NULL;
+	system->classes = NULL;
 	system->gc_values = NULL;
 	system->flags = 0;
 	system->gc_count = 0;
@@ -54,6 +56,14 @@ sx_create_system (int argc, char **argv) {
 
 	sx_init_ids ();
 
+	system->cstring = sx_init_string (system);
+	system->cfixnum = sx_new_core_class (system, sx_name_to_id ("FixNum"));
+	system->cerror = sx_init_error (system);
+	system->cblock = sx_init_block (system);
+	system->carray = sx_init_array (system);
+	system->cfunction = sx_init_function (system);
+	system->crange = sx_init_range (system);
+
 	sx_define_system_var (system, sx_name_to_id ("SX_VERSION"), sx_new_str (system, SX_VERSION));
 
 	args = sx_new_array (system, argc, NULL);
@@ -62,13 +72,11 @@ sx_create_system (int argc, char **argv) {
 	}
 	sx_define_system_var (system, sx_argv_id, args);
 
-	sx_define_system_var (system, sx_name_to_id ("SXError"), (err = sx_new_class (system, sx_new_nil (), NULL)));
-	sx_define_system_var (system, sx_NameError, sx_new_class (system, err, NULL));
-	sx_define_system_var (system, sx_TypeError, sx_new_class (system, err, NULL));
-	sx_define_system_var (system, sx_name_to_id ("SysError"), sx_new_class (system, err, NULL));
-	sx_define_system_var (system, sx_MemError, sx_new_class (system, err, NULL));
-	sx_define_system_var (system, sx_StackError, sx_new_class (system, err, NULL));
-	sx_define_system_var (system, sx_ArgumentError, sx_new_class (system, err, NULL));
+	sx_new_class (system, sx_NameError, system->cerror);
+	sx_new_class (system, sx_TypeError, system->cerror);
+	sx_new_class (system, sx_MemError, system->cerror);
+	sx_new_class (system, sx_StackError, system->cerror);
+	sx_new_class (system, sx_ArgumentError, system->cerror);
 
 	return system;
 }
@@ -100,7 +108,7 @@ sx_free_system (SX_SYSTEM *system) {
 
 	while (system->gc_values) {
 		vnext = system->gc_values->gc_next;
-		sx_free_value (system->gc_values);
+		sx_free_value (system, system->gc_values);
 		system->gc_values = vnext;
 	}
 
@@ -113,7 +121,7 @@ sx_add_gc_value (SX_SYSTEM *system, SX_VALUE *value) {
 		return;
 	}
 	
-	if (SX_ISNUM (value) || SX_ISNIL (value)) {
+	if (SX_ISNUM (system, value) || SX_ISNIL (system, value)) {
 		return;
 	}
 
@@ -172,11 +180,11 @@ sx_run_gc (SX_SYSTEM *system) {
 			-- system->gc_count;
 			if (last) {
 				last->gc_next = value->gc_next;
-				sx_free_value (value);
+				sx_free_value (system, value);
 				value = last->gc_next;
 			} else {
 				system->gc_values = value->gc_next;
-				sx_free_value (value);
+				sx_free_value (system, value);
 				value = system->gc_values;
 			}
 		} else {
@@ -220,4 +228,62 @@ sx_run (SX_SYSTEM *system, unsigned int max) {
 				break;
 		}
 	}
+}
+
+SX_VALUE *
+sx_run_until (SX_SYSTEM *system, sx_thread_id id) {
+	SX_THREAD *thread, *last;
+	SX_VALUE *ret = NULL;
+	int state;
+
+	if (id == 0) {
+		return NULL;
+	}
+
+	for (thread = system->threads; thread != NULL && thread->id != id; thread = thread->next)
+		;
+
+	if (thread == NULL) {
+		return NULL;
+	}
+
+	while (id != 0) {
+		last = NULL;
+		for (thread = system->threads; thread != NULL; ) {
+			state = sx_run_thread (thread, 1000); 	/* FIXME: conigure value comewhoe */
+			switch (state) {
+				case SX_STATE_ERROR:
+				case SX_STATE_EXIT:
+					if (id == thread->id) {
+						id = 0; /* mark "return value" */
+						ret = thread->ret;
+					}
+
+					if (last != NULL) {
+						last->next = thread->next;
+						sx_free_thread (thread);
+						thread = last->next;
+					} else {
+						system->threads = thread->next;
+						sx_free_thread (thread);
+						thread = system->threads;
+					}
+					-- system->valid_threads;
+
+					if (id == 0) {
+						return ret;
+					}
+					break;
+				case SX_STATE_RUN:
+					/* ERROR: wtf? */
+
+					/* fall thry */
+				default:
+					thread = thread->next;
+					break;
+			}
+		}
+	}
+
+	return NULL;
 }

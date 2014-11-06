@@ -29,6 +29,7 @@
 	#include <stdlib.h>
 	#include <string.h>
 	#include <ctype.h>
+	#include <errno.h>
 
 	#include "scriptix.h"
 	#include "y.tab.h"
@@ -98,7 +99,6 @@
 		LEX_NAME("length", TLENGTH)
 		LEX_NAME("class", TCLASS)
 		LEX_NAME("new", TNEW)
-		LEX_NAME("type", TTYPE)
 		LEX_NAME("isa", TISA)
 		LEX_NAME("nil", TNIL)
 		LEX_NAME("raise", TRAISE)
@@ -177,7 +177,6 @@ sx_parser_input (char *buf, int *result, int max_size) {
 		errno = 0;
 		while ((*result = fread (buf, 1, max_size, sxin)) == 0 && ferror (sxin)) {
 			if (errno != EINTR) {
-				/* FIXME: error */
 				break;
 			}
 			errno = 0;

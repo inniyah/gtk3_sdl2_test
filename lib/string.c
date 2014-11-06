@@ -32,89 +32,92 @@
 #include <stdlib.h>
 
 #include "scriptix.h"
+#include "system.h"
 
-/* internal function stuff */
+/* klass helper funcs */
 void
-_sx_function_mark (SX_SYSTEM *system, SX_VALUE *value) {
-	if (value->data.func.cfunc == NULL) {
-		sx_mark_value (system, value->data.func.args);
-		sx_mark_value (system, value->data.func.body);
+_sx_str_print (SX_SYSTEM *system, SX_VALUE *str) {
+	if (str->data.str.str != NULL) {
+		system->print_hook ("%s", str->data.str.str);
+	}
+}
+
+SX_VALUE *
+_sx_str_to_num (SX_SYSTEM *system, SX_VALUE *str) {
+	if (str->data.str.str != NULL) {
+		return sx_new_num (atoi (str->data.str.str));
 	} else {
-		if (value->data.func.data != NULL) {
-			sx_mark_value (system, value->data.func.data);
-		}
+		return sx_new_num (0);
 	}
 }
 
 int
-_sx_function_equal (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
-	if (one->data.func.cfunc != NULL) {
-		return one->data.func.cfunc == two->data.func.cfunc;
-	} else {
-		return one->data.func.args == two->data.func.args && one->data.func.body == two->data.func.body;
+_sx_str_equal (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
+	if (one->data.str.len != two->data.str.len) {
+		return 0;
 	}
+	if (one->data.str.len == 0) {
+		return 1;
+	}
+	return !strcmp (one->data.str.str, two->data.str.str);
+}
+
+int
+_sx_str_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
+	if (one->data.str.len < two->data.str.len) {
+		return -1;
+	} else if (one->data.str.len > two->data.str.len) {
+		return 1;
+	}
+	if (one->data.str.len == 0) {
+		return 0;
+	}
+	return strcmp (one->data.str.str, two->data.str.str);
 }
 
 SX_CLASS *
-sx_init_function (SX_SYSTEM *system) {
+sx_init_string (SX_SYSTEM *system) {
 	SX_CLASS *klass;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("Function"));
+	klass = sx_new_core_class (system, sx_name_to_id ("String"));
 	if (klass == NULL) {
 		return NULL;
 	}
 
-	klass->core->fmark = _sx_function_mark;
-	klass->core->fequal = _sx_function_equal;
+	klass->core->fprint = _sx_str_print;
+	klass->core->ftonum = _sx_str_to_num;
+	klass->core->fequal = _sx_str_equal;
+	klass->core->fcompare = _sx_str_compare;
 
 	return klass;
 }
 
 SX_VALUE *
-sx_new_func (SX_SYSTEM *system, SX_VALUE *args, SX_VALUE *body) {
+sx_new_str (SX_SYSTEM *system, char *str) {
 	SX_VALUE *value;
-
-	if (!SX_ISBLOCK (system, body)) {
-		return NULL;
-	}
-	if (!SX_ISNIL (system, args) && !SX_ISARRAY (system, args)) {
-		return NULL;
+	unsigned int len;
+	
+	if (str == NULL) {
+		len = 0;
+		value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
+	} else {
+		len = strlen (str);
+		value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE) + (len + 1) * sizeof (char));
 	}
 	
-	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	if (value == NULL) {
 		return NULL;
 	}
 
-	value->klass = system->cfunction;
+	value->klass = system->cstring;
 	value->members = NULL;
-	value->data.func.args = args;
-	value->data.func.body = body;
-	value->data.func.cfunc = NULL;
-	value->locks = 0;
-	value->gc_next = NULL;
-	value->flags = 0;
-
-	sx_add_gc_value (system, value);
-
-	return value;
-}
-
-SX_VALUE *
-sx_new_cfunc (SX_SYSTEM *system, sx_cfunc func, SX_VALUE *data) {
-	SX_VALUE *value;
-	
-	sx_lock_value (data);
-	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
-	sx_unlock_value (data);
-	if (value == NULL) {
-		return NULL;
+	if (str == NULL) {
+		value->data.str.len = 0;
+	} else {
+		value->data.str.len = strlen (str);
+		strcpy (value->data.str.str, str);
 	}
 
-	value->klass = system->cfunction;
-	value->members = NULL;
-	value->data.func.cfunc = func;
-	value->data.func.data = data;
 	value->locks = 0;
 	value->flags = 0;
 	value->gc_next = NULL;
@@ -125,11 +128,28 @@ sx_new_cfunc (SX_SYSTEM *system, sx_cfunc func, SX_VALUE *data) {
 }
 
 SX_VALUE *
-sx_define_cfunc (SX_SYSTEM *system, char *name, sx_cfunc func, SX_VALUE *data) {
-	SX_VALUE *cfunc = sx_new_cfunc (system, func, data);
-	if (cfunc == NULL) {
+sx_new_str_len (SX_SYSTEM *system, char *str, unsigned int len) {
+	SX_VALUE *value;
+	
+	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE) + (len + 1) * sizeof (char));
+	if (value == NULL) {
 		return NULL;
 	}
 
-	return sx_define_system_var (system, sx_name_to_id (name), cfunc);
+	value->data.str.len = len;
+
+	value->klass = system->cstring;
+	value->members = NULL;
+	if (str != NULL) {
+		strncpy (value->data.str.str, str, len);
+		SX_TOSTR(system,value)[len] = '\0';
+	}
+
+	value->locks = 0;
+	value->flags = 0;
+	value->gc_next = NULL;
+
+	sx_add_gc_value (system, value);
+
+	return value;
 }

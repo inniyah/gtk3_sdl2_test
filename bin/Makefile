@@ -4,7 +4,7 @@ OBJECTS := scriptix.o
 
 all: scriptix
 
-scriptix: $(OBJECTS) ../lib/libscriptix.a ../lib/libsxstdlib.a ../lib/libsxparse.a
+scriptix: $(OBJECTS) ../lib/libscriptix.a ../lib/libsxparse.a
 	$(CC) -o $@ $(CFLAGS) $^
 
 $(OBJECTS): ../include/scriptix.h

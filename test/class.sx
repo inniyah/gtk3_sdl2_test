@@ -1,56 +1,44 @@
-class k
-	name = 'kclass'
-	function init (value)
-		global init = 16
+class test
+	function set_name (name)
+		self.name = name
 	end
-	function setvar (value)
-		self.var = value
+	function get_name ()
+		self.name
 	end
 end
-k.test = function ()
-	return name
+
+class child : test
+	function set_name (name)
+		self.name = concat ('child ', name)
+	end
 end
 
-g = new k
+a = new test
+b = new child
 
-if k.test () != 'kclass' then
-	printl ('k.test() failure')
+if a == b then
+	printl ('== test failed')
 	return 1
 end
 
-k.setvar ('hey')
-if k.var != 'hey' or g.var != 'hey' then
-	printl ('*.var failure')
+a.set_name ('test')
+b.set_name ('test')
+
+if b.get_name () != 'child test' or a.get_name () != 'test' then
+	printl ('get_name/set_name failed')
 	return 1
 end
 
-g.setvar ('hmm')
-if k.var != 'hey' or g.var != 'hmm' then
-	printl ('*.var failure 2')
-	return 1
+if ! a isa test then
+	printl ('a isa failed')
 end
 
-if g.name != 'kclass' then
-	printl ('g.name failure')
-	return 1
+if ! b isa test then
+	printl ('b isa test failed')
 end
 
-g.name = 'g'
-
-if g.name != 'g' or k.name != 'kclass' then
-	printl ('*.name failure')
-	return 1
+if ! b isa child then
+	printl ('b isa child failed')
 end
 
-if ! g isa k or k isa g then
-	return 1
-end
-
-if init != 16 then
-	printl ('init failure: ', init)
-	return 1
-end
-
-printl ('all good')
-
-return 0
+printl ('success')

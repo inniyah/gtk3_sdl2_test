@@ -82,3 +82,4 @@ sx_start_script (SX_SYSTEM *system, sx_script_id id, SX_VALUE *argv) {
 
 	return 0;
 }
+

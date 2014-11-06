@@ -34,21 +34,14 @@
 int
 main (int argc, char **argv) {
 	SX_SYSTEM *system;
-	int ret;
 
 	system = sx_create_system (argc - 1, argv + 1);
 	sx_init_stdlib (system);
 
-	sx_load_string (system, "printl ('this is a string to eval')");
-
 	if (argc > 1 && strcmp (argv[1], "-")) {
-		ret = sx_run_file (system, argv[1], NULL);
+		sx_run_file (system, argv[1], NULL);
 	} else {
-		ret = sx_run_file (system, NULL, NULL);
-	}
-
-	while (system->valid_threads) {
-		sx_run (system, 0);
+		sx_run_file (system, NULL, NULL);
 	}
 
 	sx_free_system (system);

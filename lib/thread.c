@@ -35,9 +35,9 @@
 sx_thread_id
 sx_create_thread (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *argv) {
 	SX_THREAD *thread;
-	static unsigned int _free_id = 0; /* ID tag for threds */
+	static unsigned int _free_id = 0; /* ID tag for threads */
 
-	if (!SX_ISBLOCK (block)) {
+	if (!SX_ISBLOCK (system, block)) {
 		return 0;
 	}
 
@@ -65,12 +65,14 @@ sx_create_thread (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *argv) {
 	thread->data = 0;
 	thread->ret = NULL;
 	thread->state = SX_STATE_RUN;
+	thread->line = 1;
+	thread->file = NULL;
 	thread->id = ++_free_id;
 	system->threads = thread;
 	++ system->valid_threads;
 
 	sx_push_call (thread, thread->main, NULL, SX_CFLAG_HARD);
-	if (SX_ISARRAY (argv)) {
+	if (SX_ISARRAY (system, argv)) {
 		sx_define_var (thread, sx_argv_id, argv, SX_SCOPE_LOCAL);
 	}
 
@@ -120,6 +122,9 @@ sx_mark_thread (SX_THREAD *thread) {
 	}
 	if (thread->main) {
 		sx_mark_value (thread->system, thread->main);
+	}
+	if (thread->file) {
+		sx_mark_value (thread->system, thread->file);
 	}
 
 	for (i = 0; i < thread->call; ++ i) {

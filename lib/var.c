@@ -151,7 +151,7 @@ sx_get_var (SX_THREAD *thread, unsigned int id, int scope) {
 
 	if (scope != SX_SCOPE_GLOBAL) {
 		if (thread->cur_class != NULL) {
-			var = sx_find_member (thread->cur_class, id);
+			var = sx_find_member (thread->system, thread->cur_class, id);
 			if (var != NULL) {
 				return var;
 			}

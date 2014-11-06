@@ -54,32 +54,32 @@ SX_DEFINE_CFUNC (sx_stdlib_concat) {
 	SX_VALUE *ret, *one, *two;
 
 	if (sx_argc != 2) {
-		sx_raise_error (sx_thread, sx_ArgumentError);
+		sx_raise_error (sx_thread, sx_ArgumentError, NULL);
 		return;
 	}
 
 	one = sx_get_value (sx_thread, sx_top);
 	two = sx_get_value (sx_thread, sx_top + 1);
 
-	if (sx_type_of (one) != sx_type_of (two)) {
-		sx_raise_error (sx_thread, sx_TypeError);
+	if (sx_top_class_of (sx_thread->system, one) != sx_top_class_of (sx_thread->system, two)) {
+		sx_raise_error (sx_thread, sx_TypeError, NULL);
 		return;
 	}
 
-	if (SX_ISSTRING (one)) {
-		ret = sx_new_str_len (sx_thread->system, NULL, one->data.str.len + one->data.str.len);
+	if (SX_ISSTRING (sx_thread->system, one)) {
+		ret = sx_new_str_len (sx_thread->system, NULL, one->data.str.len + two->data.str.len);
 		if (ret == NULL) {
-			sx_raise_error (sx_thread, sx_MemError);
+			sx_raise_error (sx_thread, sx_MemError, NULL);
 			return;
 		}
 		if (one->data.str.len > 0) {
-			strcpy (SX_TOSTR (ret), SX_TOSTR (one));
+			strcpy (SX_TOSTR (sx_thread->system, ret), SX_TOSTR (sx_thread->system, one));
 		}
 		if (two->data.str.len > 0) {
-			strcpy (SX_TOSTR (ret) + one->data.str.len, SX_TOSTR (two));
+			strcpy (SX_TOSTR (sx_thread->system, ret) + one->data.str.len, SX_TOSTR (sx_thread->system, two));
 		}
 		sx_push_value (sx_thread, ret);
-	} else if (SX_ISARRAY (two)) {
+	} else if (SX_ISARRAY (sx_thread->system, two)) {
 		/* FIXME */
 		sx_push_value (sx_thread, one);
 	}

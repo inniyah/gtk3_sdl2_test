@@ -15,7 +15,7 @@ The list of current Scriptix features include:
 	User and C functions
 	Lists/arrays
 	Garbage collection
-	Classes w/ inheritance
+	Fully class based
 	Exceptions
 	While/until/do/for loops and blocks
 	Ranges
@@ -26,7 +26,6 @@ Planned/future features (i.e. Todo list):
 	General cleanups and bug fixes
 	Thread control
 	A moderate standard library, useful for simple embedding purposes
-	Use of exceptions where necessary
 
 	2.0:
 	Re-entrant/threadable parsers
@@ -36,6 +35,8 @@ Planned/future features (i.e. Todo list):
 	Constants
 	Virtual variables
 	Regular expressions
+	Floating-point and bignum support
+	Better error system for C functions
 
 Model:
 As some notes, Scriptix is not based on a VM model.  A true VM language can
@@ -46,7 +47,7 @@ programming).  I'm sure there is one out there somewhere, tho, or perhaps
 one will appear soon-ish.  Either way, a model based on a true VM would
 likely prove better, and I would recommend you look at any such products
 if given the chance, before deciding to use Scriptix for you project.  Of
-all the project out there, Lua seems to closest in terms of architecture,
+all the projects out there, Lua seems to closest in terms of architecture,
 but its syntax and symantics aren't quite what they could be.
 
 Blocks:
@@ -72,13 +73,26 @@ commands.  However, the last executed statement in either block would be
 returned.
 
 Classes:
-Classes work fairly simply.  Every class is just a group of variables, much
-like a nested scope.  You can get or set variables in a class, much like in
-a scope.  However, classes also have a parent class.  When you try to get a
-value from a class, and that variable does not exist, it then searches its
-parent, then the parent's parent, and so on.  This allows simple but
-usable inheritance.
+Classes are fairly simple.  A class is nothing more than an name, a collection
+of methods, and a parent class.  The very top parent class can also be a
+"core" class, which handles special properties (operator overloading, for the
+most part).
 
-It should also be noted that a class can inherit an instance of another
-class.  Thus, you can make proxy instances of classes, or define wrapper
-members for a class, without modifying the original instance.
+An object can be created.  Each object inherits from a class.  An object is
+generally just a collection of members.  Methods, or class functions, are part
+of the classes themselves, and cannot be defined on a per-class basis only.
+
+In addition, each core class can define additional parameters/members of an
+instance.  For example, you could create a special core class for containing
+references to a custom C datatype, and then add methods to the class for
+interacting with the data type.
+
+Scriptix code can derive classes from core class, or make custom "bare"
+classes.  A bare class would be nothing more than a collection of methods -
+no operator overloading or other special functionality.
+
+A derived class based on a core class can be made to do a number of
+interesting things, depending on the core class.  A derived class cannot
+overload a core class's operator overloading code, however, the total
+usefulness *is* limited.  This shouldn't be too much of an issue given
+Scriptix' domain, however.

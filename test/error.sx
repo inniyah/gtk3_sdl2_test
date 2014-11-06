@@ -2,8 +2,8 @@ try
 	raise StackError
 	printl ('oops - didnt raise')
 	return 1
-rescue SXError error
-	printl ('ok, caught it')
+rescue StackError error
+	printl ('ok, caught it: ', error)
 	return 0
 end
 

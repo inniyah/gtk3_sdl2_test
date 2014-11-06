@@ -64,7 +64,7 @@ sx_name_to_id (const char *name) {
 		}
 	}
 
-	ni = sx_malloc (NULL, sizeof (struct _scriptix_name_id)); /* FIXME: need system */
+	ni = malloc (sizeof (struct _scriptix_name_id));
 	if (ni == NULL) {
 		return 0;
 	}

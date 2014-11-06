@@ -27,8 +27,8 @@ install: all
 	( cd include ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
 	( cd lib ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
 	( cd bin ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
-	install -D -d $(DESTDIR)/$(prefix)/share/doc/scriptix-0.13
-	install -m 0644 README COPYING $(DESTDIR)/$(prefix)/share/doc/scriptix-0.13
+	install -D -d $(DESTDIR)/$(prefix)/share/doc/scriptix-0.14
+	install -m 0644 README COPYING $(DESTDIR)/$(prefix)/share/doc/scriptix-0.14
 
 dist: all
 	rm -rf scriptix/
@@ -39,14 +39,14 @@ dist: all
 	( cd bin ; make dist )
 	( cd test ; make dist )
 	( cd deb ; make dist )
-	mv scriptix/ scriptix-0.13/
-	tar -zcf scriptix-0.13.tar.gz scriptix-0.13/
-	rm -rf scriptix-0.13/
+	mv scriptix/ scriptix-0.14/
+	tar -zcf scriptix-0.14.tar.gz scriptix-0.14/
+	rm -rf scriptix-0.14/
 
 deb:
 	debuild
 
 rpm: dist
-	rpm -ta scriptix-0.13.tar.gz
+	rpm -ta scriptix-0.14.tar.gz
 
 .PHONY: deb rpm dist install clean all dist-clean
