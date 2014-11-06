@@ -1,21 +1,22 @@
 
-extern int sxp_load_file (SX_MODULE module, const char *file);
-extern int sxp_load_string (SX_MODULE module, const char *buffer);
-extern SX_FUNC sx_add_func (SX_MODULE module, SX_FUNC func);
+extern int sxp_add_tag (SX_SYSTEM system, const char *tag, sxp_tag_func func);
+extern int sxp_load_file (SX_SYSTEM system, const char *file);
+extern int sxp_load_string (SX_SYSTEM system, const char *buffer);
+extern SX_FUNC sx_add_func (SX_SYSTEM system, SX_FUNC func);
 extern SX_METHOD sx_add_method (SX_SYSTEM system, SX_TYPE type, const char *name, unsigned long argc, int varg_flag, sx_cfunc method);
 extern SX_METHOD sx_add_static_method (SX_SYSTEM system, SX_TYPE type, const char *name, unsigned long argc, int varg_flag, sx_cfunc method);
 extern SX_VALUE sx_append (SX_SYSTEM system, SX_VALUE base, SX_VALUE value);
 extern int sx_are_equal (SX_SYSTEM system, SX_VALUE one, SX_VALUE two);
 extern int sx_compare (SX_SYSTEM system, SX_VALUE one, SX_VALUE two);
 extern SX_SYSTEM sx_create_system (void);
-extern SX_THREAD sx_create_thread (SX_MODULE module, SX_FUNC func, SX_ARRAY argv);
-extern SX_THREAD sx_create_thread_v (SX_MODULE module, SX_FUNC func, unsigned long argc, ...);
+extern SX_THREAD sx_create_thread (SX_SYSTEM system, SX_FUNC func, SX_ARRAY argv);
+extern SX_THREAD sx_create_thread_v (SX_SYSTEM system, SX_FUNC func, unsigned long argc, ...);
 #define SX_DEFINE_CFUNC(name) void name (SX_THREAD sx_thread, SX_VALUE sx_self, unsigned long sx_argc, SX_VALUE *sx_argv, SX_VALUE *sx_ret)
+extern SX_FUNC sx_define_cfunc (SX_SYSTEM system, const char* name, unsigned long argc, int varg_flag, sx_cfunc func);
 extern SX_VALUE sx_define_global (SX_SYSTEM system, sx_name_id id, SX_VALUE value);
 extern SX_VALUE sx_define_var (SX_THREAD thread, sx_name_id id, SX_VALUE value);
 extern void *sx_dupmem (const void *mem, unsigned long size);
 #define sx_free(ptr) free(ptr);
-extern void sx_free_func (SX_FUNC func);
 extern void sx_free_namelist (sx_name_id *list);
 extern void sx_free_system (SX_SYSTEM system);
 extern SX_VALUE sx_get_global (SX_SYSTEM system, sx_name_id id);
@@ -23,6 +24,8 @@ extern SX_VALUE sx_get_index (SX_SYSTEM system, SX_VALUE cont, long index);
 extern SX_METHOD sx_get_method (SX_SYSTEM system, SX_TYPE type, sx_name_id id);
 extern SX_METHOD sx_get_static_method (SX_SYSTEM system, SX_TYPE type, sx_name_id id);
 extern SX_VAR sx_get_var (SX_THREAD thread, sx_name_id id);
+extern SX_THREAD sx_invoke (SX_THREAD thread, SX_FUNC func, unsigned long argc, SX_VALUE array[]); 
+extern SX_THREAD sx_invoke_v (SX_THREAD thread, SX_FUNC func, unsigned long argc, ...);
 #define SX_ISARRAY(s,v) ((sx_type_of ((s),(v))) == (s)->carray)
 #define SX_ISSTRING(s,v) ((sx_type_of ((s),(v))) == (s)->cstring)
 extern int sx_is_true (SX_SYSTEM system, SX_VALUE value);
@@ -31,9 +34,8 @@ extern const char *sx_name_id_to_name (sx_name_id id);
 extern sx_name_id sx_name_to_id (const char *name);
 extern SX_VALUE sx_new_array (SX_SYSTEM system, unsigned long argc, SX_VALUE *argv);
 extern SX_VALUE sx_new_block (SX_SYSTEM system);
-extern SX_FUNC sx_new_cfunc (SX_SYSTEM system, sx_name_id id, unsigned long argc, int varg_flag, sx_cfunc func);
-extern SX_FUNC sx_new_func (SX_SYSTEM system, sx_name_id id, sx_name_id *args, sx_name_id varg, SX_BLOCK body);
-extern SX_MODULE sx_new_module (SX_SYSTEM system, sx_name_id id, SX_MODULE parent);
+extern SX_VALUE sx_new_cfunc (SX_SYSTEM system, sx_name_id id, unsigned long argc, int varg_flag, sx_cfunc func);
+extern SX_VALUE sx_new_func (SX_SYSTEM system, sx_name_id id, sx_name_id *args, sx_name_id varg, SX_BLOCK body);
 extern sx_name_id *sx_new_namelist (SX_SYSTEM system, unsigned long argc, ...);
 extern sx_name_id *sx_new_namelist_from_array (SX_SYSTEM system, SX_ARRAY array);
 #define sx_new_nil() ((SX_VALUE )(NULL))
@@ -43,13 +45,13 @@ extern SX_TYPE sx_new_object_type (SX_SYSTEM system, const char *name, SX_TYPE p
 extern SX_VALUE sx_new_str (SX_SYSTEM system, const char *str);
 extern SX_VALUE sx_new_str_len (SX_SYSTEM system, const char *str, unsigned long len);
 extern SX_TYPE sx_new_type (SX_SYSTEM system, const char *name);
-extern int sx_raise_error (SX_THREAD thread, const char *format, ...);
-extern int sx_raise_sys_error (SX_THREAD thread, const char *format, ...);
-extern void sx_run (SX_SYSTEM system, unsigned long max);
+extern int sx_raise_error (SX_THREAD thread, int err, const char *format, ...);
+extern int sx_raise_sys_error (SX_THREAD thread, int err, const char *format, ...);
+extern int sx_run (SX_SYSTEM system, unsigned long max);
 extern int sx_runable (SX_SYSTEM system);
-extern void sx_wait (SX_SYSTEM system, sx_thread_id id, int *retval);
 extern int sx_set_option (SX_SYSTEM system, sx_option_type op, long value);
 #define SX_TOARRAY(s) ((SX_ARRAY )(s))
 #define SX_TOSTRING(s) ((SX_STRING )(s))
 extern SX_TYPE sx_type_is_a (SX_SYSTEM system, SX_TYPE base, SX_TYPE par);
 extern SX_VALUE sx_value_is_a (SX_SYSTEM system, SX_VALUE base, SX_TYPE par);
+extern int sx_wait (SX_SYSTEM system, sx_thread_id id, int *retval);

@@ -1,0 +1,70 @@
+Scriptix :: The lite-weight extension language
+See the file COPYING, which should have come with this distribution, for
+information regarding the licensing terms and warranty for this software
+
+Scriptix is a simple extension language (not to be confused with a full-scale
+programming language).  The intent of Scriptix is to allow easy, fast,
+and powerful scripting support for any application.
+
+The list of current Scriptix features include:
+
+	C/C++/Java -like syntax
+	Number and string data types
+	Variables
+	User and C functions
+	Lists/arrays
+	Garbage collection
+	Fully class based
+	Exceptions
+	While/until/do/for loops and blocks
+
+Planned/future features (i.e. Todo list):
+
+	Documentation
+	Advanced thread control
+	A moderate standard library, useful for simple embedding purposes
+	Optimization system
+	Security model
+	Constants
+	Regular expressions
+	Floating-point and bignum support
+	Better error system for C functions
+
+Features you won't likely see, ever, as they are unnecessary overkill:
+
+	Script-defined operator overloading
+	In-script module loading/including/requiring
+	Virtual variables
+	Weird/unusual built-in datatypes
+	OS/System interfaces
+	Massively large standard library/class system
+
+Model:
+Scriptix is based on a byte-code interpreter.  The compiler parses the input
+into a parse tree.  This is then run thru an optimization system.  Then the
+trimmed/pruned/optimized tree is run thru a code generator.
+
+Classes:
+Classes are fairly simple.  A class is nothing more than an name, a collection
+of methods, and a parent class.  The very top parent class can also be a
+"core" class, which handles special properties (operator overloading, for the
+most part).
+
+An object can be created.  Each object inherits from a class.  An object is
+generally just a collection of members.  Methods, or class functions, are part
+of the classes themselves, and can be defined on a per-class basis only.
+
+In addition, each core class can define additional parameters/members of an
+instance.  For example, you could create a special core class for containing
+references to a custom C datatype, and then add methods to the class for
+interacting with the data type.
+
+Scriptix code can derive classes from core class, or make custom "bare"
+classes.  A bare class would be nothing more than a collection of methods -
+no operator overloading or other special functionality.
+
+A derived class based on a core class can be made to do a number of
+interesting things, depending on the core class.  A derived class cannot
+overload a core class's operator overloading code, however, the total
+usefulness *is* limited.  This shouldn't be too much of an issue given
+Scriptix' problem domain, however.

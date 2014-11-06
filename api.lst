@@ -1,3 +1,4 @@
+sxp_add_tag
 sxp_load_file
 sxp_load_string
 sx_add_func
@@ -10,11 +11,11 @@ sx_create_system
 sx_create_thread
 sx_create_thread_v
 SX_DEFINE_CFUNC
+sx_define_cfunc
 sx_define_global
 sx_define_var
 sx_dupmem
 sx_free
-sx_free_func
 sx_free_namelist
 sx_free_system
 sx_get_global
@@ -22,6 +23,8 @@ sx_get_index
 sx_get_method
 sx_get_static_method
 sx_get_var
+sx_invoke
+sx_invoke_v
 SX_ISARRAY
 SX_ISSTRING
 sx_is_true
@@ -32,7 +35,6 @@ sx_new_array
 sx_new_block
 sx_new_cfunc
 sx_new_func
-sx_new_module
 sx_new_namelist
 sx_new_namelist_from_array
 sx_new_nil
@@ -46,9 +48,9 @@ sx_raise_error
 sx_raise_sys_error
 sx_run
 sx_runable
-sx_wait
 sx_set_option
 SX_TOARRAY
 SX_TOSTRING
 sx_type_is_a
 sx_value_is_a
+sx_wait
