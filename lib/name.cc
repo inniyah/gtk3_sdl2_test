@@ -43,7 +43,7 @@ namespace {
 	NameMap names;
 }
 
-#define NAME_TO_ID(name) ((int_t)&(name) >> 2)
+#define NAME_TO_ID(name) ((intptr_t)&(name) >> 2)
 #define ID_TO_NAME(id) (*((std::string*)(id << 2)))
 
 NameID

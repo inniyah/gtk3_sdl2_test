@@ -320,35 +320,108 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				func->func->AddOparg(system, _sxp_count(node->parts.nodes[0]));
 				break;
 			// increment a normal variable, push result
-			case SXP_PREINC:
-			{
-				long index;
-				// do variable lookup
-				index = GetVar(func, node->parts.name);
-				if (index < 0) {
-					_sxp_node_error (node, "Error: Undefined variable '%s'", IDToName (node->parts.name));
-					break;
-				}
+			case SXP_PREOP:
+				// normal variable/name
+				if (node->parts.nodes[0]->type == SXP_LOOKUP) {
+					long index;
+					// do variable lookup
+					index = GetVar(func, node->parts.nodes[0]->parts.name);
+					if (index < 0) {
+						_sxp_node_error (node, "Error: Undefined variable '%s'", IDToName (node->parts.name));
+						return false;
+					}
 
-				func->func->AddValue(system, Number::Create (index));
-				_test(CompileNode (func, node->parts.nodes[0]))
-				func->func->AddOpcode(system, OP_PREINCREMENT);
+					// lookup, copy, do op, re-assign
+					func->func->AddOpcode(system, OP_LOOKUP);
+					func->func->AddOparg(system, index);
+					_test(CompileNode (func, node->parts.nodes[1]))
+					func->func->AddOpcode(system, (sx_op_type)node->parts.op);
+					func->func->AddOpcode(system, OP_ASSIGN);
+					func->func->AddOparg(system, index);
+				// list lookup
+				} else if (node->parts.nodes[0]->type == SXP_GETINDEX) {
+					// setup, copy, get value, do op, re-assign
+					_test(CompileNode (func, node->parts.nodes[0]->parts.nodes[0]))
+					_test(CompileNode (func, node->parts.nodes[0]->parts.nodes[1]))
+					func->func->AddOpcode(system, OP_COPY);
+					func->func->AddOparg(system, 2);
+					func->func->AddOpcode(system, OP_COPY);
+					func->func->AddOparg(system, 2);
+					func->func->AddOpcode(system, OP_INDEX);
+					_test(CompileNode (func, node->parts.nodes[1]))
+					func->func->AddOpcode(system, (sx_op_type)node->parts.op);
+					func->func->AddOpcode(system, OP_SETINDEX);
+				// member lookup
+				} else if (node->parts.nodes[0]->type == SXP_GETMEMBER) {
+					// get, copy, lookup, do op, re-assign
+					_test(CompileNode (func, node->parts.nodes[0]->parts.nodes[0]))
+					func->func->AddOpcode(system, OP_COPY);
+					func->func->AddOparg(system, 1);
+					func->func->AddOpcode(system, OP_GET_MEMBER);
+					func->func->AddOparg(system, node->parts.nodes[0]->parts.name);
+					_test(CompileNode (func, node->parts.nodes[1]))
+					func->func->AddOpcode(system, (sx_op_type)node->parts.op);
+					func->func->AddOpcode(system, OP_SET_MEMBER);
+					func->func->AddOparg(system, node->parts.nodes[0]->parts.name);
+				// not an lvalue!
+				} else {
+					_sxp_node_error (node, "Error: Expression is not an lvalue");
+					return false;
+				}
 				break;
-			}
 			// push a normal variable, then increment its value
-			case SXP_POSTINC:
+			case SXP_POSTOP:
 			{
-				long index;
-				// do variable lookup
-				index = GetVar(func, node->parts.name);
-				if (index < 0) {
-					_sxp_node_error (node, "Error: Undefined variable '%s'", IDToName (node->parts.name));
-					break;
-				}
+				// normal variable/name
+				if (node->parts.nodes[0]->type == SXP_LOOKUP) {
+					long index;
+					// do variable lookup
+					index = GetVar(func, node->parts.nodes[0]->parts.name);
+					if (index < 0) {
+						_sxp_node_error (node, "Error: Undefined variable '%s'", IDToName (node->parts.name));
+						return false;
+					}
 
-				func->func->AddValue(system, Number::Create (index));
-				_test(CompileNode (func, node->parts.nodes[0]))
-				func->func->AddOpcode(system, OP_POSTINCREMENT);
+					// lookup, copy, do op, re-assign
+					func->func->AddOpcode(system, OP_LOOKUP);
+					func->func->AddOparg(system, index);
+					func->func->AddOpcode(system, OP_COPY);
+					func->func->AddOparg(system, 1);
+					_test(CompileNode (func, node->parts.nodes[1]))
+					func->func->AddOpcode(system, (sx_op_type)node->parts.op);
+					func->func->AddOpcode(system, OP_ASSIGN);
+					func->func->AddOparg(system, index);
+					func->func->AddOpcode(system, OP_POP);
+				// list lookup
+				} else if (node->parts.nodes[0]->type == SXP_GETINDEX) {
+					// setup, copy, get value, do op, re-assign
+					_test(CompileNode (func, node->parts.nodes[0]->parts.nodes[0]))
+					_test(CompileNode (func, node->parts.nodes[0]->parts.nodes[1]))
+					func->func->AddOpcode(system, OP_INDEX);
+					func->func->AddOpcode(system, OP_COPY);
+					func->func->AddOparg(system, 1);
+					_test(CompileNode (func, node->parts.nodes[1]))
+					func->func->AddOpcode(system, (sx_op_type)node->parts.op);
+					func->func->AddOpcode(system, OP_SETINDEX);
+					func->func->AddOpcode(system, OP_POP);
+				// member lookup
+				} else if (node->parts.nodes[0]->type == SXP_GETMEMBER) {
+					// get, copy, lookup, do op, re-assign
+					_test(CompileNode (func, node->parts.nodes[0]->parts.nodes[0]))
+					func->func->AddOpcode(system, OP_GET_MEMBER);
+					func->func->AddOparg(system, node->parts.nodes[0]->parts.name);
+					func->func->AddOpcode(system, OP_COPY);
+					func->func->AddOparg(system, 1);
+					_test(CompileNode (func, node->parts.nodes[1]))
+					func->func->AddOpcode(system, (sx_op_type)node->parts.op);
+					func->func->AddOpcode(system, OP_SET_MEMBER);
+					func->func->AddOparg(system, node->parts.nodes[0]->parts.name);
+					func->func->AddOpcode(system, OP_POP);
+				// not an lvalue!
+				} else {
+					_sxp_node_error (node, "Error: Expression is not an lvalue");
+					return false;
+				}
 				break;
 			}
 			// return from the current call stack
@@ -356,7 +429,7 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				if (node->parts.nodes[0] != NULL)
 					_test(CompileNode (func, node->parts.nodes[0]))
 				else
-					func->func->AddValue(system, SX_NIL);
+					func->func->AddValue(system, Nil);
 				func->func->AddOpcode(system, OP_JUMP);
 				returns.push_back(func->func->count);
 				func->func->AddOparg(system, 0);
@@ -431,13 +504,13 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				if (node->parts.nodes[1]) {
 					_test(CompileNode (func, node->parts.nodes[1]))
 				} else {
-					func->func->AddValue(system, SX_NIL);
+					func->func->AddValue(system, Nil);
 				}
 				// then put in item to check for
 				if (node->parts.nodes[0]) {
 					_test(CompileNode (func, node->parts.nodes[0]))
 				} else {
-					func->func->AddValue(system, SX_NIL);
+					func->func->AddValue(system, Nil);
 				}
 				// set op
 				func->func->AddOpcode(system, OP_IN);
@@ -507,6 +580,11 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_INTCAST);
 				break;
+			// copy a value
+			case SXP_COPY:
+				func->func->AddOparg(system, node->parts.op);
+				func->func->AddOpcode(system, OP_COPY);
+				break;
 		}
 		node = node->next;
 	}
@@ -572,7 +650,7 @@ Scriptix::ParserState::Compile(void) {
 		// compile node
 		if (!CompileNode (*func, (*func)->body))
 			return -1; // failed
-		(*func)->func->AddValue(system, SX_NIL);
+		(*func)->func->AddValue(system, Nil);
 
 		// return calls
 		while (!returns.empty()) {
@@ -601,7 +679,7 @@ Scriptix::ParserState::Compile(void) {
 			// compile
 			if (!CompileNode (*func, (*func)->body))
 				return -1; // failed
-			(*func)->func->AddValue(system, SX_NIL);
+			(*func)->func->AddValue(system, Nil);
 
 			// return calls
 			while (!returns.empty()) {

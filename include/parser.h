@@ -49,8 +49,8 @@ enum {
 	SXP_SETINDEX,
 	SXP_GETINDEX,
 	SXP_ARRAY,
-	SXP_PREINC,
-	SXP_POSTINC,
+	SXP_PREOP,
+	SXP_POSTOP,
 	SXP_RETURN,
 	SXP_BREAK,
 	SXP_METHOD,
@@ -66,6 +66,7 @@ enum {
 	SXP_FOREACH,
 	SXP_STRINGCAST,
 	SXP_INTCAST,
+	SXP_COPY,
 };
 
 enum {
@@ -235,9 +236,10 @@ struct ParserNode : public gc {
 #define sxp_new_getindex(info,list,index) (new ParserNode((info), SXP_GETINDEX, (list), (index), NULL, NULL, 0, 0, NULL, 0))
 #define sxp_new_assign(info,name,value) (new ParserNode((info), SXP_ASSIGN, (value), NULL, NULL, NULL, (name), 0, NULL, 0))
 #define sxp_new_cast(info,type,node) (new ParserNode((info), SXP_CAST, (node), NULL, NULL, NULL, 0, (type), NULL, 0))
-#define sxp_new_preinc(info,name,amount) (new ParserNode((info), SXP_PREINC, (amount), NULL, NULL, NULL, (name), 0, NULL, 0))
-#define sxp_new_postinc(info,name,amount) (new ParserNode((info), SXP_POSTINC, (amount), NULL, NULL, NULL, (name), 0, NULL, 0))
+#define sxp_new_preop(info,expr,op,value) (new ParserNode((info), SXP_PREOP, (expr), (value), NULL, NULL, 0, 0, NULL, (op)))
+#define sxp_new_postop(info,expr,op,value) (new ParserNode((info), SXP_POSTOP, (expr), (value), NULL, NULL, 0, 0, NULL, (op)))
 #define sxp_new_negate(info,node) (new ParserNode((info), SXP_NEGATE, (node), NULL, NULL, NULL, 0, 0, NULL, 0))
+#define sxp_new_copy(info,loc) (new ParserNode((info), SXP_COPY, NULL, NULL, NULL, NULL, 0, 0, NULL, (loc)))
 
 // compilation helpers
 extern ParserNode* sxp_transform (ParserNode* node); // optimizer

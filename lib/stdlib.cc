@@ -62,10 +62,8 @@ static
 Value*
 StdlibLookup (Thread* thread, size_t argc, Value** argv)
 {
-	if (!Value::IsA<String>(thread->GetSystem(), argv[0])) {
-		thread->RaiseArgError("lookup", "name", "String");
+	if (CheckArgs<Function>(thread, argv, "lookup", "name") != SXE_OK)
 		return NULL;
-	}
 
 	return (Value*)thread->GetSystem()->GetFunction(NameToID(((String*)argv[0])->GetCStr()));
 }
@@ -74,10 +72,15 @@ static
 Value*
 StdlibFork (Thread* thread, size_t argc, Value** argv) 
 {
-	if (!Value::IsA<Function>(thread->GetSystem(), argv[0])) {
-		thread->RaiseArgError("fork", "name", "Function");
+	// check permissions
+	if (!thread->has_access(SEC_FILEIO)) {
+		thread->RaiseSecurityError("fork");
 		return NULL;
 	}
+
+	// check type
+	if (CheckArgs<Function>(thread, argv, "fork", "function") != SXE_OK)
+		return NULL;
 
 	// FIXME: error on failure
 	Thread* nthread = thread->GetSystem()->CreateThread(SX_TOFUNC(argv[0]), argc - 1, &argv[1]);

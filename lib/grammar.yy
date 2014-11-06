@@ -74,9 +74,10 @@
 %token IF ELSE WHILE DO AND OR TGTE TLTE TNE TFOREACH TEXTEND
 %token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT TNEW TSTATIC
 %token TUNTIL TNIL TRESCUE TIN TFOR TCONTINUE TYIELD TPUBLIC
+%token TMULASSIGN TDIVASSIGN
 
 %nonassoc TBREAK TRETURN 
-%right '=' TADDASSIGN TSUBASSIGN 
+%right '=' TADDASSIGN TSUBASSIGN TMULASSIGN TDIVASSIGN
 %left AND OR
 %left '>' '<' TGTE TLTE TIN
 %left TNE TEQUALS
@@ -91,7 +92,7 @@
 %nonassoc IF
 %nonassoc ELSE
 
-%type<node> node args block stmts stmt expr func_args
+%type<node> node args block stmts stmt expr func_args lval
 %type<names> arg_names_list
 %type<value> data
 %type<id> name
@@ -146,7 +147,7 @@ block: { $$ = NULL; }
 	;
 
 stmts:	stmt { $$ = $1; }
-	| stmts stmt { $$ = $1; $$->Append($2); }
+	| stmts stmt { if ($1 != NULL) { $$ = $1; $$->Append($2); } else { $$ = $2; } }
 	;
 
 stmt:	node ';' { $$ = $1; }
@@ -194,6 +195,12 @@ func_args: '(' args ')' { $$ = $2; }
 	| '(' ')' { $$ = NULL; }
 	;
 
+lval: name { $$ = sxp_new_lookup(parser, $1); }
+	| expr '[' expr ']' { $$ = sxp_new_getindex(parser, $1, $3); }
+	| expr '.' name { $$ = sxp_new_get_member(parser, $1, $3); }
+	| '.' name { $$ = sxp_new_get_member(parser, sxp_new_lookup(parser, NameToID("self")), $2); }
+	;
+
 expr: expr '+' expr { $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
 	| expr '-' expr { $$ = sxp_new_math (parser, OP_SUBTRACT, $1, $3); }
 	| expr '*' expr { $$ = sxp_new_math (parser, OP_MULTIPLY, $1, $3); }
@@ -223,13 +230,17 @@ expr: expr '+' expr { $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
 
 	| name '=' expr { $$ = sxp_new_assign (parser, $1, $3); }
 	| expr '[' expr ']' '=' expr %prec '=' { $$ = sxp_new_setindex (parser, $1, $3, $6); }
+	| expr '.' name '=' expr { $$ = sxp_new_set_member(parser, $1, $3, $5); }
+	| '.' name '=' expr { $$ = sxp_new_set_member(parser, sxp_new_lookup(parser, NameToID("self")), $2, $4); }
 
-	| name TADDASSIGN expr { $$ = sxp_new_preinc (parser, $1, $3); }
-	| name TSUBASSIGN expr { $$ = sxp_new_preinc (parser, $1, sxp_new_negate (parser, $3)); }
-	| name TINCREMENT { $$ = sxp_new_postinc (parser, $1, sxp_new_data (parser, Number::Create (1))); }
-	| TINCREMENT name { $$ = sxp_new_preinc (parser, $2, sxp_new_data (parser, Number::Create (1))); }
-	| name TDECREMENT { $$ = sxp_new_postinc (parser, $1, sxp_new_data (parser, Number::Create (-1))); }
-	| TDECREMENT name { $$ = sxp_new_preinc (parser, $2, sxp_new_data (parser, Number::Create (-1))); }
+	| expr TADDASSIGN expr { $$ = sxp_new_preop (parser, $1, OP_ADD, $3); }
+	| expr TSUBASSIGN expr { $$ = sxp_new_preop (parser, $1, OP_SUBTRACT, $3); }
+	| expr TMULASSIGN expr { $$ = sxp_new_preop (parser, $1, OP_MULTIPLY, $3); }
+	| expr TDIVASSIGN expr { $$ = sxp_new_preop (parser, $1, OP_DIVIDE, $3); }
+	| expr TINCREMENT { $$ = sxp_new_postop (parser, $1, OP_ADD, sxp_new_data (parser, Number::Create (1))); }
+	| TINCREMENT expr { $$ = sxp_new_preop (parser, $2, OP_ADD, sxp_new_data (parser, Number::Create (1))); }
+	| expr TDECREMENT { $$ = sxp_new_postop (parser, $1, OP_SUBTRACT, sxp_new_data (parser, Number::Create (1))); }
+	| TDECREMENT expr { $$ = sxp_new_preop (parser, $2, OP_SUBTRACT, sxp_new_data (parser, Number::Create (1))); }
 	
 	| '(' type ')' expr %prec TCAST { yyerror("Warning: use of '(type)expr' casting is deprecrated; please use 'type(expr)'"); $$ = sxp_new_cast (parser, $2, $4); }
 	| type '(' expr ')' %prec TCAST { $$ = sxp_new_cast (parser, $1, $3); }
@@ -242,20 +253,13 @@ expr: expr '+' expr { $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
 	| expr '.' name func_args { $$ = sxp_new_method (parser, $1, $3, $4); }
 	| '.' name func_args { $$ = sxp_new_method (parser, sxp_new_lookup(parser, NameToID("self")), $2, $3); }
 	| type '.' name func_args { $$ = sxp_new_smethod (parser, $1, $3, $4); }
-	| expr ':' name '=' expr { yyerror("Warning: use of ':' operator is deprecated"); $$ = sxp_new_set_member(parser, $1, $3, $5); }
-	| expr '.' name '=' expr { $$ = sxp_new_set_member(parser, $1, $3, $5); }
-	| '.' name '=' expr { $$ = sxp_new_set_member(parser, sxp_new_lookup(parser, NameToID("self")), $2, $4); }
-	| expr ':' name { yyerror("Warning: use of ':' operator is deprecated"); $$ = sxp_new_get_member (parser, $1, $3); }
-	| expr '.' name { $$ = sxp_new_get_member (parser, $1, $3); }
-	| '.' name { $$ = sxp_new_get_member(parser, sxp_new_lookup(parser, NameToID("self")), $2); }
 
-	| expr '[' expr ']' { $$ = sxp_new_getindex (parser, $1, $3); }
 	| '[' args ']' { $$ = sxp_new_array (parser, $2); }
 	| '[' ']' { $$ = sxp_new_array (parser, NULL); }
 
 	| data { $$ = sxp_new_data (parser, $1); }
 
-	| name { $$ = sxp_new_lookup (parser, $1); }
+	| lval { $$ = $1; }
 	;
 
 	

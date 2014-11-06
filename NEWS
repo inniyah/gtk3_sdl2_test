@@ -1,3 +1,12 @@
+Version 0.29
+============
+
+  * Portability fixes.
+  * Basic security levels.
+  * Usage of xmlto for docs.
+  * Install paths and libraries are multi-install friendly.
+  * The += and similar operators work on any lvalue.
+
 Version 0.28
 ============
 

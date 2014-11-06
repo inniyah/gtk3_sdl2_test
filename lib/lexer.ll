@@ -116,7 +116,9 @@
 [<]= { return TLTE; }
 == { return TEQUALS; }
 "+=" { return TADDASSIGN; }
--= { return TSUBASSIGN; }
+"-=" { return TSUBASSIGN; }
+"*=" { return TMULASSIGN; }
+"/=" { return TDIVASSIGN; }
 "++" { return TINCREMENT; }
 "--" { return TDECREMENT; }
 "||" { return OR; }

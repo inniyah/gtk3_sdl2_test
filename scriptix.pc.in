@@ -7,5 +7,5 @@ includedir=${prefix}/include
 Name: Scriptix
 Version: @VERSION@
 Description: Scriptix scripting engine for C++
-Libs: -L${libdir} -lscriptix -lsxparse -lgc
-Cflags: -I${includedir}/ @GC_CFLAGS@
+Libs: -L${libdir} -lscriptix-@INTERFACE_VERSION@ -lsxparse-@INTERFACE_VERSION@ -lgc
+Cflags: -I${includedir}/scriptix-@INTERFACE_VERSION@ @GC_CFLAGS@

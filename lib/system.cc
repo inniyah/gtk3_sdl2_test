@@ -43,15 +43,15 @@ System::System (void) : globals(), funcs(), tags(), types(), script_path()
 	threads = NULL;
 	cur_thread = NULL;
 
-	data_chunk = SX_DEF_DATA_CHUNK;
-	context_chunk = SX_DEF_CONTEXT_CHUNK;
-	block_chunk = SX_DEF_BLOCK_CHUNK;
-	array_chunk = SX_DEF_ARRAY_CHUNK;
+	data_chunk = DEF_DATA_CHUNK;
+	context_chunk = DEF_CONTEXT_CHUNK;
+	block_chunk = DEF_BLOCK_CHUNK;
+	array_chunk = DEF_ARRAY_CHUNK;
 
 	error_hook = _sx_default_error_hook;
 
 	valid_threads = 0;
-	run_length = SX_DEF_RUN_LENGTH;
+	run_length = DEF_RUN_LENGTH;
 
 	t_string = AddType (String::GetTypeDef());
 	t_number = AddType (Number::GetTypeDef());
@@ -70,19 +70,19 @@ System::System (void) : globals(), funcs(), tags(), types(), script_path()
 int
 System::SetOption (sx_option_type opt, long value) {
 	switch (opt) {
-		case SX_OPT_BLOCKCHUNK:
+		case OPT_BLOCKCHUNK:
 			block_chunk = value;
 			return SXE_OK;
-		case SX_OPT_DATACHUNK:
+		case OPT_DATACHUNK:
 			data_chunk = value;
 			return SXE_OK;
-		case SX_OPT_CONTEXTCHUNK:
+		case OPT_CONTEXTCHUNK:
 			context_chunk = value;
 			return SXE_OK;
-		case SX_OPT_RUNLENGTH:
+		case OPT_RUNLENGTH:
 			run_length = value;
 			return SXE_OK;
-		case SX_OPT_ARRAYCHUNK:
+		case OPT_ARRAYCHUNK:
 			array_chunk = value;
 			return SXE_OK;
 		default:
@@ -94,7 +94,7 @@ System::SetOption (sx_option_type opt, long value) {
 int
 System::SetOption (sx_option_type opt, const std::string& value) {
 	switch (opt) {
-		case SX_OPT_PATH:
+		case OPT_PATH:
 			script_path = value;
 			return SXE_OK;
 		default:
@@ -111,9 +111,9 @@ Scriptix::Version (void)
 }
 
 Thread*
-System::CreateThread (Function* function, size_t argc, Value* argv[], int flags)
+System::CreateThread (Function* function, size_t argc, Value* argv[], SecurityLevel sl, int flags)
 {
-	Thread* thread = new Thread(this, flags);
+	Thread* thread = new Thread(this, sl, flags);
 	if (thread == NULL) {
 		// SXE_NOMEM
 		return NULL;

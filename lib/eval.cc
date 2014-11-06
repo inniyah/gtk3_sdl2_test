@@ -74,8 +74,6 @@ OpCode Scriptix::OpCodeDefs[] = {
 	{ "LOOKUP", 1 },
 	{ "ASSIGN", 1 },
 	{ "INDEX", 0 },
-	{ "PREINCREMENT", 0 },
-	{ "POSTINCREMENT", 0 },
 	{ "NEWARRAY", 1 },
 	{ "TYPECAST", 0 },
 	{ "STRINGCAST", 0 },
@@ -97,6 +95,7 @@ OpCode Scriptix::OpCodeDefs[] = {
 	{ "GET_MEMBER", 1 },
 	{ "ITER", 1 },
 	{ "NEW", 0 },
+	{ "COPY", 1 },
 };
 
 Value*
@@ -308,21 +307,6 @@ run_code:
 						PopValue(2);
 						RaiseError(SXE_BADTYPE, "Instance is not a list type in index operation");
 					}
-					break;
-				case OP_PREINCREMENT:
-					ret = NULL;
-					index = Number::ToInt(GetValue(2));
-					ret = cframe->items[index] = Number::Create (Number::ToInt (cframe->items[index]) + Number::ToInt (GetValue()));
-					PopValue(2);
-					PushValue(ret);
-					break;
-				case OP_POSTINCREMENT:
-					ret = NULL;
-					index = Number::ToInt(GetValue(2));
-					ret = cframe->items[index];
-					cframe->items[index] = Number::Create (Number::ToInt (cframe->items[index]) + Number::ToInt (GetValue()));
-					PopValue(2);
-					PushValue(ret);
 					break;
 				case OP_NEWARRAY:
 					count = GetOpArg();
@@ -599,6 +583,9 @@ run_code:
 					} else {
 						RaiseError(SXE_BADTYPE, "Value given to new is not a type");
 					}
+					break;
+				case OP_COPY:
+					PushValue(GetValue(GetOpArg()));
 					break;
 			}
 

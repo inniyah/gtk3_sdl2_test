@@ -56,10 +56,11 @@ System::EndThread (Thread* thread) {
 	delete thread;
 }
 
-Thread::Thread (System* sys, int fl) {
+Thread::Thread (System* sys, SecurityLevel sl, int fl) {
 	static size_t _free_id = 0; // ID tag for threads
 
 	system = sys;
+	sec_flags = sl;
 	flags = fl;
 	ret = NULL;
 	state = STATE_READY;

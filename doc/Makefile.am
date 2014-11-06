@@ -1,46 +1,44 @@
-noinst_DATA=html-stamp
+noinst_DATA=manual-stamp
 
 DOCBOOK := tutorial.xml
-if DOCBOOK_TXT
+if BUILD_DOCS
 TXT := $(DOCBOOK:%.xml=%.txt)
-endif
-if DOCBOOK_HTML
 HTML := $(DOCBOOK:%.xml=%.html)
-endif
-if DOCBOOK_PDF
+if BUILD_PDF
 PDF := $(DOCBOOK:%.xml=%.pdf)
+endif
 endif
 DOCS := $(TXT) $(HTML) $(PDF)
 
 EXTRA_DIST=$(DOCBOOK)
 
-docdir = ${prefix}/@PACKAGE_TARNAME@-@VERSION@/doc
+docdir = ${prefix}/share/doc/@PACKAGE_TARNAME@-@VERSION@
 doc_DATA = $(TXT)
 
-htmldir = ${prefix}/@PACKAGE_TARNAME@-@VERSION@/doc/html
+htmldir = ${prefix}/share/doc/@PACKAGE_TARNAME@-@VERSION@
 html_DATA = $(HTML)
 
-pdfdir = ${prefix}/@PACKAGE_TARNAME@-@VERSION@/doc/pdf
+pdfdir = ${prefix}/share/doc/@PACKAGE_TARNAME@-@VERSION@
 pdf_DATA = $(PDF)
 
-html-stamp: ../include/scriptix.h
+manual-stamp: ../include/scriptix.h
 	if test -n '@PATH_CCDOC@' ; then \
-		if ! test -d html ; then mkdir html ; fi ; \
+		if ! test -d manual ; then mkdir manual ; fi ; \
 		if test -f ccdoc.db ; then rm -f ccdoc.db ; fi ; \
-		@PATH_CCDOC@ -db ccdoc.db -index -html html/ ../include/scriptix.h ; \
+		@PATH_CCDOC@ -db ccdoc.db -index -html manual/ ../include/scriptix.h ; \
 	fi
-	touch html-stamp
+	touch manual-stamp
 
 %.html: %.xml
-	@PATH_DOCBOOK2HTML@ -u $<
+	@PATH_XMLTO@ html-nochunks $<
 
 %.txt: %.xml
-	@PATH_DOCBOOK2TXT@ $<
+	@PATH_XMLTO@ txt $<
 
 %.pdf: %.xml
-	@PATH_DOCBOOK2PDF@ $<
+	@PATH_XMLTO@ pdf $<
 
 clean-local:
-	rm -f html-stamp
-	rm -fr html/
-	rm -f $(HTML) $(TXT) $(PDF) 
+	rm -f manual-stamp
+	rm -fr manual/
+	rm -fr $(HTML) $(TXT) $(PDF) 

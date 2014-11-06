@@ -47,6 +47,12 @@ Basic Scriptix Information
    You will need the GC from http://www.hpl.hp.com/personal/Hans_Boehm/gc/ in
    order to build Scriptix.
 
+   In order to compile, you will need a fairly recent version of GCC.
+   Versions 3.1 and higher are officially supported.
+
+   You will also need fairly recent flex and bison tools to muck with the
+   grammar, and docbook-utils in order to build the documentation.
+
 
 4. Bugs
    ====

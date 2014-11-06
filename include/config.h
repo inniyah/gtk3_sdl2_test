@@ -44,31 +44,22 @@
 #define PACKAGE_NAME "Scriptix"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Scriptix 0.28"
+#define PACKAGE_STRING "Scriptix 0.29"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "scriptix"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.28"
-
-/* The size of a `int', as computed by sizeof. */
-#define SIZEOF_INT 4
-
-/* The size of a `long', as computed by sizeof. */
-#define SIZEOF_LONG 4
-
-/* The size of a `long long', as computed by sizeof. */
-#define SIZEOF_LONG_LONG 8
-
-/* The size of a `void*', as computed by sizeof. */
-#define SIZEOF_VOIDP 4
+#define PACKAGE_VERSION "0.29"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
-/* Our version */
-#define SX_VERSION "0.28"
+/* Interface version */
+#define SX_INTERFACE "0"
+
+/* Software version */
+#define SX_VERSION "0.29"
 
 /* Version number of package */
-#define VERSION "0.28"
+#define VERSION "0.29"

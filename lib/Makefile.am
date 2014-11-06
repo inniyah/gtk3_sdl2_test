@@ -3,9 +3,9 @@ EXTRA_DIST=grammar.hh grammar.cc lexer.cc grammar.yy lexer.ll
 INCLUDES=-I@top_srcdir@/include @GC_CFLAGS@
 
 libdir=${exec_prefix}/lib
-lib_LTLIBRARIES=libscriptix.la libsxparse.la
+lib_LTLIBRARIES=libscriptix-@INTERFACE_VERSION@.la libsxparse-@INTERFACE_VERSION@.la
 
-libscriptix_la_SOURCES=\
+libscriptix_@INTERFACE_VERSION@_la_SOURCES=\
 	array.cc \
 	assoc.cc \
 	error.cc \
@@ -24,18 +24,19 @@ libscriptix_la_SOURCES=\
 	thread.cc \
 	type.cc \
 	value.cc
-libscriptix_la_LDFLAGS=-version-info @LIBSOVER@
-libsxparse_la_SOURCES=\
+libscriptix_@INTERFACE_VERSION@_la_LDFLAGS=-version-info @SO_VERSION@
+libsxparse_@INTERFACE_VERSION@_la_SOURCES=\
 	grammar.cc \
 	lexer.cc \
 	parser.cc \
 	compiler.cc \
 	transform.cc 
-libsxparse_la_LDFLAGS=-version-info @LIBSOVER@
+libsxparse_@INTERFACE_VERSION@_la_LDFLAGS=-version-info @SO_VERSION@
 
 
 grammar.cc grammar.hh: grammar.yy
 	@PATH_BISON@ -y -d -o grammar.cc grammar.yy
+	-[ -f grammar.cc.h ] && mv -f grammar.cc.h grammar.hh
 
 lexer.cc: lexer.ll grammar.hh
 	@PATH_FLEX@ -olexer.cc lexer.ll

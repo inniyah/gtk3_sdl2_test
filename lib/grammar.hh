@@ -59,12 +59,14 @@
      TCONTINUE = 285,
      TYIELD = 286,
      TPUBLIC = 287,
-     TRETURN = 288,
-     TBREAK = 289,
-     TEQUALS = 290,
-     TLENGTH = 291,
-     CUNARY = 292,
-     TCAST = 293
+     TMULASSIGN = 288,
+     TDIVASSIGN = 289,
+     TRETURN = 290,
+     TBREAK = 291,
+     TEQUALS = 292,
+     TLENGTH = 293,
+     CUNARY = 294,
+     TCAST = 295
    };
 #endif
 #define NUMBER 258
@@ -97,12 +99,14 @@
 #define TCONTINUE 285
 #define TYIELD 286
 #define TPUBLIC 287
-#define TRETURN 288
-#define TBREAK 289
-#define TEQUALS 290
-#define TLENGTH 291
-#define CUNARY 292
-#define TCAST 293
+#define TMULASSIGN 288
+#define TDIVASSIGN 289
+#define TRETURN 290
+#define TBREAK 291
+#define TEQUALS 292
+#define TLENGTH 293
+#define CUNARY 294
+#define TCAST 295
 
 
 
@@ -118,7 +122,7 @@ typedef union YYSTYPE {
 	struct ParserArgList args;
 } YYSTYPE;
 /* Line 1240 of yacc.c.  */
-#line 121 "grammar.hh"
+#line 125 "grammar.hh"
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 # define YYSTYPE_IS_TRIVIAL 1

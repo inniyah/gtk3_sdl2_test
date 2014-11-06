@@ -96,11 +96,11 @@ Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_
 
 int
 Function::AddValue (System* system, Value* value) {
-	long* sx_new_nodes;
+	intptr_t* sx_new_nodes;
 
 	/* need at least two open places */
 	if (size == 0 || count >= size - 1) {
-		sx_new_nodes = (long*)GC_REALLOC (nodes, sizeof (long) * (size + system->GetBlockChunk()));
+		sx_new_nodes = (intptr_t*)GC_REALLOC (nodes, sizeof (long) * (size + system->GetBlockChunk()));
 		if (sx_new_nodes == NULL)
 			return SXE_NOMEM;
 		nodes = sx_new_nodes;
@@ -114,11 +114,11 @@ Function::AddValue (System* system, Value* value) {
 
 int
 Function::AddOparg (System* system, long value) {
-	long* sx_new_nodes;
+	intptr_t* sx_new_nodes;
 
 	/* need at least two open places */
 	if (size == 0 || count >= size - 1) {
-		sx_new_nodes = (long*)GC_REALLOC (nodes, sizeof (long) * (size + system->GetBlockChunk()));
+		sx_new_nodes = (intptr_t*)GC_REALLOC (nodes, sizeof (long) * (size + system->GetBlockChunk()));
 		if (sx_new_nodes == NULL)
 			return SXE_NOMEM;
 		nodes = sx_new_nodes;

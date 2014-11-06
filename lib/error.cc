@@ -82,6 +82,12 @@ Thread::RaiseArgError (const char* func, const char* arg, const char* type)
 	return RaiseError(SXE_BADARGS, "Argument '%s' to '%s' is not a '%s'", arg, func, type);
 }
 
+int
+Thread::RaiseSecurityError (const char* func)
+{
+	return RaiseError(SXE_BADARGS, "Thread does not have security access for '%s'", func);
+}
+
 const char *
 Scriptix::StrError (sx_err_type err)
 {

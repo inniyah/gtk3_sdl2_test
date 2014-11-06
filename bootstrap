@@ -3,7 +3,7 @@
 set -e
 set -x
 
-aclocal
+aclocal $ACLOCAL_FLAGS
 autoheader
 libtoolize --force --copy
 automake --add-missing --copy

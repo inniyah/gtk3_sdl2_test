@@ -1,3 +1,67 @@
+2004-02-15 06:27:56  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Make the 0.29 release.
+
+2004-02-13 21:01:22  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Fixed tools/Makefile.am to include the right script names.
+  * Fixed lib/Makefile.am to not fail on building from grammar.yy.
+  * Updated copyright years in COPYING.
+
+2004-02-10 04:15:46  Sean Middleditch <elanthis@awemud.net>
+
+  * Make the bootstrap script use the ACLOCAL_FLAGS environment
+    variable.
+
+2004-02-09 02:26:21  Sean Middleditch <elanthis@awemud.net>
+
+  * Manage movement of gammar.cc.h to grammar.hh (for non C++
+    friendly versions of Bison - thanks for changing output names
+    with no way to control it, you jerks.)
+  * Fixed tools/note.sh to get rid of GNU-isms.
+
+2004-01-29 16:08:12  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Converted use of internally found int_t to C99 intptr_t.
+  * Included inttypes.h in scriptix.h.
+  * Use AC_HEADERS_STDC and AC_CHECK_TYPE(intptr_t) in configure.in.
+  * Added SecurityLevel for holding permission flags.
+  * Removed the SX_ prefix from any types or values which are
+    already in the Scriptix namespace.
+  * Added the CheckArgs() template utility functions for quick
+    and easy checking of argument types.
+
+2004-01-07 22:16:40  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Use xmlto instead of docbook-utils.
+  * Finish rest of missing commit from versioning change.
+
+2004-01-07 04:39:21  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Modified install paths and library names to match the excellent
+    advice from http://ometer.com/parallel.html.
+
+2004-01-05 21:47:28  Sean Middleditch <elanthis@awemud.net>
+
+  * Do not force requirement on -ldl.
+
+2003-12-16 16:59:22  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix Compare method to handle nil values a little better.
+
+2003-12-15 18:49:03  Sean Middleditch <elanthis@awemud.net>
+
+  * Removed the built-in pre-inc/post-inc operators.
+  * Fixed a couple crashes caused by parser errors.
+
+2003-12-08 17:17:32  Sean Middleditch <elanthis@awemud.net>
+
+  * Fixed documentation install locations.
+  * Added a COPY opcode.
+  * The pre/post-increment/decrement and add/sub-assign all
+    operators work on any lvalue now.
+  * Added mult/div-assign operators.
+
 2003-12-04 19:43:50  Sean Middleditch <elanthis@home.awesomeplay.com>
 
   * Release 0.28.

@@ -39,6 +39,7 @@
 #include <map>
 #include <list>
 #include <iostream>
+#include <inttypes.h>
 
 #include "gc/gc_cpp.h"
 #include "gc/new_gc_alloc.h"
@@ -50,32 +51,17 @@
  */
 namespace Scriptix {
 
-// type to use for numeric data
-#if SIZEOF_LONG==SIZEOF_VOIDP
-typedef long int_t;
-#else // LONG
-#if SIZEOF_LONG_LONG==SIZEOF_VOIDP
-typedef long long int_t;
-#else // LONG LONG
-#if SIZEOF_INT==SIZEOF_VOIDP
-typedef int int_t;
-#else // INT
-#error "None of long, long long, or int match the sizeof void*"
-#endif // INT
-#endif // LONG LONG
-#endif // LONG
-
 // various stack sizes
-#define SX_DEF_DATA_CHUNK 50
-#define SX_DEF_CONTEXT_CHUNK 10
-#define SX_DEF_BLOCK_CHUNK 10
-#define SX_DEF_ARRAY_CHUNK 5
+const int DEF_DATA_CHUNK = 50;
+const int DEF_CONTEXT_CHUNK = 10;
+const int DEF_BLOCK_CHUNK = 10;
+const int DEF_ARRAY_CHUNK = 5;
 
 // base options
-#define SX_DEF_RUN_LENGTH 1000
+const int DEF_RUN_LENGTH = 1000;
 
 // max length of an identifier
-#define SX_MAX_NAME 128
+const int MAX_NAME = 128;
 
 // Creating new types
 #define SX_TYPEDEF \
@@ -145,12 +131,10 @@ typedef enum {
 	OP_LOOKUP,
 	OP_ASSIGN,
 	OP_INDEX,
-	OP_PREINCREMENT,
-	OP_POSTINCREMENT,
 	OP_NEWARRAY,
-	OP_TYPECAST = 20,
+	OP_TYPECAST,
 	OP_STRINGCAST,
-	OP_INTCAST,
+	OP_INTCAST = 20,
 	OP_SETINDEX,
 	OP_METHOD,
 	OP_SETFILE,
@@ -158,16 +142,17 @@ typedef enum {
 	OP_NEXTLINE,
 	OP_JUMP,
 	OP_POP,
-	OP_TEST = 30,
+	OP_TEST,
 	OP_TJUMP,
-	OP_FJUMP,
+	OP_FJUMP = 30,
 	OP_STATIC_METHOD,
 	OP_YIELD,
 	OP_IN,
 	OP_SET_MEMBER,
 	OP_GET_MEMBER,
 	OP_ITER,
-	OP_NEW = 39,
+	OP_NEW,
+	OP_COPY = 38,
 } sx_op_type;
 
 // Thread flags
@@ -192,13 +177,13 @@ typedef enum {
 
 // System options
 typedef enum {
-	SX_OPT_NONE = 0,
-	SX_OPT_DATACHUNK,
-	SX_OPT_BLOCKCHUNK,
-	SX_OPT_CONTEXTCHUNK,
-	SX_OPT_RUNLENGTH,
-	SX_OPT_ARRAYCHUNK,
-	SX_OPT_PATH,
+	OPT_NONE = 0,
+	OPT_DATACHUNK,
+	OPT_BLOCKCHUNK,
+	OPT_CONTEXTCHUNK,
+	OPT_RUNLENGTH,
+	OPT_ARRAYCHUNK,
+	OPT_PATH,
 } sx_option_type;
 
 // Define opcodes
@@ -210,7 +195,35 @@ class OpCode {
 
 extern OpCode OpCodeDefs[];
 
-#define SX_NUM_MARK 0x01
+// Security level type
+typedef uint16_t SecurityLevel;
+
+// Basic secutity types
+const SecurityLevel SEC_FILEIO = (1);		// allowed to do file i/o
+const SecurityLevel SEC_NETWORKIO = (1 << 1);// allowed to do network i/o
+const SecurityLevel SEC_FORK = (1 << 2);		// allowed to use fork()
+
+// Reserved security types
+const SecurityLevel SEC_RESERVED1 = (1 << 3);// first user sec type
+const SecurityLevel SEC_RESERVED2 = (1 << 4);// first user sec type
+const SecurityLevel SEC_RESERVED3 = (1 << 5);// first user sec type
+const SecurityLevel SEC_RESERVED4 = (1 << 6);// first user sec type
+const SecurityLevel SEC_RESERVED5 = (1 << 7);// first user sec type
+
+// User available security types
+const SecurityLevel SEC_USER1 = (1 << 8); 	// first user sec type
+const SecurityLevel SEC_USER2 = (1 << 9); 	// second user sec type
+const SecurityLevel SEC_USER3 = (1 << 10); 	// third user sec type
+const SecurityLevel SEC_USER4 = (1 << 11); 	// fourth user sec type
+const SecurityLevel SEC_USER5 = (1 << 12); 	// fifth user sec type
+const SecurityLevel SEC_USER6 = (1 << 13); 	// sixth user sec type
+const SecurityLevel SEC_USER7 = (1 << 14); 	// seventh user sec type
+const SecurityLevel SEC_USER8 = (1 << 15); 	// eight user sec type
+
+const SecurityLevel SEC_DEFAULTS = (SEC_FILEIO|SEC_NETWORKIO|SEC_FORK);
+
+// how to mark a number
+const intptr_t NUM_MARK = 0x01;
 
 // core structures
 class Value;
@@ -231,7 +244,9 @@ class Assoc;
 class Function;
 class Iterator;
 class TypeValue;
-#define SX_NIL (NULL)
+
+// Nil
+class Value* const Nil = NULL;
 
 // id types
 typedef size_t NameID;
@@ -256,7 +271,7 @@ const char *Version (void);
 #define SX_TOSTRING(val) ((Scriptix::String*)(val))
 #define SX_TOARRAY(val) ((Scriptix::Array*)(val))
 #define SX_TOASSOC(val) ((Scriptix::Assoc*)(val))
-#define SX_TONUM(val) ((int_t)val)
+#define SX_TONUM(val) ((intptr_t)val)
 #define SX_TOTYPE(val) ((Scriptix::TypeValue*)(val))
 #define SX_TOITER(val) ((Scriptix::Iterator*)(val))
 
@@ -900,19 +915,19 @@ class Number : public Value {
 
 	/**
 	 * Create new numeric value.
-	 * Given an int_t value, create an encoded pointer usable in the rest
+	 * Given an intptr_t value, create an encoded pointer usable in the rest
 	 * of the Scriptix system.
 	 * @param i Numeric value.
 	 * @return Encoded numeric value.
 	 */
-	inline static Value* Create (int_t i) { return ((Value* )((i << 1) | SX_NUM_MARK)); }
+	inline static Value* Create (intptr_t i) { return ((Value* )((i << 1) | NUM_MARK)); }
 	/**
 	 * Decode numeric value.
-	 * Given an encoded numeric value, return a normal int_t numeric value.
+	 * Given an encoded numeric value, return a normal intptr_t numeric value.
 	 * @param num Encoded numeric value.
-	 * @return Decoded int_t numeric value.
+	 * @return Decoded intptr_t numeric value.
 	 */
-	inline static int_t ToInt (Value* num) { return (int_t)num >> 1; }
+	inline static intptr_t ToInt (Value* num) { return (intptr_t)num >> 1; }
 };
 
 /**
@@ -1151,7 +1166,7 @@ class Function : public Value {
 	NameID id; // name of function
 	size_t argc; // number of arguments to function
 	size_t varc; // number of variables in function
-	int_t* nodes; // byte codes
+	intptr_t* nodes; // byte codes
 	size_t count; // number of valid bytecode nodes
 	size_t size; // size of nodes
 	bool varg; // name of variable argument - FIXME: should be a flag or something
@@ -1297,7 +1312,7 @@ class System : public Collectable {
 	Value* GetGlobal (NameID id) const;
 
 	// Threads
-	Thread* CreateThread (Function* func, size_t argc, Value* array[], int flags = 0);
+	Thread* CreateThread (Function* func, size_t argc, Value* array[], SecurityLevel sl = SEC_DEFAULTS, int flags = 0);
 
 	// Running threads
 	int Run (void);
@@ -1340,13 +1355,47 @@ class Frame {
  * A thread contains a current execution context.
  */
 class Thread : public gc {
+	public:
+	// Contructor/destructor
+	Thread (System* system, SecurityLevel sl, int flags);
+
+	// Misc
+	inline ThreadID GetID(void) const { return id; }
+
+	// Get system
+	inline System* GetSystem(void) const { return system; }
+
+	// Raise an error condition
+	int RaiseError (int err, const char *format, ...);
+	int RaiseArgError (const char* func, const char* arg, const char* type);
+	int RaiseSecurityError (const char* func);
+
+	// exit thread
+	int Exit (Value* retval);
+
+	// Fetch stack item from end (args) - INLINE for speed
+	inline Value* GetValue (size_t index) { return data_stack[data_stack.size() - index]; }
+	// Same as GetValue(1):
+	inline Value* GetValue (void) { return data_stack.back(); }
+
+	// Fetch item from frame stack for op atrgs; "eats" arg
+	inline intptr_t GetOpArg (void) { return GetFrame().func->nodes[GetFrame().op_ptr++]; }
+
+	// Security level
+	inline SecurityLevel get_security (void) const { return sec_flags; }
+	inline bool has_access (SecurityLevel sl) const { return sec_flags & sl; }
+
+	// Invoke a frameable
+	Value* Invoke (Function* func, size_t argc, Value* array[]);
+
 	private:
 	// various stuffs
 	System* system;
 	Value* ret;
-	int state;
-	unsigned char flags;
 	ThreadID id;
+	int state;
+	SecurityLevel sec_flags;
+	unsigned char flags;
 
 	// function frame stack
 	typedef std::vector<Frame, gc_alloc > FrameStack;
@@ -1384,37 +1433,49 @@ class Thread : public gc {
 	inline int PushFrame (Function* func, size_t argc) { return PushFrame (func, argc, &data_stack[data_stack.size() - argc], 0); }
 	inline Frame& GetFrame (void) { return frames.back(); }
 
-	public:
-	// Contructor/destructor
-	Thread (System* system, int flags);
-
-	// Misc
-	inline ThreadID GetID(void) const { return id; }
-
-	// Get system
-	inline System* GetSystem(void) const { return system; }
-
-	// Raise an error condition
-	int RaiseError (int err, const char *format, ...);
-	int RaiseArgError (const char* func, const char* arg, const char* type);
-
-	// exit thread
-	int Exit (Value* retval);
-
-	// Fetch stack item from end (args) - INLINE for speed
-	inline Value* GetValue (size_t index) { return data_stack[data_stack.size() - index]; }
-	// Same as GetValue(1):
-	inline Value* GetValue (void) { return data_stack.back(); }
-
-	// Fetch item from frame stack for op atrgs; "eats" arg
-	inline int_t GetOpArg (void) { return GetFrame().func->nodes[GetFrame().op_ptr++]; }
-
-	// Invoke a frameable
-	Value* Invoke (Function* func, size_t argc, Value* array[]);
 
 	// System can control me
 	friend class System;
 };
+
+// Utility functions
+
+template <typename T1> inline int
+CheckArgs (Thread* thread, Value** argv, const char* fname, const char* name1) {
+	if (!Value::IsA<T1>(thread->GetSystem(), argv[0])) {
+		thread->RaiseArgError(fname, name1, T1::GetTypeDef()->name);
+		return SXE_BADTYPE;
+	}
+	return SXE_OK;
+}
+template <typename T1, typename T2> inline int
+CheckArgs (Thread* thread, Value** argv, const char* fname, const char* name1, const char* name2) {
+	if (!Value::IsA<T1>(thread->GetSystem(), argv[0])) {
+		thread->RaiseArgError(fname, name1, T1::GetTypeDef()->name);
+		return SXE_BADTYPE;
+	}
+	if (!Value::IsA<T2>(thread->GetSystem(), argv[1])) {
+		thread->RaiseArgError(fname, name2, T2::GetTypeDef()->name);
+		return SXE_BADTYPE;
+	}
+	return SXE_OK;
+}
+template <typename T1, typename T2, typename T3> inline int
+CheckArgs (Thread* thread, Value** argv, const char* fname, const char* name1, const char* name2, const char* name3) {
+	if (!Value::IsA<T1>(thread->GetSystem(), argv[0])) {
+		thread->RaiseArgError(fname, name1, T1::GetTypeDef()->name);
+		return SXE_BADTYPE;
+	}
+	if (!Value::IsA<T2>(thread->GetSystem(), argv[1])) {
+		thread->RaiseArgError(fname, name2, T2::GetTypeDef()->name);
+		return SXE_BADTYPE;
+	}
+	if (!Value::IsA<T3>(thread->GetSystem(), argv[2])) {
+		thread->RaiseArgError(fname, name3, T3::GetTypeDef()->name);
+		return SXE_BADTYPE;
+	}
+	return SXE_OK;
+}
 
 // INLINE METHODS
 //  These have to be down here, in the header, thanks to stupid C++ and it's inline linking
@@ -1427,7 +1488,7 @@ Value::TypeOf (System* system, Value* value)
 	if (value == NULL)
 		return NULL;
 
-	if ((int_t)value & 0x01)
+	if ((intptr_t)value & 0x01)
 		return system->GetNumberType();
 
 	return value->GetType();
@@ -1474,7 +1535,7 @@ inline
 bool
 Value::_TypeCheck<Number>::Check(System* system, Value* value)
 {
-	return ((int_t)value) & 0x01;
+	return ((intptr_t)value) & 0x01;
 }
 
 // --- Value --- 
@@ -1508,6 +1569,13 @@ Value::Compare (System* system, Value* self, Value* other)
 	if (self == other)
 		return 0;
 
+	// handle nil values somewhat gracefully
+	if (self == NULL)
+		return -1; // non-nil bigger than nil
+	else if (other == NULL)
+		return 1; // non-nil bigger than nil
+
+	// do compare
 	if (self != NULL && !IsA<Number>(system, self))
 		return self->Compare(system, other);
 	else if (IsA<Number>(system, self)) {
