@@ -177,11 +177,6 @@ Thread::PushCall (Function* func, size_t argc, Value* argv[], unsigned char flag
 			items[ni++] = argv[ai++];
 		}
 
-		// fill up arg list
-		while (ni < func->argc) {
-			items[ni++] = NULL;
-		}
-
 		// var arg
 		if (func->varg) {
 			if (argc > func->argc) {

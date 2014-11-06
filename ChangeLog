@@ -1,3 +1,13 @@
+2003-05-31  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix iterator crash bug.
+  * Release 0.25.
+
+2003-05-29  Sean Middleditch <elanthis@awemud.net>
+
+  * Added System::LoadFile(FILE* file, const char* name) method,
+    for loading from a pre-opened file.
+
 2003-05-28  Sean Middleditch <elanthis@awemud.net>
 
   * Release 0.24.

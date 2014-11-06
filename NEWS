@@ -1,3 +1,9 @@
+Version 0.25
+============
+
+  * Ability to load scripts from open FILE handles.
+  * Serious bug fix for iterator usage.
+
 Version 0.24
 ============
 

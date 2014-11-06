@@ -1160,6 +1160,7 @@ class System : public SGC::Root {
 
 	// Load/compile scripts
 	int LoadFile (const char *file);
+	int LoadFile (FILE* file, const char* name);
 	int LoadString (const char *buffer);
 
 	// FIXME: hacks

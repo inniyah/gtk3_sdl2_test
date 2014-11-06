@@ -89,7 +89,7 @@ OpCode Scriptix::OpCodeDefs[] = {
 	{ "IN", 0 },
 	{ "SET_MEMBER", 1 },
 	{ "GET_MEMBER", 1 },
-	{ "ITER", 0 },
+	{ "ITER", 1 },
 };
 
 Value*

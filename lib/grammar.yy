@@ -290,6 +290,35 @@ Scriptix::System::LoadFile(const char *file) {
 }
 
 int
+Scriptix::System::LoadFile(FILE* file, const char* name) {
+	int ret;
+
+	yyin = file;
+
+	parser = new ParserState(this);
+	if (parser == NULL) {
+		std::cerr << "Failed to create Compiler context" << std::endl;
+		return 1;
+	}
+	if (file != NULL)
+		parser->SetFile(name);
+
+	sxp_parser_inbuf = NULL;
+
+	ret = yyparse ();
+	if (yynerrs > 0)
+		ret = -1;
+
+	if (!ret) {
+		ret = parser->Compile();
+	}
+
+	delete parser;
+
+	return ret;
+}
+
+int
 Scriptix::System::LoadString(const char *buf) {
 	int ret;
 
