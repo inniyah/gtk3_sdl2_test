@@ -43,10 +43,6 @@
 	void parser_push (VALUE *value);
 	void parser_pop (void);
 
-	VALUE *name_list[NAME_LIST_SIZE];
-	int name_ptr = 0;
-	VALUE *get_dup_name (char *name);
-
 	VALUE *append_to_array (VALUE *array, VALUE *value);
 	NODE *append_to_expr (NODE *expr, NODE *node);
 
@@ -146,8 +142,8 @@ args: { pushv (sx_new_nil ()); }
 	| { parser_push (sx_new_array (parse_system, 0, NULL)); } arg_list { temp_val = parser_top (); parser_pop (); pushv (temp_val); }
 	;
 
-arg_list: TNAME { append_to_array (parser_top (), get_dup_name ($1)); }
-	| arg_list ',' TNAME { append_to_array (parser_top (), get_dup_name ($3)); }
+arg_list: TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($1))); }
+	| arg_list ',' TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($3))); }
 	;
 
 node:	node '+' node { pushn (SX_OP_ADD, 2); }
@@ -228,7 +224,7 @@ data:	TNUM { pushv ($1);  }
 	| TNIL { pushv (sx_new_nil ()); }
 	;
 
-name:	TNAME { pushv (get_dup_name ($1)); }
+name:	TNAME { pushv (sx_new_num (sx_name_to_id ($1))); }
 	;
 
 scope:	TLOCAL { pushv (sx_new_num (SX_SCOPE_LOCAL)); }
@@ -307,23 +303,6 @@ append_to_array (VALUE *array, VALUE *value) {
 	return array;
 }
 
-VALUE *
-get_dup_name (char *name) {
-	int i;
-	VALUE *ret;
-	for (i = 0; i < NAME_LIST_SIZE && name_list[i] != NULL; ++ i) {
-		if (!strcmp (name, SX_TOSTR (name_list[i]))) {
-			return name_list[i];
-		}
-	}
-	ret = sx_new_str (parse_system, name);
-	name_list[name_ptr] = ret;
-	if (++ name_ptr >= NAME_LIST_SIZE) {
-		name_ptr = 0;
-	}
-	return ret;
-}
-
 /* global vars */
 unsigned int parse_lineno = 1;
 
@@ -348,7 +327,7 @@ cleanup_parser (void) {
 
 VALUE *
 sx_load_file (SYSTEM *system, char *file) {
-	int ret, flags, i;
+	int ret, flags;
 
 	if (file == NULL) {
 		sxin = stdin;
@@ -358,10 +337,6 @@ sx_load_file (SYSTEM *system, char *file) {
 			fprintf (stderr, "Could not open '%s'\n", file);
 			return NULL;
 		}
-	}
-
-	for (i = 0; i < NAME_LIST_SIZE; ++ i) {
-		name_list[i] = NULL;
 	}
 
 	parse_system = system;

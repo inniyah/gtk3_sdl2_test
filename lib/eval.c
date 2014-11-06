@@ -49,19 +49,15 @@ call_func (THREAD *thread, VALUE *func, unsigned int argc, unsigned int top, VAL
 	}
 
 	if (self != NULL) {
-		sx_define_var (thread, sx_new_str (thread->system, "self"), self, SX_SCOPE_LOCAL);
+		sx_define_var (thread, sx_name_to_id ("self"), self, SX_SCOPE_LOCAL);
 	}
 
 	if (SX_ISARRAY (func->data.func.args)) {
 		for (i = 0; i < argc && i < func->data.func.args->data.array.count; i ++) {
-			if (SX_ISSTRING (func->data.func.args->data.array.list[i]) && func->data.func.args->data.array.list[i]->data.str.len > 0) {
-				sx_define_var (thread, func->data.func.args->data.array.list[i], sx_get_value (thread, top + i), SX_SCOPE_LOCAL);
-			}
+			sx_define_var (thread, SX_TOINT (func->data.func.args->data.array.list[i]), sx_get_value (thread, top + i), SX_SCOPE_LOCAL);
 		}
 		for (; i < func->data.func.args->data.array.count; i ++) {
-			if (SX_ISSTRING (func->data.func.args->data.array.list[i]) && func->data.func.args->data.array.list[i]->data.str.len > 0) {
-				sx_define_var (thread, func->data.func.args->data.array.list[i], sx_new_nil (), SX_SCOPE_LOCAL);
-			}
+			sx_define_var (thread, SX_TOINT (func->data.func.args->data.array.list[i]), sx_new_nil (), SX_SCOPE_LOCAL);
 		}
 	}
 
@@ -172,7 +168,7 @@ sx_eval (THREAD *thread, VALUE *block) {
 							sx_push_value (thread, sx_new_nil ());
 							do {
 								sx_pop_value (thread, -1, 1);
-								sx_define_var (thread, name, loop->data.array.list[i], SX_SCOPE_LOCAL);
+								sx_define_var (thread, SX_TOINT(name), loop->data.array.list[i], SX_SCOPE_LOCAL);
 								if (sx_eval (thread, sx_get_value (thread, -1)) != SX_STATE_RUN) {
 									break;
 								}
@@ -184,7 +180,7 @@ sx_eval (THREAD *thread, VALUE *block) {
 							sx_push_value (thread, sx_new_nil ());
 							for (i = loop->data.range.start; step > 0 ? (i <= loop->data.range.end) : (i >= loop->data.range.end); i += step) {
 								sx_pop_value (thread, -1, 1);
-								sx_define_var (thread, name, sx_new_num (i), SX_SCOPE_LOCAL);
+								sx_define_var (thread, SX_TOINT(name), sx_new_num (i), SX_SCOPE_LOCAL);
 								if (sx_eval (thread, sx_get_value (thread, -1)) != SX_STATE_RUN) {
 									break;
 								}
@@ -208,7 +204,7 @@ sx_eval (THREAD *thread, VALUE *block) {
 								break;
 							}
 							thread->state = SX_STATE_RUN;
-							sx_define_var (thread, sx_new_str (thread->system, "error"), sx_get_value (thread, -1), SX_SCOPE_LOCAL);
+							sx_define_var (thread, sx_name_to_id ("error"), sx_get_value (thread, -1), SX_SCOPE_LOCAL);
 							sx_pop_value (thread, -1, 1);
 							thread->context_stack[thread->context - 1].block = sx_get_value (thread, -1);
 							sx_eval (thread, sx_get_value (thread, -1));
@@ -329,13 +325,9 @@ sx_eval (THREAD *thread, VALUE *block) {
 					case SX_OP_LOOKUP:
 						var = NULL;
 						if (count == 1) {
-							if (sx_type_of (sx_get_value (thread, top)) == SX_VALUE_STRING && sx_get_value (thread, top)->data.str.len > 0) {
-								var = sx_get_var (thread, sx_get_value (thread, top), SX_SCOPE_DEF);
-							}
+							var = sx_get_var (thread, SX_TOINT(sx_get_value (thread, top)), SX_SCOPE_DEF);
 						} else if (count == 2) {
-							if (sx_type_of (sx_get_value (thread, top + 1)) == SX_VALUE_STRING && sx_get_value (thread, top + 1)->data.str.len > 0) {
-								var = sx_get_var (thread, sx_get_value (thread, top + 1), SX_TOINT (sx_get_value (thread, top)));
-							}
+							var = sx_get_var (thread, SX_TOINT(sx_get_value (thread, top + 1)), SX_TOINT (sx_get_value (thread, top)));
 						}
 						if (var) {
 							sx_push_value (thread, var->value);
@@ -346,21 +338,17 @@ sx_eval (THREAD *thread, VALUE *block) {
 					case SX_OP_ASSIGN:
 						ret = sx_new_nil ();
 						if (count == 2) {
-							if (SX_ISSTRING (sx_get_value (thread, top)) && sx_get_value (thread, top)->data.str.len > 0) {
-								ret = sx_get_value (thread, top + 1);
-								sx_define_var (thread, sx_get_value (thread, top), sx_get_value (thread, top + 1), SX_SCOPE_DEF);
-							}
+							ret = sx_get_value (thread, top + 1);
+							sx_define_var (thread, SX_TOINT (sx_get_value (thread, top)), sx_get_value (thread, top + 1), SX_SCOPE_DEF);
 						} else {
-							if (SX_ISSTRING (sx_get_value (thread, top + 1)) && sx_get_value (thread, top + 1)->data.str.len > 0) {
-								ret = sx_get_value (thread, top + 2);
-								sx_define_var (thread, sx_get_value (thread, top + 1), sx_get_value (thread, top + 2), SX_TOINT (sx_get_value (thread, top)));
-							}
+							ret = sx_get_value (thread, top + 2);
+							sx_define_var (thread, SX_TOINT (sx_get_value (thread, top + 1)), sx_get_value (thread, top + 2), SX_TOINT (sx_get_value (thread, top)));
 						}
 						sx_push_value (thread, ret);
 						break;
 					case SX_OP_INDEX:
 						value = sx_get_value (thread, top + 1);
-						if (SX_ISNUM (value) && SX_TOINT (value) >= 0 && SX_TOINT (value) < sx_get_value (thread, top)->data.array.count) {
+						if (SX_ISNUM (value)) {
 							sx_push_value (thread, sx_get_index (thread->system, sx_get_value (thread, top), SX_TOINT (value)));
 						} else if (SX_ISRANGE (value)) {
 							sx_push_value (thread, sx_get_section (thread->system, sx_get_value (thread, top), value->data.range.start, value->data.range.end));
@@ -370,58 +358,50 @@ sx_eval (THREAD *thread, VALUE *block) {
 						break;
 					case SX_OP_PREINCREMENT:
 						ret = sx_new_nil ();
-						if (SX_ISSTRING (sx_get_value (thread, top)) && sx_get_value (thread, top)->data.str.len > 0) {
-							var = sx_get_var (thread, sx_get_value (thread, top), SX_SCOPE_DEF);
-							if (var) {
-								if (count == 2) {
-									ret = var->value = sx_new_num (value_to_int (var->value) + value_to_int (sx_get_value (thread, top + 1)));
-								} else {
-									ret = var->value = sx_new_num (value_to_int (var->value) + 1);
-								}
+						var = sx_get_var (thread, SX_TOINT(sx_get_value (thread, top)), SX_SCOPE_DEF);
+						if (var) {
+							if (count == 2) {
+								ret = var->value = sx_new_num (value_to_int (var->value) + value_to_int (sx_get_value (thread, top + 1)));
+							} else {
+								ret = var->value = sx_new_num (value_to_int (var->value) + 1);
 							}
 						}
 						sx_push_value (thread, ret);
 						break;
 					case SX_OP_POSTINCREMENT:
 						ret = sx_new_nil ();
-						if (SX_ISSTRING (sx_get_value (thread, top)) && sx_get_value (thread, top)->data.str.len > 0) {
-							var = sx_get_var (thread, sx_get_value (thread, top), SX_SCOPE_DEF);
-							if (var) {
-								ret = var->value;
-								if (count == 2) {
-									var->value = sx_new_num (value_to_int (var->value) + value_to_int (sx_get_value (thread, top + 1)));
-								} else {
-									var->value = sx_new_num (value_to_int (var->value) + 1);
-								}
+						var = sx_get_var (thread, SX_TOINT(sx_get_value (thread, top)), SX_SCOPE_DEF);
+						if (var) {
+							ret = var->value;
+							if (count == 2) {
+								var->value = sx_new_num (value_to_int (var->value) + value_to_int (sx_get_value (thread, top + 1)));
+							} else {
+								var->value = sx_new_num (value_to_int (var->value) + 1);
 							}
 						}
 						sx_push_value (thread, ret);
 						break;
 					case SX_OP_PREDECREMENT:
 						ret = sx_new_nil ();
-						if (SX_ISSTRING (sx_get_value (thread, top)) && sx_get_value (thread, top)->data.str.len > 0) {
-							var = sx_get_var (thread, sx_get_value (thread, top), SX_SCOPE_DEF);
-							if (var) {
-								if (count == 2) {
-									ret = var->value = sx_new_num (value_to_int (var->value) - value_to_int (sx_get_value (thread, top + 1)));
-								} else {
-									ret = var->value = sx_new_num (value_to_int (var->value) - 1);
-								}
+						var = sx_get_var (thread, SX_TOINT(sx_get_value (thread, top)), SX_SCOPE_DEF);
+						if (var) {
+							if (count == 2) {
+								ret = var->value = sx_new_num (value_to_int (var->value) - value_to_int (sx_get_value (thread, top + 1)));
+							} else {
+								ret = var->value = sx_new_num (value_to_int (var->value) - 1);
 							}
 						}
 						sx_push_value (thread, ret);
 						break;
 					case SX_OP_POSTDECREMENT:
 						ret = sx_new_nil ();
-						if (SX_ISSTRING (sx_get_value (thread, top)) && sx_get_value (thread, top)->data.str.len > 0) {
-							var = sx_get_var (thread, sx_get_value (thread, top), SX_SCOPE_DEF);
-							if (var) {
-								ret = var->value;
-								if (count == 2) {
-									var->value = sx_new_num (value_to_int (var->value) - value_to_int (sx_get_value (thread, top + 1)));
-								} else {
-									var->value = sx_new_num (value_to_int (var->value) - 1);
-								}
+						var = sx_get_var (thread, SX_TOINT(sx_get_value (thread, top)), SX_SCOPE_DEF);
+						if (var) {
+							ret = var->value;
+							if (count == 2) {
+								var->value = sx_new_num (value_to_int (var->value) - value_to_int (sx_get_value (thread, top + 1)));
+							} else {
+								var->value = sx_new_num (value_to_int (var->value) - 1);
 							}
 						}
 						sx_push_value (thread, ret);
@@ -448,8 +428,8 @@ sx_eval (THREAD *thread, VALUE *block) {
 						break;
 					case SX_OP_SETMEMBER:
 						ret = sx_new_nil ();
-						if (SX_ISCLASS (sx_get_value (thread, top)) && SX_ISSTRING (sx_get_value (thread, top + 1)) && sx_get_value (thread, top + 1)->data.str.len > 0) {
-							if (sx_set_member (thread->system, sx_get_value (thread, top), sx_get_value (thread, top + 1), sx_get_value (thread, top + 2))) {
+						if (SX_ISCLASS (sx_get_value (thread, top))) {
+							if (sx_set_member (thread->system, sx_get_value (thread, top), SX_TOINT(sx_get_value (thread, top + 1)), sx_get_value (thread, top + 2))) {
 								ret = sx_get_value (thread, top + 2);
 							}
 						}
@@ -497,7 +477,7 @@ sx_eval (THREAD *thread, VALUE *block) {
 						break;
 					case SX_OP_MEMBER:
 						if (SX_ISCLASS (sx_get_value (thread, top))) {
-							sx_push_value (thread, sx_get_member (sx_get_value (thread, top), sx_get_value (thread, top + 1)));
+							sx_push_value (thread, sx_get_member (sx_get_value (thread, top), SX_TOINT(sx_get_value (thread, top + 1))));
 						} else {
 							sx_push_value (thread, sx_new_nil ());
 						}
@@ -507,7 +487,7 @@ sx_eval (THREAD *thread, VALUE *block) {
 							ret = sx_new_class (thread->system, sx_get_value (thread, top));
 							if (ret) {
 								sx_push_value (thread, ret);
-								value = sx_get_member (ret, sx_new_str (thread->system, "init"));
+								value = sx_get_member (ret, sx_name_to_id ("init"));
 								if (SX_ISFUNC (value)) {
 									call_func (thread, value, 0, top + 2, ret);
 									sx_pop_value (thread, -1, 1);
@@ -531,7 +511,7 @@ sx_eval (THREAD *thread, VALUE *block) {
 						sx_push_value (thread, sx_new_func (thread->system, sx_get_value (thread, top), sx_get_value (thread, top + 1)));
 						break;
 					case SX_OP_METHOD:
-						ret = sx_get_member (sx_get_value (thread, top), sx_get_value (thread, top + 1));
+						ret = sx_get_member (sx_get_value (thread, top), SX_TOINT(sx_get_value (thread, top + 1)));
 						if (SX_ISFUNC (ret)) {
 							call_func (thread, ret, count - 2, top + 2, sx_get_value (thread, top));
 						} else if (SX_ISCFUNC (ret)) {

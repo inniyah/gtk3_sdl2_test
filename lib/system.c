@@ -31,7 +31,7 @@
 #include <stdarg.h>
 
 #include "scriptix.h"
-
+#include "config.h"
 
 SYSTEM *
 sx_create_system (int argc, char **argv) {
@@ -48,14 +48,14 @@ sx_create_system (int argc, char **argv) {
 	system->gc_count = 0;
 	system->gc_thresh = SX_GC_THRESH;
 
-	sx_define_system_var (system, sx_new_str (system, "VERSION"), sx_new_str (system, SX_VERSION));
-	sx_define_system_var (system, sx_new_str (system, "argc"), sx_new_num (argc));
+	sx_define_system_var (system, sx_name_to_id ("VERSION"), sx_new_str (system, SX_VERSION));
+	sx_define_system_var (system, sx_name_to_id ("argc"), sx_new_num (argc));
 
 	args = sx_new_array (system, argc, NULL);
 	for (-- argc; argc >= 0; -- argc) {
 		args->data.array.list[argc] = sx_new_str (system, argv[argc]);
 	}
-	sx_define_system_var (system, sx_new_str (system, "argv"), args);
+	sx_define_system_var (system, sx_name_to_id ("argv"), args);
 
 	return system;
 }
@@ -121,7 +121,6 @@ sx_run_gc (SYSTEM *system) {
 	}
 
 	for (var = system->vars; var != NULL; var = var->next) {
-		sx_mark_value (system, var->name);
 		sx_mark_value (system, var->value);
 	}
 

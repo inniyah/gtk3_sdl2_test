@@ -22,7 +22,6 @@ The list of current Scriptix features include:
 
 Planned/future features include:
 
-	Cleanup the API
 	Class scope (get rid of self variable in methods)
 	Regular expressions
 	Pre-emptive threading

@@ -57,10 +57,6 @@ static int yygrowstack();
 	void parser_push (VALUE *value);
 	void parser_pop (void);
 
-	VALUE *name_list[NAME_LIST_SIZE];
-	int name_ptr = 0;
-	VALUE *get_dup_name (char *name);
-
 	VALUE *append_to_array (VALUE *array, VALUE *value);
 	NODE *append_to_expr (NODE *expr, NODE *node);
 
@@ -77,13 +73,13 @@ static int yygrowstack();
 
 	#define pushv(v) (sx_add_value (parse_system, parser_top (), (v)))
 	#define pushn(o,c) (sx_add_stmt (parse_system, parser_top (), (o), (c)))
-#line 68 "grammar.y"
+#line 64 "grammar.y"
 typedef union {
 	VALUE *value;
 	char name[SX_MAX_NAME + 1];
 	unsigned int count;
 } YYSTYPE;
-#line 87 "y.tab.c"
+#line 83 "y.tab.c"
 #define YYERRCODE 256
 #define TNUM 257
 #define TSTR 258
@@ -885,7 +881,7 @@ short *yyss;
 short *yysslim;
 YYSTYPE *yyvs;
 int yystacksize;
-#line 240 "grammar.y"
+#line 236 "grammar.y"
 
 /* value stack */
 VALUE *
@@ -956,23 +952,6 @@ append_to_array (VALUE *array, VALUE *value) {
 	return array;
 }
 
-VALUE *
-get_dup_name (char *name) {
-	int i;
-	VALUE *ret;
-	for (i = 0; i < NAME_LIST_SIZE && name_list[i] != NULL; ++ i) {
-		if (!strcmp (name, SX_TOSTR (name_list[i]))) {
-			return name_list[i];
-		}
-	}
-	ret = sx_new_str (parse_system, name);
-	name_list[name_ptr] = ret;
-	if (++ name_ptr >= NAME_LIST_SIZE) {
-		name_ptr = 0;
-	}
-	return ret;
-}
-
 /* global vars */
 unsigned int parse_lineno = 1;
 
@@ -997,7 +976,7 @@ cleanup_parser (void) {
 
 VALUE *
 sx_load_file (SYSTEM *system, char *file) {
-	int ret, flags, i;
+	int ret, flags;
 
 	if (file == NULL) {
 		sxin = stdin;
@@ -1007,10 +986,6 @@ sx_load_file (SYSTEM *system, char *file) {
 			fprintf (stderr, "Could not open '%s'\n", file);
 			return NULL;
 		}
-	}
-
-	for (i = 0; i < NAME_LIST_SIZE; ++ i) {
-		name_list[i] = NULL;
 	}
 
 	parse_system = system;
@@ -1046,7 +1021,7 @@ sx_load_file (SYSTEM *system, char *file) {
 
 	return parse_block;
 }
-#line 1050 "y.tab.c"
+#line 1025 "y.tab.c"
 /* allocate initial stack or double stack size, up to YYMAXDEPTH */
 static int yygrowstack()
 {
@@ -1242,370 +1217,370 @@ yyreduce:
     switch (yyn)
     {
 case 1:
-#line 98 "grammar.y"
+#line 94 "grammar.y"
 {}
 break;
 case 2:
-#line 101 "grammar.y"
+#line 97 "grammar.y"
 { parser_push (sx_new_block (parse_system)); }
 break;
 case 3:
-#line 101 "grammar.y"
+#line 97 "grammar.y"
 { temp_val = parser_top (); parser_pop (); pushv (temp_val); }
 break;
 case 4:
-#line 104 "grammar.y"
+#line 100 "grammar.y"
 { parser_push (sx_new_block (parse_system)); }
 break;
 case 5:
-#line 104 "grammar.y"
+#line 100 "grammar.y"
 { temp_val = parser_top (); parser_pop (); pushv (temp_val); }
 break;
 case 7:
-#line 108 "grammar.y"
+#line 104 "grammar.y"
 {}
 break;
 case 8:
-#line 109 "grammar.y"
+#line 105 "grammar.y"
 {}
 break;
 case 9:
-#line 110 "grammar.y"
+#line 106 "grammar.y"
 {}
 break;
 case 10:
-#line 111 "grammar.y"
+#line 107 "grammar.y"
 {}
 break;
 case 11:
-#line 114 "grammar.y"
+#line 110 "grammar.y"
 { yyval.count = 1; }
 break;
 case 12:
-#line 115 "grammar.y"
+#line 111 "grammar.y"
 { if (yyvsp[-1].count > 0) { pushn (SX_OP_POP, 0); } yyval.count = yyvsp[-1].count + 1; }
 break;
 case 16:
-#line 122 "grammar.y"
+#line 118 "grammar.y"
 { parser_push (sx_new_block (parse_system)); }
 break;
 case 17:
-#line 122 "grammar.y"
+#line 118 "grammar.y"
 { temp_val = parser_top (); parser_pop (); pushv (temp_val); }
 break;
 case 19:
-#line 126 "grammar.y"
+#line 122 "grammar.y"
 {}
 break;
 case 20:
-#line 127 "grammar.y"
+#line 123 "grammar.y"
 {}
 break;
 case 21:
-#line 128 "grammar.y"
+#line 124 "grammar.y"
 {}
 break;
 case 22:
-#line 129 "grammar.y"
+#line 125 "grammar.y"
 {}
 break;
 case 23:
-#line 132 "grammar.y"
+#line 128 "grammar.y"
 { yyval.count = 1; }
 break;
 case 24:
-#line 133 "grammar.y"
+#line 129 "grammar.y"
 { if (yyvsp[-1].count > 0) { pushn (SX_OP_POP, 0); } yyval.count = yyvsp[-1].count + 1; }
 break;
 case 26:
-#line 136 "grammar.y"
+#line 132 "grammar.y"
 { pushv (sx_new_num (SX_SCOPE_LOCAL)); }
 break;
 case 27:
-#line 136 "grammar.y"
+#line 132 "grammar.y"
 { pushn (SX_OP_ASSIGN, 3); }
 break;
 case 28:
-#line 137 "grammar.y"
+#line 133 "grammar.y"
 { pushv (sx_new_num (SX_SCOPE_LOCAL)); }
 break;
 case 29:
-#line 137 "grammar.y"
+#line 133 "grammar.y"
 { pushn (SX_OP_NEWFUNC, 2); pushn (SX_OP_ASSIGN, 3); }
 break;
 case 30:
-#line 140 "grammar.y"
+#line 136 "grammar.y"
 { yyval.count = 0; }
 break;
 case 31:
-#line 141 "grammar.y"
+#line 137 "grammar.y"
 { yyval.count = 1; }
 break;
 case 32:
-#line 142 "grammar.y"
+#line 138 "grammar.y"
 { yyval.count = yyvsp[-2].count + 1; }
 break;
 case 33:
-#line 145 "grammar.y"
+#line 141 "grammar.y"
 { pushv (sx_new_nil ()); }
 break;
 case 34:
-#line 146 "grammar.y"
+#line 142 "grammar.y"
 { parser_push (sx_new_array (parse_system, 0, NULL)); }
 break;
 case 35:
-#line 146 "grammar.y"
+#line 142 "grammar.y"
 { temp_val = parser_top (); parser_pop (); pushv (temp_val); }
 break;
 case 36:
-#line 149 "grammar.y"
-{ append_to_array (parser_top (), get_dup_name (yyvsp[0].name)); }
+#line 145 "grammar.y"
+{ append_to_array (parser_top (), sx_new_num(sx_name_to_id (yyvsp[0].name))); }
 break;
 case 37:
-#line 150 "grammar.y"
-{ append_to_array (parser_top (), get_dup_name (yyvsp[0].name)); }
+#line 146 "grammar.y"
+{ append_to_array (parser_top (), sx_new_num(sx_name_to_id (yyvsp[0].name))); }
 break;
 case 38:
-#line 153 "grammar.y"
+#line 149 "grammar.y"
 { pushn (SX_OP_ADD, 2); }
 break;
 case 39:
-#line 154 "grammar.y"
+#line 150 "grammar.y"
 { pushn (SX_OP_SUBTRACT, 2); }
 break;
 case 40:
-#line 155 "grammar.y"
+#line 151 "grammar.y"
 { pushn (SX_OP_MULTIPLY, 2); }
 break;
 case 41:
-#line 156 "grammar.y"
+#line 152 "grammar.y"
 { pushn (SX_OP_DIVIDE, 2); }
 break;
 case 43:
-#line 158 "grammar.y"
+#line 154 "grammar.y"
 { pushn (SX_OP_NEGATE, 1); }
 break;
 case 44:
-#line 160 "grammar.y"
+#line 156 "grammar.y"
 { pushn (SX_OP_NOT, 1); }
 break;
 case 45:
-#line 161 "grammar.y"
+#line 157 "grammar.y"
 { pushn (SX_OP_AND, 2); }
 break;
 case 46:
-#line 162 "grammar.y"
+#line 158 "grammar.y"
 { pushn (SX_OP_OR, 2); }
 break;
 case 47:
-#line 164 "grammar.y"
+#line 160 "grammar.y"
 { pushn (SX_OP_GT, 2); }
 break;
 case 48:
-#line 165 "grammar.y"
+#line 161 "grammar.y"
 { pushn (SX_OP_LT, 2); }
 break;
 case 49:
-#line 166 "grammar.y"
+#line 162 "grammar.y"
 { pushn (SX_OP_NEQUAL, 2); }
 break;
 case 50:
-#line 167 "grammar.y"
+#line 163 "grammar.y"
 { pushn (SX_OP_GTE, 2); }
 break;
 case 51:
-#line 168 "grammar.y"
+#line 164 "grammar.y"
 { pushn (SX_OP_LTE, 2); }
 break;
 case 52:
-#line 169 "grammar.y"
+#line 165 "grammar.y"
 { pushn (SX_OP_EQUAL, 2); }
 break;
 case 53:
-#line 171 "grammar.y"
+#line 167 "grammar.y"
 { pushn (SX_OP_ASSIGN, 2); }
 break;
 case 54:
-#line 172 "grammar.y"
+#line 168 "grammar.y"
 { pushn (SX_OP_ASSIGN, 3); }
 break;
 case 55:
-#line 173 "grammar.y"
+#line 169 "grammar.y"
 { pushn (SX_OP_SETINDEX, 3); }
 break;
 case 56:
-#line 174 "grammar.y"
+#line 170 "grammar.y"
 { pushn (SX_OP_SETMEMBER, 3); }
 break;
 case 57:
-#line 176 "grammar.y"
+#line 172 "grammar.y"
 { pushn (SX_OP_PREINCREMENT, 2); }
 break;
 case 58:
-#line 177 "grammar.y"
+#line 173 "grammar.y"
 { pushn (SX_OP_PREDECREMENT, 2); }
 break;
 case 59:
-#line 178 "grammar.y"
+#line 174 "grammar.y"
 { pushn (SX_OP_POSTINCREMENT, 1); }
 break;
 case 60:
-#line 179 "grammar.y"
+#line 175 "grammar.y"
 { pushn (SX_OP_PREINCREMENT, 1); }
 break;
 case 61:
-#line 180 "grammar.y"
+#line 176 "grammar.y"
 { pushn (SX_OP_POSTDECREMENT, 1); }
 break;
 case 62:
-#line 181 "grammar.y"
+#line 177 "grammar.y"
 { pushn (SX_OP_PREDECREMENT, 1); }
 break;
 case 63:
-#line 183 "grammar.y"
+#line 179 "grammar.y"
 { pushn (SX_OP_SIZEOF, 1); }
 break;
 case 64:
-#line 184 "grammar.y"
+#line 180 "grammar.y"
 { pushn (SX_OP_TYPEOF, 1); }
 break;
 case 65:
-#line 185 "grammar.y"
+#line 181 "grammar.y"
 { pushn (SX_OP_ISA, 2); }
 break;
 case 66:
-#line 187 "grammar.y"
+#line 183 "grammar.y"
 { pushn (SX_OP_CALL, 1 + yyvsp[-1].count); }
 break;
 case 67:
-#line 188 "grammar.y"
+#line 184 "grammar.y"
 { pushn (SX_OP_NEWFUNC, 2); pushn (SX_OP_ASSIGN, 2); }
 break;
 case 68:
-#line 189 "grammar.y"
+#line 185 "grammar.y"
 { pushn (SX_OP_NEWFUNC, 2); }
 break;
 case 69:
-#line 191 "grammar.y"
+#line 187 "grammar.y"
 { pushn (SX_OP_METHOD, 2 + yyvsp[-1].count); }
 break;
 case 70:
-#line 192 "grammar.y"
+#line 188 "grammar.y"
 { pushn (SX_OP_MEMBER, 2); }
 break;
 case 71:
-#line 193 "grammar.y"
+#line 189 "grammar.y"
 { pushn (SX_OP_NEWINSTANCE, 1); }
 break;
 case 72:
-#line 194 "grammar.y"
+#line 190 "grammar.y"
 { pushn (SX_OP_NEWCLASS, 1); pushn (SX_OP_ASSIGN, 2); }
 break;
 case 73:
-#line 195 "grammar.y"
+#line 191 "grammar.y"
 { pushn (SX_OP_LOOKUP, 1); }
 break;
 case 74:
-#line 195 "grammar.y"
+#line 191 "grammar.y"
 { pushn (SX_OP_NEWCLASS, 2); pushn (SX_OP_ASSIGN, 2); }
 break;
 case 75:
-#line 197 "grammar.y"
+#line 193 "grammar.y"
 { pushn (SX_OP_INDEX, 2); }
 break;
 case 76:
-#line 199 "grammar.y"
+#line 195 "grammar.y"
 { pushv (sx_new_nil ()); pushn (SX_OP_IF, 3); }
 break;
 case 77:
-#line 200 "grammar.y"
+#line 196 "grammar.y"
 { pushn (SX_OP_IF, 3); }
 break;
 case 78:
-#line 201 "grammar.y"
+#line 197 "grammar.y"
 { pushn (SX_OP_WHILE, 2); }
 break;
 case 79:
-#line 202 "grammar.y"
+#line 198 "grammar.y"
 { pushn (SX_OP_TRY, 2); }
 break;
 case 80:
-#line 207 "grammar.y"
+#line 203 "grammar.y"
 { pushn (SX_OP_FOR, 3); }
 break;
 case 81:
-#line 208 "grammar.y"
+#line 204 "grammar.y"
 { pushv (yyvsp[0].value); }
 break;
 case 82:
-#line 208 "grammar.y"
+#line 204 "grammar.y"
 { pushn (SX_OP_FOR, 4); }
 break;
 case 83:
-#line 210 "grammar.y"
+#line 206 "grammar.y"
 { pushn (SX_OP_LOOKUP, 1); }
 break;
 case 84:
-#line 211 "grammar.y"
+#line 207 "grammar.y"
 { pushn (SX_OP_LOOKUP, 2); }
 break;
 case 85:
-#line 213 "grammar.y"
+#line 209 "grammar.y"
 { pushn (SX_OP_RETURN, 1); }
 break;
 case 86:
-#line 214 "grammar.y"
+#line 210 "grammar.y"
 { pushn (SX_OP_RETURN, 0); }
 break;
 case 87:
-#line 215 "grammar.y"
+#line 211 "grammar.y"
 { pushn (SX_OP_BREAK, 0); }
 break;
 case 88:
-#line 216 "grammar.y"
+#line 212 "grammar.y"
 { pushn (SX_OP_BREAK, 1); }
 break;
 case 89:
-#line 217 "grammar.y"
+#line 213 "grammar.y"
 { pushn (SX_OP_RAISE, 0); }
 break;
 case 90:
-#line 219 "grammar.y"
+#line 215 "grammar.y"
 { pushn (SX_OP_NEWRANGE, 2); }
 break;
 case 91:
-#line 220 "grammar.y"
+#line 216 "grammar.y"
 { pushn (SX_OP_NEWARRAY, yyvsp[-1].count); }
 break;
 case 93:
-#line 225 "grammar.y"
+#line 221 "grammar.y"
 { pushv (yyvsp[0].value);  }
 break;
 case 94:
-#line 226 "grammar.y"
+#line 222 "grammar.y"
 { pushv (yyvsp[0].value); }
 break;
 case 96:
-#line 228 "grammar.y"
+#line 224 "grammar.y"
 { pushv (sx_new_nil ()); }
 break;
 case 97:
-#line 231 "grammar.y"
-{ pushv (get_dup_name (yyvsp[0].name)); }
+#line 227 "grammar.y"
+{ pushv (sx_new_num (sx_name_to_id (yyvsp[0].name))); }
 break;
 case 98:
-#line 234 "grammar.y"
+#line 230 "grammar.y"
 { pushv (sx_new_num (SX_SCOPE_LOCAL)); }
 break;
 case 99:
-#line 235 "grammar.y"
+#line 231 "grammar.y"
 { pushv (sx_new_num (SX_SCOPE_GLOBAL)); }
 break;
 case 100:
-#line 236 "grammar.y"
+#line 232 "grammar.y"
 { pushv (sx_new_num (SX_SCOPE_THREAD)); }
 break;
-#line 1609 "y.tab.c"
+#line 1584 "y.tab.c"
     }
     yyssp -= yym;
     yystate = *yyssp;

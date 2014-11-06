@@ -95,11 +95,11 @@ sx_class_is_a (VALUE *klass, VALUE *par) {
 }
 
 VAR *
-sx_set_member (SYSTEM *system, VALUE *klass, VALUE *name, VALUE *value) {
+sx_set_member (SYSTEM *system, VALUE *klass, unsigned int id, VALUE *value) {
 	VAR *var;
 
 	for (var = klass->data.klass.members; var != NULL; var = var->next) {
-		if (sx_are_equal (name, var->name)) {
+		if (id == var->id) {
 			var->value = value;
 			return var;
 		}
@@ -107,19 +107,17 @@ sx_set_member (SYSTEM *system, VALUE *klass, VALUE *name, VALUE *value) {
 
 	sx_lock_value (klass);
 	sx_lock_value (value);
-	sx_lock_value (name);
 
 	var = (VAR *)sx_malloc (system, sizeof (VAR));
 
 	sx_unlock_value (klass);
 	sx_unlock_value (value);
-	sx_unlock_value (name);
 
 	if (var == NULL) {
 		return NULL;
 	}
 
-	var->name = name;
+	var->id = id;
 	var->value = value;
 	var->next = klass->data.klass.members;
 	klass->data.klass.members = var;
@@ -128,12 +126,12 @@ sx_set_member (SYSTEM *system, VALUE *klass, VALUE *name, VALUE *value) {
 }
 
 VALUE *
-sx_get_member (VALUE *klass, VALUE *name) {
+sx_get_member (VALUE *klass, unsigned int id) {
 	VAR *var;
 
 	while (klass != NULL) {
 		for (var = klass->data.klass.members; var != NULL; var = var->next) {
-			if (sx_are_equal (name, var->name)) {
+			if (id == var->id) {
 				return var->value;
 			}
 		}

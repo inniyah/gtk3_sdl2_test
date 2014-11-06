@@ -40,38 +40,32 @@ sx_define_cfunc (SYSTEM *system, char *name, VALUE *(*func)(THREAD *, VALUE *, u
 		return NULL;
 	}
 
-	return sx_define_system_var (system, sx_new_str (system, name), cfunc);
+	return sx_define_system_var (system, sx_name_to_id (name), cfunc);
 }
 
 VALUE *
-sx_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope) {
+sx_define_var (THREAD *thread, unsigned int id, VALUE *value, int scope) {
 	VAR *var;
 
-	if (!SX_ISSTRING (name) || name->data.str.len == 0) {
-		return NULL;
-	}
-
 	if (scope == SX_SCOPE_GLOBAL) {
-		return sx_define_system_var (thread->system, name, value);
+		return sx_define_system_var (thread->system, id, value);
 	}
 
-	var = sx_get_var (thread, name, scope);
+	var = sx_get_var (thread, id, scope);
 	if (var != NULL) {
 		var->value = value;
 		return value;
 	}
 
-	sx_lock_value (name);
 	sx_lock_value (value);
 	var = (VAR *)sx_malloc (thread->system, sizeof (VAR));
 	sx_unlock_value (value);
-	sx_unlock_value (name);
 	
 	if (var == NULL) {
 		return NULL;
 	}
 
-	var->name = name;
+	var->id = id;
 	var->value = value;
 
 	if (scope == SX_SCOPE_THREAD) {
@@ -86,46 +80,41 @@ sx_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope) {
 }
 
 VALUE *
-sx_define_system_var (SYSTEM *system, VALUE *name, VALUE *value) {
+sx_define_system_var (SYSTEM *system, unsigned int id, VALUE *value) {
 	VAR *var;
 
 	for (var = system->vars; var != NULL; var = var->next) {
-		if (sx_are_equal (name, var->name)) {
+		if (id == var->id) {
 			var->value = value;
 			return value;
 		}
 	}
 
-	sx_lock_value (name);
 	sx_lock_value (value);
 	var = (VAR *)sx_malloc (system, sizeof (VAR));
 	sx_unlock_value (value);
-	sx_unlock_value (name);
 
 	if (var == NULL) {
 		return NULL;
 	}
 
-	var->name = name;
+	var->id = id;
 	var->value = value;
 	var->next = system->vars;
 	system->vars = var;
-
-	sx_unlock_value (value);
-	sx_unlock_value (name);
 
 	return value;
 }
 
 VAR *
-sx_get_var (THREAD *thread, VALUE *name, int scope) {
+sx_get_var (THREAD *thread, unsigned int id, int scope) {
 	VAR *var;
 	int c = 0;
 
 	/* local search only */
 	if (scope == SX_SCOPE_LOCAL) {
 		for (var = thread->context_stack[thread->context - 1].vars; var != NULL; var = var->next) {
-			if (sx_are_equal (var->name, name)) {
+			if (id == var->id) {
 				return var;
 			}
 		}
@@ -135,7 +124,7 @@ sx_get_var (THREAD *thread, VALUE *name, int scope) {
 	/* thread search only */
 	if (scope == SX_SCOPE_THREAD) {
 		for (var = thread->context_stack[0].vars; var != NULL; var = var->next) {
-			if (sx_are_equal (var->name, name)) {
+			if (id == var->id) {
 				return var;
 			}
 		}
@@ -146,7 +135,7 @@ sx_get_var (THREAD *thread, VALUE *name, int scope) {
 	if (scope == SX_SCOPE_DEF) {
 		for (c = thread->context - 1; c >= 0; -- c) {
 			for (var = thread->context_stack[c].vars; var != NULL; var = var->next) {
-				if (sx_are_equal (var->name, name)) {
+				if (id == var->id) {
 					return var;
 				}
 			}
@@ -157,14 +146,14 @@ sx_get_var (THREAD *thread, VALUE *name, int scope) {
 	}
 
 	/* only get here on system or def search */
-	return sx_get_system_var (thread->system, name);
+	return sx_get_system_var (thread->system, id);
 }
 
 VAR *
-sx_get_system_var (SYSTEM *system, VALUE *name) {
+sx_get_system_var (SYSTEM *system, unsigned int id) {
 	VAR *var;
 	for (var = system->vars; var != NULL; var = var->next) {
-		if (sx_are_equal (var->name, name)) {
+		if (id == var->id) {
 			return var;
 		}
 	}

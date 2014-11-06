@@ -104,7 +104,6 @@ sx_mark_thread (THREAD *thread) {
 	for (i = 0; i < thread->context; i ++) {
 		sx_mark_value (thread->system, thread->context_stack[i].block);
 		for (var = thread->context_stack[i].vars; var != NULL; var = var->next) {
-			sx_mark_value (thread->system, var->name);
 			sx_mark_value (thread->system, var->value);
 		}
 	}

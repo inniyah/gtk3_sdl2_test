@@ -1,0 +1,11 @@
+AC_INIT(bin/scriptix.c)
+AC_CONFIG_HEADER(include/config.h)
+
+VERSION=0.10
+AC_SUBST(VERSION)
+AC_DEFINE_UNQUOTED(SX_VERSION,"$VERSION")
+
+AC_OUTPUT(
+	Makefile
+	scriptix.spec
+)

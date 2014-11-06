@@ -32,8 +32,6 @@
 extern "C" {
 #endif
 
-#define SX_VERSION "0.9"
-
 #define SX_DATA_CHUNK 50
 #define SX_CONTEXT_CHUNK 10
 #define SX_BLOCK_CHUNK 10
@@ -163,8 +161,8 @@ extern void sx_print_value (VALUE *value);
 extern __INLINE__ void sx_lock_value (VALUE *value);
 extern __INLINE__ void sx_unlock_value (VALUE *value);
 extern int sx_class_is_a (VALUE *klass, VALUE *par);
-extern VAR *sx_set_member (SYSTEM *system, VALUE *klass, VALUE *name, VALUE *value);
-extern VALUE *sx_get_member (VALUE *klass, VALUE *name);
+extern VAR *sx_set_member (SYSTEM *system, VALUE *klass, unsigned int id, VALUE *value);
+extern VALUE *sx_get_member (VALUE *klass, unsigned int id);
 extern VALUE *sx_get_index (SYSTEM *system, VALUE *cont, int index);
 extern VALUE *sx_get_section (SYSTEM *system, VALUE *cont, int start, int end);
 extern void sx_free_value (VALUE *value);
@@ -184,10 +182,10 @@ extern int sx_eval (THREAD *thread, VALUE *value);
 
 extern VALUE *sx_define_cfunc (SYSTEM *system, char *name, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int));
 
-extern VALUE *sx_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope);
-extern VALUE *sx_define_system_var (SYSTEM *system, VALUE *name, VALUE *value);
-extern VAR *sx_get_var (THREAD *thread, VALUE *name, int scope);
-extern VAR *sx_get_system_var (SYSTEM *system, VALUE *name);
+extern VALUE *sx_define_var (THREAD *thread, unsigned int id, VALUE *value, int scope);
+extern VALUE *sx_define_system_var (SYSTEM *system, unsigned int id, VALUE *value);
+extern VAR *sx_get_var (THREAD *thread, unsigned int id, int scope);
+extern VAR *sx_get_system_var (SYSTEM *system, unsigned int id);
 #define sx_free_var(v) sx_free ((v))
 
 extern SYSTEM *sx_create_system (int argc, char **argv);
@@ -206,6 +204,9 @@ extern THREAD *sx_pop_context (THREAD *thread);
 extern VALUE *sx_push_value (THREAD *thread, VALUE *value);
 extern __INLINE__ VALUE *sx_get_value (THREAD *thread, int);
 extern __INLINE__ void sx_pop_value (THREAD *thread, int start, unsigned int len);
+
+extern unsigned int sx_name_to_id (const char *name);
+extern const char *sx_id_to_name (unsigned int id);
 
 /* standard library calls */
 extern void sx_init_stdlib (SYSTEM *system);
@@ -257,7 +258,7 @@ struct scriptix_value {
 };
 
 struct scriptix_var {
-	VALUE *name;
+	unsigned int id;
 	VALUE *value;
 	VAR *next;
 };
