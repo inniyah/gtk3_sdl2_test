@@ -36,32 +36,34 @@
 /* globals */
 VALUE *
 new_str (SYSTEM *system, char *str) {
-	VALUE *value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+	VALUE *value;
+	unsigned int len;
+	
+	if (str == NULL) {
+		len = 0;
+		value = (VALUE *)sx_malloc (system, sizeof (VALUE));
+	} else {
+		len = strlen (str);
+		value = (VALUE *)sx_malloc (system, sizeof (VALUE) + (len + 1) * sizeof (char));
+	}
+	
 	if (value == NULL) {
 		return NULL;
 	}
 
 	value->type = VALUE_STRING;
-	if (str != NULL) {
-		value->data.str.len = strlen (str);
-		value->data.str.str = sx_dupmem (system, str, strlen (str) + 1);
-	} else {
+	if (str == NULL) {
 		value->data.str.len = 0;
-		value->data.str.str = NULL;
+	} else {
+		value->data.str.len = strlen (str);
+		strcpy (value->data.str.str, str);
 	}
 
 	value->locks = 0;
 	value->flags = 0;
+	value->gc_next = NULL;
 
-	value->gc_next = system->gc_values;
-	system->gc_values = value;
-	++ system->gc_count;
-	if (system->gc_count >= system->gc_thresh) {
-		lock_value (value);
-		run_gc (system);
-		unlock_value (value);
-	}
-	
+	add_gc_value (system, value);
 
 	return value;
 }
@@ -77,15 +79,9 @@ new_block (SYSTEM *system) {
 	value->data.nodes = NULL;
 	value->locks = 0;
 	value->flags = 0;
+	value->gc_next = NULL;
 
-	value->gc_next = system->gc_values;
-	system->gc_values = value;
-	++ system->gc_count;
-	if (system->gc_count >= system->gc_thresh) {
-		lock_value (value);
-		run_gc (system);
-		unlock_value (value);
-	}
+	add_gc_value (system, value);
 
 	return value;
 }
@@ -113,14 +109,7 @@ new_func (SYSTEM *system, VALUE *args, VALUE *body) {
 	value->gc_next = NULL;
 	value->flags = 0;
 
-	value->gc_next = system->gc_values;
-	system->gc_values = value;
-	++ system->gc_count;
-	if (system->gc_count >= system->gc_thresh) {
-		lock_value (value);
-		run_gc (system);
-		unlock_value (value);
-	}
+	add_gc_value (system, value);
 
 	return value;
 }
@@ -136,15 +125,9 @@ new_cfunc (SYSTEM *system, VALUE *(*cfunc)(THREAD *, VALUE *self, unsigned int a
 	value->data.cfunc = cfunc;
 	value->locks = 0;
 	value->flags = 0;
+	value->gc_next = NULL;
 
-	value->gc_next = system->gc_values;
-	system->gc_values = value;
-	++ system->gc_count;
-	if (system->gc_count >= system->gc_thresh) {
-		lock_value (value);
-		run_gc (system);
-		unlock_value (value);
-	}
+	add_gc_value (system, value);
 
 	return value;
 }
@@ -180,15 +163,9 @@ new_array (SYSTEM *system, unsigned int argc, VALUE **argv) {
 
 	value->locks = 0;
 	value->flags = 0;
+	value->gc_next = NULL;
 
-	value->gc_next = system->gc_values;
-	system->gc_values = value;
-	++ system->gc_count;
-	if (system->gc_count >= system->gc_thresh) {
-		lock_value (value);
-		run_gc (system);
-		unlock_value (value);
-	}
+	add_gc_value (system, value);
 	
 
 	return value;
@@ -221,15 +198,9 @@ new_stack_array (THREAD *thread, unsigned int argc, unsigned int top) {
 
 	value->locks = 0;
 	value->flags = 0;
+	value->gc_next = NULL;
 
-	value->gc_next = thread->system->gc_values;
-	thread->system->gc_values = value;
-	++ thread->system->gc_count;
-	if (thread->system->gc_count >= thread->system->gc_thresh) {
-		lock_value (value);
-		run_gc (thread->system);
-		unlock_value (value);
-	}
+	add_gc_value (thread->system, value);
 
 	return value;
 }
@@ -253,15 +224,9 @@ new_class (SYSTEM *system, VALUE *parent) {
 	value->data.klass.free_data = NULL;
 	value->locks = 0;
 	value->flags = 0;
+	value->gc_next = NULL;
 
-	value->gc_next = system->gc_values;
-	system->gc_values = value;
-	++ system->gc_count;
-	if (system->gc_count >= system->gc_thresh) {
-		lock_value (value);
-		run_gc (system);
-		unlock_value (value);
-	}
+	add_gc_value (system, value);
 
 	return value;
 }
@@ -281,15 +246,9 @@ new_user_class (SYSTEM *system, VALUE *parent, void *data, void (*free_data)(voi
 	value->data.klass.free_data = free_data;
 	value->locks = 0;
 	value->flags = 0;
+	value->gc_next = NULL;
 
-	value->gc_next = system->gc_values;
-	system->gc_values = value;
-	++ system->gc_count;
-	if (system->gc_count >= system->gc_thresh) {
-		lock_value (value);
-		run_gc (system);
-		unlock_value (value);
-	}
+	add_gc_value (system, value);
 
 	return value;
 }
@@ -321,15 +280,9 @@ new_range (SYSTEM *system, int start, int end, int step) {
 	value->data.range.step = step;
 	value->locks = 0;
 	value->flags = 0;
+	value->gc_next = NULL;
 
-	value->gc_next = system->gc_values;
-	system->gc_values = value;
-	++ system->gc_count;
-	if (system->gc_count >= system->gc_thresh) {
-		lock_value (value);
-		run_gc (system);
-		unlock_value (value);
-	}
+	add_gc_value (system, value);
 
 	return value;
 }
@@ -400,9 +353,7 @@ free_value (VALUE *value) {
 	VAR *rnext;
 	NODE *next;
 
-	if (IS_STRING (value) && value->data.str.len > 0) {
-		sx_free (value->data.str.str);
-	} else if (IS_BLOCK (value)) {
+	if (IS_BLOCK (value)) {
 		while (value->data.nodes != NULL) {
 			next = value->data.nodes->next;
 			free_node (value->data.nodes);
@@ -508,7 +459,9 @@ print_value (VALUE *value) {
 			printf ("%li", TO_INT (value));
 			break;
 		case VALUE_STRING:
-			printf ("%.*s", (int)value->data.str.len, value->data.str.str);
+			if (value->data.str.len > 0) {
+				printf ("%s", value->data.str.str);
+			}
 			break;
 		case VALUE_BLOCK:
 			printf ("<block:%p>", value);
@@ -563,7 +516,7 @@ mark_value (SYSTEM *system, VALUE *value) {
 	VAR *var;
 	NODE *node;
 	int i;
-	
+
 	switch (type_of (value)) {
 		case VALUE_CFUNC:
 		case VALUE_STRING:
@@ -583,7 +536,7 @@ mark_value (SYSTEM *system, VALUE *value) {
 			break;
 		case VALUE_ARRAY:
 			value->flags |= VFLAG_MARK;
-			for (i = 0; i < value->data.array.count; i ++) {
+			for (i = 0; i < value->data.array.count; ++ i) {
 				mark_value (system, value->data.array.list[i]);
 			}
 			break;

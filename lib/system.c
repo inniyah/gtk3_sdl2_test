@@ -88,6 +88,25 @@ free_system (SYSTEM *system) {
 }
 
 void
+add_gc_value (SYSTEM *system, VALUE *value) {
+	if (IS_NUM (value) || IS_NIL (value)) {
+		return;
+	}
+
+	if (value->gc_next != NULL) {
+		return;
+	}
+
+	value->gc_next = system->gc_values;
+	system->gc_values = value;
+	if (++ system->gc_count >= system->gc_thresh) {
+		lock_value (value);
+		run_gc (system);
+		unlock_value (value);
+	}
+}
+
+void
 run_gc (SYSTEM *system) {
 	THREAD *thread;
 	VAR *var;

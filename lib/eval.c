@@ -44,7 +44,7 @@ call_func (THREAD *thread, VALUE *func, unsigned int argc, unsigned int top, VAL
 		return thread->state;
 	}
 
-	if (push_context (thread, func) == NULL) {
+	if (push_context (thread, func, CFLAG_HARD) == NULL) {
 		push_value (thread, new_nil ());
 		return thread->state;
 	}
@@ -78,60 +78,6 @@ call_func (THREAD *thread, VALUE *func, unsigned int argc, unsigned int top, VAL
 }
 
 VALUE *
-add_values (THREAD *thread, VALUE *one, VALUE *two) {
-	VALUE *ret = NULL;
-	char *str;
-
-	if (type_of (one) == VALUE_NUM) {
-		ret = new_num (TO_INT (one) + value_to_int (two));
-	} else if (IS_STRING (one)) {
-		if (IS_STRING (two)) {
-			ret = new_str (thread->system, NULL);
-
-			str = (char *)sx_malloc (thread->system, one->data.str.len + two->data.str.len + 1);
-			if (str == NULL) {
-				thread->state = STATE_ERROR;
-				return new_nil ();
-			}
-			str[0] = 0;
-
-			if (one->data.str.len) {
-				strcat (str, one->data.str.str);
-			}
-			if (two->data.str.len) {
-				strcat (str, two->data.str.str);
-			}
-
-			ret->data.str.str = str;
-			ret->data.str.len = one->data.str.len + two->data.str.len;
-
-		} else if (IS_NUM (two)) {
-			ret = new_str (thread->system, NULL);
-
-			str = (char *)sx_malloc (thread->system, one->data.str.len + 20 + 1); /* 20 max digits */
-			if (str == NULL) {
-				thread->state = STATE_ERROR;
-				return new_nil ();
-			}
-			str[0] = 0;
-
-			if (one->data.str.len) {
-				strcat (str, one->data.str.str);
-			}
-
-			snprintf (str + one->data.str.len, 20, "%lu", TO_INT (two));
-
-			ret->data.str.str = str;
-			ret->data.str.len = strlen (str);;
-		} else if (IS_NIL (two)) {
-			ret = one;
-		}
-	}
-
-	return ret;
-}
-
-VALUE *
 eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 	VALUE *ret, *value;
 	VAR *var;
@@ -140,9 +86,7 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 
 	switch (op) {
 		case OP_ADD:
-			if (argc >= 2) {
-				ret = add_values (thread, get_value (thread, top), get_value (thread, top + 1));
-			}
+			ret = new_num (value_to_int (get_value (thread, top)) + value_to_int (get_value (thread, top + 1)));
 			break;
 		case OP_SUBTRACT:
 			ret = new_num (value_to_int (get_value (thread, top)) - value_to_int (get_value (thread, top + 1)));
@@ -276,7 +220,10 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 			break;
 		case OP_LOOKUP:
 			if (type_of (get_value (thread, top)) == VALUE_STRING && get_value (thread, top)->data.str.len > 0) {
-				ret = do_lookup_var (thread, get_value (thread, top)->data.str.str, TO_INT (get_value (thread, top + 1)));
+				var = do_get_var (thread, get_value (thread, top), TO_INT (get_value (thread, top + 1)));
+				if (var) {
+					ret = var->value;
+				}
 			}
 			break;
 		case OP_ASSIGN:
@@ -294,24 +241,24 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 			break;
 		case OP_PREINCREMENT:
 			if (IS_STRING (get_value (thread, top)) && get_value (thread, top)->data.str.len > 0) {
-				var = get_var (thread, get_value (thread, top)->data.str.str, SCOPE_DEF);
+				var = get_var (thread, get_value (thread, top));
 				if (var) {
-					ret = var->value = add_values (thread, var->value, get_value (thread, top + 1));
+					ret = var->value = new_num (value_to_int (var->value) + value_to_int (get_value (thread, top + 1)));
 				}
 			}
 			break;
 		case OP_POSTINCREMENT:
 			if (IS_STRING (get_value (thread, top)) && get_value (thread, top)->data.str.len > 0) {
-				var = get_var (thread, get_value (thread, top)->data.str.str, SCOPE_DEF);
+				var = get_var (thread, get_value (thread, top));
 				if (var) {
 					ret = var->value;
-					var->value = add_values (thread, var->value, get_value (thread, top + 1));
+					var->value = new_num (value_to_int (var->value) + value_to_int (get_value (thread, top + 1)));
 				}
 			}
 			break;
 		case OP_PREDECREMENT:
 			if (IS_STRING (get_value (thread, top)) && get_value (thread, top)->data.str.len > 0) {
-				var = get_var (thread, get_value (thread, top)->data.str.str, SCOPE_DEF);
+				var = get_var (thread, get_value (thread, top));
 				if (var) {
 					ret = var->value = new_num (value_to_int (var->value) - value_to_int (get_value (thread, top + 1)));
 				}
@@ -319,7 +266,7 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 			break;
 		case OP_POSTDECREMENT:
 			if (IS_STRING (get_value (thread, top)) && get_value (thread, top)->data.str.len > 0) {
-				var = get_var (thread, get_value (thread, top)->data.str.str, SCOPE_DEF);
+				var = get_var (thread, get_value (thread, top));
 				if (var) {
 					ret = var->value;
 					var->value = new_num (value_to_int (var->value) - value_to_int (get_value (thread, top + 1)));
@@ -365,7 +312,7 @@ eval_expr (THREAD *thread, char op, unsigned int argc, unsigned int top) {
 				ret = new_class (thread->system, NULL);
 			}
 			if (argc > 1 && IS_BLOCK (get_value (thread, top + 1))) {
-				if (push_context (thread, get_value (thread, top + 1)) != NULL) {
+				if (push_context (thread, get_value (thread, top + 1), 0) != NULL) {
 					eval (thread, get_value (thread, top + 1));
 
 					/* cheat, steal arguments */
@@ -436,7 +383,7 @@ eval_for (THREAD *thread, NODE *node) {
 			push_value (thread, new_nil ());
 			return thread->state;
 		}
-		push_context (thread, get_value (thread, -2));
+		push_context (thread, get_value (thread, -2), 0);
 		i = 0;
 		do {
 			if (i > 0) {
@@ -449,6 +396,7 @@ eval_for (THREAD *thread, NODE *node) {
 			++ i;
 		} while (i < loop->data.array.count);
 	} else if (IS_RANGE (get_value (thread, -1))) {
+		push_context (thread, get_value (thread, -2), 0);
 		push_value (thread, new_nil ());
 		for (i = loop->data.range.start; loop->data.range.step > 0 ? (i <= loop->data.range.end) : (i >= loop->data.range.end); i += loop->data.range.step) {
 			pop_value (thread, -1, 1);
@@ -457,7 +405,6 @@ eval_for (THREAD *thread, NODE *node) {
 				break;
 			}
 		}
-		return thread->state;
 	} else {
 		pop_value (thread, -3, 3);
 		push_value (thread, new_nil ());
@@ -494,7 +441,6 @@ value_to_int (VALUE *value) {
 
 int
 eval_node (THREAD *thread, NODE *node) {
-	unsigned int top;
 	unsigned int i;
 
 	if (node == NULL) {
@@ -502,13 +448,10 @@ eval_node (THREAD *thread, NODE *node) {
 		return thread->state;
 	}
 
-	top = thread->data;
-
-	switch (node->type) {
-		case NODE_VALUE:
-			push_value (thread, node->data.value);
-			break;
-		case NODE_EXPR:
+	if (node->type == NODE_VALUE) {
+		push_value (thread, node->data.value);
+	} else {
+		if (node->data.expr.op >= 100) { /* special operator */
 			switch (node->data.expr.op) {
 				case OP_IF:
 					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
@@ -549,13 +492,16 @@ eval_node (THREAD *thread, NODE *node) {
 								thread->state = STATE_RUN;
 							}
 						}
+						push_context (thread, get_value (thread, -1), 0);
 						if (eval (thread, get_value (thread, -1)) != STATE_RUN) {
 							pop_value (thread, -2, 1);
 							if (thread->state == STATE_BREAK) {
 								thread->state = STATE_RUN;
+								pop_context (thread);
 								break;
 							}
 						}
+						pop_context (thread);
 						pop_value (thread, -2, 1);
 						if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
 							pop_value (thread, -2, 1);
@@ -567,45 +513,11 @@ eval_node (THREAD *thread, NODE *node) {
 						}
 					}
 					break;
-				case OP_UNTIL:
-					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-						break;
-					}
-					if (is_true (get_value (thread, -1))) {
-						pop_value (thread, -1, 1);
-						push_value (thread, new_nil ());
-						break;
-					}
-					while (thread->state == STATE_RUN) {
-						pop_value (thread, -1, 1);
-						if (eval_node (thread, node->data.expr.nodes[1]) != STATE_RUN) {
-							if (thread->state == STATE_BREAK) {
-								thread->state = STATE_RUN;
-							}
-						}
-						if (eval (thread, get_value (thread, -1)) != STATE_RUN) {
-							pop_value (thread, -2, 1);
-							if (thread->state == STATE_BREAK) {
-								thread->state = STATE_RUN;
-								break;
-							}
-						}
-						pop_value (thread, -2, 1);
-						if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
-							pop_value (thread, -2, 1);
-							break;
-						}
-						if (is_true (get_value (thread, -1))) {
-							pop_value (thread, -1, 1);
-							break;
-						}
-					}
-					break;
 				case OP_TRY:
 					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
 						break;
 					}
-					push_context (thread, get_value (thread, -1));
+					push_context (thread, get_value (thread, -1), 0);
 					if (eval (thread, get_value (thread, -1)) != STATE_RUN) {
 						pop_value (thread, -2, 1);
 						if (thread->state != STATE_ERROR) {
@@ -642,7 +554,7 @@ eval_node (THREAD *thread, NODE *node) {
 					if (eval_node (thread, node->data.expr.nodes[0]) != STATE_RUN) {
 						break;
 					}
-					push_context (thread, get_value (thread, -1));
+					push_context (thread, get_value (thread, -1), 0);
 					eval (thread, get_value (thread, -1));
 					pop_context (thread);
 					pop_value (thread, -2, 1);
@@ -703,18 +615,19 @@ eval_node (THREAD *thread, NODE *node) {
 						push_value (thread, new_nil ());
 					}
 					break;
-				default:
-					for (i = 0; i < node->data.expr.count; i ++) {
-						if (eval_node (thread, node->data.expr.nodes[i]) != STATE_RUN) {
-							pop_value (thread, top, i);
-							return thread->state;
-						}
-					}
-					eval_expr (thread, node->data.expr.op, i, top);
-					pop_value (thread, top, node->data.expr.count);
-					break;
 			}
-			break;
+		} else { /* normal operator */
+			for (i = 0; i < node->data.expr.count; i ++) {
+				if (eval_node (thread, node->data.expr.nodes[i]) != STATE_RUN) {
+					if (i > 0) {
+						pop_value (thread, -1 - i, i);
+					}
+					return thread->state;
+				}
+			}
+			eval_expr (thread, node->data.expr.op, node->data.expr.count, thread->data - node->data.expr.count);
+			pop_value (thread, -1 - node->data.expr.count, node->data.expr.count);
+		}
 	}
 
 	return thread->state;
@@ -750,7 +663,9 @@ run_thread (THREAD *thread) {
 	thread->state = STATE_RUN;
 	thread->ret = new_nil ();
 
+	push_context (thread, thread->main, 0);
 	eval (thread, thread->main);
+	pop_context (thread);
 
 	thread->ret = get_value (thread, 0);
 	pop_value (thread, -1, 1);

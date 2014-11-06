@@ -50,6 +50,10 @@
 	__INLINE__ void parser_node_pop (void);
 	void parser_node_push (NODE *node);
 
+	VALUE *name_list[20];
+	int name_ptr = 0;
+	VALUE *get_dup_name (VALUE *name);
+
 	VALUE *append_to_array (VALUE *array, VALUE *value);
 	NODE *append_to_expr (NODE *expr, NODE *node);
 
@@ -72,7 +76,7 @@
 %token TSEP TIF TTHEN TELSE TEND TWHILE TDO TAND TOR TGTE TLTE TNE
 %token TRETURN TFUNC TBREAK TBLOCK TLOCAL TGLOBAL TEQUALS TRANGE
 %token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT TLENGTH TTHREAD
-%token TCLASS TNEW TUNTIL TNIL TRAISE TRESCUE TTRY TIN TFOR
+%token TCLASS TNEW TUNTIL TNIL TRAISE TRESCUE TTRY TIN TFOR TMETHOD
 
 %nonassoc TBREAK TRETURN TRAISE
 %right '=' TADDASSIGN TSUBASSIGN 
@@ -80,15 +84,14 @@
 %left TOR
 %left '>' '<' TGTE TLTE
 %left TNE TEQUALS TISA
-%nonassoc CUNARY TNEW '!'
 %left '+' '-' TINCREMENT TDECREMENT
 %left '*' '/'
-%nonassoc '[' TDO
-%nonassoc '.'
-%nonassoc CPARAN '(' TLENGTH TTYPE TWHILE TUNTIL
+%nonassoc '!' CUNARY
+%nonassoc CPARAN TLENGTH TTYPE TWHILE TUNTIL TDO TNEW
+%left '.' '[' '(' TMETHOD
 
 %type<node> node stmt cstmt array
-%type<value> data block cblock args name
+%type<value> data block cblock args name scope
 
 %%
 
@@ -137,60 +140,69 @@ arg_list: name { append_to_array (parser_top (), $1); }
 node:	node '+' node { $$ = new_expr (parse_system, OP_ADD, 2, $1, $3); }
 	| node '-' node { $$ = new_expr (parse_system, OP_SUBTRACT, 2, $1, $3); }
 	| '(' node ')' %prec CPARAN { $$ = $2; }
-	| '-' node %prec CUNARY { $$ = new_expr (parse_system, OP_NEGATE, 1, $2); }
-	| '!' node { $$ = new_expr (parse_system, OP_NOT, 1, $2); }
 	| node '*' node { $$ = new_expr (parse_system, OP_MULTIPLY, 2, $1, $3); }
 	| node '/' node { $$ = new_expr (parse_system, OP_DIVIDE, 2, $1, $3); }
+	| '-' node %prec CUNARY { $$ = new_expr (parse_system, OP_NEGATE, 1, $2); }
+
+	| '!' node { $$ = new_expr (parse_system, OP_NOT, 1, $2); }
+	| node TAND node { $$ = new_expr (parse_system, OP_AND, 2, $1, $3); }
+	| node TOR node { $$ = new_expr (parse_system, OP_OR, 2, $1, $3); }
+
 	| node '>' node { $$ = new_expr (parse_system, OP_GT, 2, $1, $3); }
 	| node '<' node { $$ = new_expr (parse_system, OP_LT, 2, $1, $3); }
 	| node TNE node { $$ = new_expr (parse_system, OP_NEQUAL, 2, $1, $3); }
 	| node TGTE node { $$ = new_expr (parse_system, OP_GTE, 2, $1, $3); }
 	| node TLTE node { $$ = new_expr (parse_system, OP_LTE, 2, $1, $3); }
+	| node TEQUALS node { $$ = new_expr (parse_system, OP_EQUAL, 2, $1, $3); }
+
 	| name '=' node { $$ = new_expr (parse_system, OP_ASSIGN, 3, new_node (parse_system, $1), $3, new_node (parse_system, new_num (SCOPE_DEF))); }
-	| TLOCAL name '=' node { $$ = new_expr (parse_system, OP_ASSIGN, 3, new_node (parse_system, $2), $4, new_node (parse_system, new_num (SCOPE_LOCAL))); }
-	| TTHREAD name '=' node { $$ = new_expr (parse_system, OP_ASSIGN, 3, new_node (parse_system, $2), $4, new_node (parse_system, new_num (SCOPE_THREAD))); }
-	| TGLOBAL name '=' node { $$ = new_expr (parse_system, OP_ASSIGN, 3, new_node (parse_system, $2), $4, new_node (parse_system, new_num (SCOPE_GLOBAL))); }
+	| scope name '=' node { $$ = new_expr (parse_system, OP_ASSIGN, 3, new_node (parse_system, $2), $4, new_node (parse_system, $1)); }
 	| node '[' node ']' '=' node %prec '=' { $$ = new_expr (parse_system, OP_SETINDEX, 3, $1, $3, $6); }
 	| node '.' name '=' node %prec '=' { $$ = new_expr (parse_system, OP_SETMEMBER, 3, $1, new_node (parse_system, $3), $5); }
+
 	| name TADDASSIGN node { $$ = new_expr (parse_system, OP_PREINCREMENT, 2, new_node (parse_system, $1), $3); }
 	| name TSUBASSIGN node { $$ = new_expr (parse_system, OP_PREDECREMENT, 2, new_node (parse_system, $1), $3); }
 	| name TINCREMENT { $$ = new_expr (parse_system, OP_POSTINCREMENT, 2, new_node (parse_system, $1), new_node (parse_system, new_num (1))); }
 	| TINCREMENT name { $$ = new_expr (parse_system, OP_PREINCREMENT, 2, new_node (parse_system, $2), new_node (parse_system, new_num (1))); }
 	| name TDECREMENT { $$ = new_expr (parse_system, OP_POSTDECREMENT, 2, new_node (parse_system, $1), new_node (parse_system, new_num (1))); }
 	| TDECREMENT name { $$ = new_expr (parse_system, OP_PREDECREMENT, 2, new_node (parse_system, $2), new_node (parse_system, new_num (1))); }
-	| node TAND node { $$ = new_expr (parse_system, OP_AND, 2, $1, $3); }
-	| node TOR node { $$ = new_expr (parse_system, OP_OR, 2, $1, $3); }
+	
+
 	| TLENGTH '(' node ')' { $$ = new_expr (parse_system, OP_SIZEOF, 1, $3); }
 	| TTYPE '(' node ')' { $$ = new_expr (parse_system, OP_TYPEOF, 1, $3); }
 	| node TISA node { $$ = new_expr (parse_system, OP_ISA, 2, $1, $3); }
+
 	| node '(' { parser_node_push (new_expr (parse_system, OP_CALL, 2, $1, NULL)); } array_list ')' { $$ = parser_node_top (); parser_node_pop (); }
-	| node '.' name '(' { parser_node_push (new_expr (parse_system, OP_CALL, 2, new_expr (parse_system, OP_MEMBER, 2, $1, new_node (parse_system, $3)), $1)); } array_list ')' { $$ = parser_node_top (); parser_node_pop (); }
+	| TFUNC name '(' args ')' block TEND { $$ = new_expr (parse_system, OP_ASSIGN, 2, new_node (parse_system, $2), new_node (parse_system, new_func (parse_system, $4, $6))); }
+	| TFUNC name '(' ')' block TEND { $$ = new_expr (parse_system, OP_ASSIGN, 2, new_node (parse_system, $2), new_node (parse_system, new_func (parse_system, new_nil (), $5))); }
+
+	| node TMETHOD name '(' { parser_node_push (new_expr (parse_system, OP_CALL, 2, new_expr (parse_system, OP_MEMBER, 2, $1, new_node (parse_system, $3)), $1)); } array_list ')' { $$ = parser_node_top (); parser_node_pop (); }
+	| node '.' name { $$ = new_expr (parse_system, OP_MEMBER, 2, $1, new_node (parse_system, $3)); }
+	| TNEW node { $$ = new_expr (parse_system, OP_NEWINSTANCE, 1, $2); }
+	| TCLASS name cblock TEND { $$ = new_expr (parse_system, OP_ASSIGN, 2, new_node (parse_system, $2), new_expr (parse_system, OP_NEWCLASS, 2, NULL, new_node (parse_system, $3))); }
+	| TCLASS name ':' name cblock TEND { $$ = new_expr (parse_system, OP_ASSIGN, 2, new_node (parse_system, $2), new_expr (parse_system, OP_NEWCLASS, 2, new_expr (parse_system, OP_LOOKUP, 2, new_node (parse_system, $4), new_node (parse_system, new_num (SCOPE_DEF))), new_node (parse_system, $5))); }
+
 	| node '[' node ']' { $$ = new_expr (parse_system, OP_INDEX, 2, $1, $3); }
-	| node TEQUALS node { $$ = new_expr (parse_system, OP_EQUAL, 2, $1, $3); }
+	
 	| TIF node TTHEN block TEND { $$ = new_expr (parse_system, OP_IF, 2, $2, new_node (parse_system, $4)); }
 	| TIF node TTHEN block TELSE block TEND { $$ = new_expr (parse_system, OP_IF, 3, $2, new_node (parse_system, $4), new_node (parse_system, $6)); }
 	| TWHILE node TDO block TEND { $$ = new_expr (parse_system, OP_WHILE, 2, $2, new_node (parse_system, $4)); }
-	| TUNTIL node TDO block TEND { $$ = new_expr (parse_system, OP_UNTIL, 2, $2, new_node (parse_system, $4)); }
+	| TUNTIL node TDO block TEND { $$ = new_expr (parse_system, OP_WHILE, 2, new_expr (parse_system, OP_NOT, 1, $2), new_node (parse_system, $4)); }
 	| TTRY block TRESCUE block TEND { $$ = new_expr (parse_system, OP_TRY, 2, new_node (parse_system, $2), new_node (parse_system, $4)); }
 	| TDO block TEND { $$ = new_expr (parse_system, OP_EVAL, 1, new_node (parse_system, $2)); }
 	| TFOR name TIN node TDO block TEND { $$ = new_expr (parse_system, OP_FOR, 3, new_node (parse_system, $2), $4, new_node (parse_system, $6)); }
-	| node '.' name { $$ = new_expr (parse_system, OP_MEMBER, 2, $1, new_node (parse_system, $3)); }
+
 	| name { $$ = new_expr (parse_system, OP_LOOKUP, 2, new_node (parse_system, $1), new_node (parse_system, new_num (SCOPE_DEF))); }
-	| TLOCAL name { $$ = new_expr (parse_system, OP_LOOKUP, 2, new_node (parse_system, $2), new_node (parse_system, new_num (SCOPE_LOCAL))); }
-	| TGLOBAL name { $$ = new_expr (parse_system, OP_LOOKUP, 2, new_node (parse_system, $2), new_node (parse_system, new_num (SCOPE_GLOBAL))); }
-	| TTHREAD name { $$ = new_expr (parse_system, OP_LOOKUP, 2, new_node (parse_system, $2), new_node (parse_system, new_num (SCOPE_THREAD))); }
-	| data { $$ = new_node (parse_system, $1);  }
-	| TNEW node { $$ = new_expr (parse_system, OP_NEWINSTANCE, 1, $2); }
-	| array { $$ = $1; }
+	| scope name { $$ = new_expr (parse_system, OP_LOOKUP, 2, new_node (parse_system, $2), new_node (parse_system, $1)); }
+
 	| TRETURN node { $$ = new_expr (parse_system, OP_RETURN, 1, $2); }
 	| TRETURN { $$ = new_expr (parse_system, OP_RETURN, 0);  }
 	| TBREAK { $$ = new_expr (parse_system, OP_BREAK, 0); }
 	| TBREAK node { $$ = new_expr (parse_system, OP_BREAK, 1, $2); }
 	| TRAISE node { $$ = new_expr (parse_system, OP_RAISE, 1, $2); }
-	| TFUNC name '(' args ')' block TEND { $$ = new_expr (parse_system, OP_ASSIGN, 2, new_node (parse_system, $2), new_node (parse_system, new_func (parse_system, $4, $6))); }
-	| TFUNC name '(' ')' block TEND { $$ = new_expr (parse_system, OP_ASSIGN, 2, new_node (parse_system, $2), new_node (parse_system, new_func (parse_system, new_nil (), $5))); }
-	| TCLASS name cblock TEND { $$ = new_expr (parse_system, OP_ASSIGN, 2, new_node (parse_system, $2), new_expr (parse_system, OP_NEWCLASS, 2, NULL, new_node (parse_system, $3))); }
-	| TCLASS name ':' name cblock TEND { $$ = new_expr (parse_system, OP_ASSIGN, 2, new_node (parse_system, $2), new_expr (parse_system, OP_NEWCLASS, 2, new_expr (parse_system, OP_LOOKUP, 2, new_node (parse_system, $4), new_node (parse_system, new_num (SCOPE_DEF))), new_node (parse_system, $5))); }
+
+	| data { $$ = new_node (parse_system, $1);  }
+	| array { $$ = $1; }
 	;
 
 
@@ -203,7 +215,12 @@ data:	TNUM { $$ = $1;  }
 	| TNUM TRANGE TNUM { $$ = new_range (parse_system, TO_INT($1), TO_INT($3), 1); }
 	;
 
-name:	TNAME { $$ = $1; }
+name:	TNAME { $$ = get_dup_name ($1); }
+	;
+
+scope:	TLOCAL { $$ = new_num (SCOPE_LOCAL); }
+	| TGLOBAL { $$ = new_num (SCOPE_GLOBAL); }
+	| TTHREAD { $$ = new_num (SCOPE_THREAD); }
 	;
 
 %%
@@ -340,6 +357,24 @@ append_to_expr (NODE *expr, NODE *node) {
 	return expr;
 }
 
+VALUE *
+get_dup_name (VALUE *name) {
+	int i;
+	for (i = 0; i < 20; ++ i) {
+		if (name == name_list[i]) {
+			return name;
+		}
+		if (are_equal (name, name_list[i])) {
+			return name_list[i];
+		}
+	}
+	name_list[name_ptr] = name;
+	if (++ name_ptr >= 20) {
+		name_ptr = 0;
+	}
+	return name;
+}
+
 /* global vars */
 unsigned int parse_lineno = 1;
 
@@ -369,7 +404,7 @@ cleanup_parser (void) {
 
 VALUE *
 load_file (SYSTEM *system, char *file) {
-	int ret, flags;
+	int ret, flags, i;
 
 	if (file == NULL) {
 		sxin = stdin;
@@ -379,6 +414,10 @@ load_file (SYSTEM *system, char *file) {
 			/* FIXME: error message */
 			return NULL;
 		}
+	}
+
+	for (i = 0; i < 20; ++ i) {
+		name_list[i] = NULL;
 	}
 
 	parse_system = system;
@@ -394,12 +433,15 @@ load_file (SYSTEM *system, char *file) {
 	}
 
 	if (ret) {
+		cleanup_parser ();
 		return NULL;
 	}
 
 	lock_value (parse_block);
 	run_gc (system);
 	unlock_value (parse_block);
+
+	cleanup_parser ();
 
 	return parse_block;
 }

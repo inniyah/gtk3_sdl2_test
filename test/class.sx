@@ -8,12 +8,13 @@ class k
 	end
 end
 k.test = function ()
+	print ('in k.test')
 	return self.name
 end
 
 g = new k
 
-if k.test () != 'kclass' then
+if k->test () != 'kclass' then
 	print ('k.test() failure')
 	return 1
 end

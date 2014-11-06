@@ -86,7 +86,7 @@ free_node (NODE *node) {
 	unsigned int i;
 
 	if (node->type == NODE_EXPR && node->data.expr.count > 0) {
-		for (i = 0; i < node->data.expr.count; i ++) {
+		for (i = 0; i < node->data.expr.count; ++ i) {
 			if (node->data.expr.nodes[i] != NULL && node->data.expr.nodes[i]->type == NODE_EXPR) {
 				free_node (node->data.expr.nodes[i]);
 			}
@@ -101,7 +101,7 @@ void
 mark_node (SYSTEM *system, NODE *node) {
 	unsigned int i;
 	if (node->type == NODE_EXPR) {
-		for (i = 0; i < node->data.expr.count; i ++) {
+		for (i = 0; i < node->data.expr.count; ++ i) {
 			if (node->data.expr.nodes[i] != NULL) {
 				mark_node (system, node->data.expr.nodes[i]);
 			}

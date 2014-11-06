@@ -1,13 +1,17 @@
 a = {'abc','def','ghi'}
-print (a)
-print (length (a))
 
-for i in a do
-	print (i)
+function test ()
+	print (a)
+	for i in a do
+		for n in 1..5 do
+			print ('In - ', n, ':', i)
+		end
+	end
 end
 
-i = 0
-while i < length (a) do
-	print (a[i])
-	i ++
+function scope ()
+	local a = {1,2,3}
+	test ()
 end
+
+scope()

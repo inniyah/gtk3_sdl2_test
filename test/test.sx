@@ -1,5 +1,1 @@
-print (abc)
-print (testing)
-g = new testing
-g.var = 'test'
-g.print ()
+print ('test', 1, 'test')

@@ -55,40 +55,13 @@ do_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope) {
 		return define_global_var (thread->system, name, value);
 	}
 
-	if (scope < SCOPE_THREAD && thread->context > 0) {
-		for (var = thread->context_stack[thread->context - 1].vars; var != NULL; var = var->next) {
-			if (!strcasecmp (var->name->data.str.str, name->data.str.str)) {
-				lock_value (value);
-				unlock_value (var->value);
-				var->value = value;
-				unlock_value (value);
-				return value;
-			}
-		}
-	}
-
-	if (scope < SCOPE_GLOBAL && (thread->context == 0 || scope != SCOPE_LOCAL)) {
-		for (var = thread->vars; var != NULL; var = var->next) {
-			if (!strcasecmp (var->name->data.str.str, name->data.str.str)) {
-				lock_value (value);
-				unlock_value (var->value);
-				var->value = value;
-				unlock_value (value);
-				return value;
-			}
-		}
-	}
-
-	if (scope == SCOPE_DEF || scope == SCOPE_GLOBAL) {
-		for (var = thread->system->vars; var != NULL; var = var->next) {
-			if (!strcasecmp (var->name->data.str.str, name->data.str.str)) {
-				lock_value (value);
-				unlock_value (var->value);
-				var->value = value;
-				unlock_value (value);
-				return value;
-			}
-		}
+	var = do_get_var (thread, name, scope);
+	if (var != NULL) {
+		lock_value (value);
+		unlock_value (var->value);
+		var->value = value;
+		unlock_value (value);
+		return value;
 	}
 
 	lock_value (name);
@@ -103,12 +76,12 @@ do_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope) {
 	var->name = name;
 	var->value = value;
 
-	if (scope < SCOPE_THREAD && thread->context > 0) {
+	if (scope == SCOPE_THREAD) {
+		var->next = thread->context_stack[0].vars;
+		thread->context_stack[0].vars = var;
+	} else {
 		var->next = thread->context_stack[thread->context - 1].vars;
 		thread->context_stack[thread->context - 1].vars = var;
-	} else {
-		var->next = thread->vars;
-		thread->vars = var;
 	}
 
 	unlock_value (value);
@@ -152,62 +125,56 @@ define_global_var (SYSTEM *system, VALUE *name, VALUE *value) {
 	return value;
 }
 
-VALUE *
-do_lookup_var (THREAD *thread, char *name, int scope) {
-	VAR *var = get_var (thread, name, scope);
+VAR *
+do_get_var (THREAD *thread, VALUE *name, int scope) {
+	VAR *var;
+	int c = 0;
 
-	if (var) {
-		return var->value;
-	} else {
+	/* local search only */
+	if (scope == SCOPE_LOCAL) {
+		for (var = thread->context_stack[thread->context - 1].vars; var != NULL; var = var->next) {
+			if (are_equal (var->name, name)) {
+				return var;
+			}
+		}
 		return NULL;
 	}
-}
 
-VALUE *
-lookup_global_var (SYSTEM *system, char *name) {
-	VAR *var;
-	for (var = system->vars; var != NULL; var = var->next) {
-		if (!strcasecmp (var->name->data.str.str, name)) {
-			return var->value;
+	/* thread search only */
+	if (scope == SCOPE_THREAD) {
+		for (var = thread->context_stack[0].vars; var != NULL; var = var->next) {
+			if (are_equal (var->name, name)) {
+				return var;
+			}
+		}
+		return NULL;
+	}
+
+	/* default - search thru contexts until top/hard context break */
+	if (scope == SCOPE_DEF) {
+		for (c = thread->context - 1; c >= 0; -- c) {
+			for (var = thread->context_stack[c].vars; var != NULL; var = var->next) {
+				if (are_equal (var->name, name)) {
+					return var;
+				}
+			}
+			if ((thread->context_stack[c].flags & CFLAG_HARD) != 0 && c != 0) {
+				c = 1; /* next loop, c will == 0, thus scan thread scope */
+			}
 		}
 	}
-	return NULL;
+
+	/* only get here on global or def search */
+	return get_global_var (thread->system, name);
 }
 
 VAR *
-get_var (THREAD *thread, char *name, int scope) {
+get_global_var (SYSTEM *system, VALUE *name) {
 	VAR *var;
-
-	/* local or def - not gloval or thread */
-	if (scope < SCOPE_THREAD && thread->context > 0) {
-		for (var = thread->context_stack[thread->context - 1].vars; var != NULL; var = var->next) {
-			if (!strcasecmp (var->name->data.str.str, name)) {
-				return var;
-			}
-		}
-		if (scope == SCOPE_LOCAL) {
-			return NULL;
-		}
-	}
-
-	/* def, local, or thread - not global */
-	if (scope < SCOPE_GLOBAL) {
-		for (var = thread->vars; var != NULL; var = var->next) {
-			if (!strcasecmp (var->name->data.str.str, name)) {
-				return var;
-			}
-		}
-		if (scope > SCOPE_DEF) {
-			return NULL;
-		}
-	}
-
-	/* must be def or global */
-	for (var = thread->system->vars; var != NULL; var = var->next) {
-		if (!strcasecmp (var->name->data.str.str, name)) {
+	for (var = system->vars; var != NULL; var = var->next) {
+		if (are_equal (var->name, name)) {
 			return var;
 		}
 	}
-
 	return NULL;
 }

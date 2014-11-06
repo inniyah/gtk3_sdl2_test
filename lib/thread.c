@@ -51,7 +51,6 @@ create_thread (SYSTEM *system, VALUE *block) {
 	unlock_value (block);
 
 	thread->system = system;
-	thread->vars = NULL;
 	thread->main = block;
 	thread->next = system->threads;
 	thread->context_stack = NULL;
@@ -86,12 +85,8 @@ end_thread (THREAD *thread) {
 
 void
 free_thread (THREAD *thread) {
-	VAR *rnext;
-
-	while (thread->vars) {
-		rnext = thread->vars->next;
-		free_var (thread->vars);
-		thread->vars = rnext;
+	while (thread->context > 0) {
+		pop_context (thread);
 	}
 
 	sx_free (thread);
@@ -104,11 +99,6 @@ mark_thread (THREAD *thread) {
 
 	if (thread->ret) {
 		mark_value (thread->system, thread->ret);
-	}
-
-	for (var = thread->vars; var != NULL; var = var->next) {
-		mark_value (thread->system, var->name);
-		mark_value (thread->system, var->value);
 	}
 
 	for (i = 0; i < thread->context; i ++) {
@@ -127,7 +117,7 @@ mark_thread (THREAD *thread) {
 }
 
 THREAD *
-push_context (THREAD *thread, VALUE *block) {
+push_context (THREAD *thread, VALUE *block, unsigned char flags) {
 	CONTEXT *new_stack;
 
 	if (thread->context == thread->context_size) {
@@ -143,6 +133,7 @@ push_context (THREAD *thread, VALUE *block) {
 
 	thread->context_stack[thread->context].vars = NULL;
 	thread->context_stack[thread->context].block = block;
+	thread->context_stack[thread->context].flags = flags;
 	++ thread->context;
 
 	return thread;

@@ -120,6 +120,7 @@
 -= { return TSUBASSIGN; }
 "++" { return TINCREMENT; }
 "--" { return TDECREMENT; }
+"->" { return TMETHOD; }
 != { return TNE; }
 ".." { return TRANGE; }
 . { return yytext[0]; }

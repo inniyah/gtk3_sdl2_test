@@ -46,10 +46,11 @@ typedef union {
 # define	TTRY	292
 # define	TIN	293
 # define	TFOR	294
-# define	TISA	295
-# define	CUNARY	296
-# define	CPARAN	297
-# define	TTYPE	298
+# define	TMETHOD	295
+# define	TISA	296
+# define	CUNARY	297
+# define	CPARAN	298
+# define	TTYPE	299
 
 
 extern YYSTYPE sxlval;

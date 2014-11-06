@@ -32,7 +32,7 @@
 extern "C" {
 #endif
 
-#define SCRIPTIX_VERSION "0.6"
+#define SCRIPTIX_VERSION "0.7"
 
 #define STACK_CHUNK_SIZE 50
 #define GC_THRESH_SIZE 200
@@ -64,42 +64,45 @@ extern "C" {
 #define OP_DIVIDE 6
 #define OP_GT 7
 #define OP_LT 8
-#define OP_OR 9
-#define OP_AND 10
-#define OP_GTE 11
-#define OP_LTE 12
-#define OP_EQUAL 13
-#define OP_NEQUAL 14
-#define OP_NOT 15
-#define OP_LOOKUP 16
-#define OP_ASSIGN 17
-#define OP_IF 18
-#define OP_WHILE 19
-#define OP_BREAK 20
-#define OP_RETURN 21
-#define OP_INDEX 22
-#define OP_PREINCREMENT 23
-#define OP_POSTINCREMENT 24
-#define OP_PREDECREMENT 25
-#define OP_POSTDECREMENT 26
-#define OP_NEWARRAY 27
-#define OP_SETINDEX 28
-#define OP_SIZEOF 29
-#define OP_NEWCLASS 30
-#define OP_SETMEMBER 31
-#define OP_MEMBER 32
-#define OP_NEWINSTANCE 33
-#define OP_UNTIL 34
-#define OP_TRY 35
-#define OP_ISA 36
-#define OP_TYPEOF 37
-#define OP_RAISE 38
-#define OP_EVAL 39
-#define OP_FOR 40
+#define OP_GTE 9
+#define OP_LTE 10
+#define OP_EQUAL 11
+#define OP_NEQUAL 12
+#define OP_NOT 13
+#define OP_LOOKUP 14
+#define OP_ASSIGN 15
+#define OP_INDEX 16
+#define OP_PREINCREMENT 17
+#define OP_POSTINCREMENT 18
+#define OP_PREDECREMENT 19
+#define OP_POSTDECREMENT 20
+#define OP_NEWARRAY 21
+#define OP_SETINDEX 22
+#define OP_SIZEOF 23
+#define OP_NEWCLASS 24
+#define OP_SETMEMBER 25
+#define OP_MEMBER 26
+#define OP_NEWINSTANCE 27
+#define OP_ISA 28
+#define OP_TYPEOF 29
+#define OP_EVAL 30
+
+#define OP_FOR 100
+#define OP_IF 101
+#define OP_WHILE 102
+#define OP_BREAK 103
+#define OP_RETURN 104
+#define OP_RAISE 105
+#define OP_OR 106
+#define OP_AND 107
+#define OP_TRY 108
 
 #define VFLAG_MARK 0x01
+#define VFLAG_CONST 0x02
 
 #define SFLAG_GCOFF 0x01
+
+#define CFLAG_HARD 0x01
 
 #define STATE_READY 0
 #define STATE_RUN 1
@@ -141,7 +144,7 @@ extern VALUE *new_class (SYSTEM *system, VALUE *parent);
 extern VALUE *new_user_class (SYSTEM *system, VALUE *parent, void *data, void (*free_data)(void *data), void (*ref_data)(SYSTEM *system, void *data));
 extern VALUE *new_range (SYSTEM *system, int start, int end, int step);
 extern VALUE *copy_value (SYSTEM *system, VALUE *value);
-extern void mark_value (SYSTEM *system, VALUE *value);
+extern __INLINE__ void mark_value (SYSTEM *system, VALUE *value);
 extern int is_true (VALUE *value);
 extern int are_equal (VALUE *one, VALUE *two);
 extern void print_value (VALUE *value);
@@ -178,25 +181,25 @@ extern VALUE *do_define_var (THREAD *thread, VALUE *name, VALUE *value, int scop
 #define define_local_var(t,n,v) (do_define_var ((t), (n), (v), SCOPE_LOCAL))
 #define define_thread_var(t,n,v) (do_define_var ((t), (n), (v), SCOPE_THREAD))
 extern VALUE *define_global_var (SYSTEM *system, VALUE *name, VALUE *value);
-extern __INLINE__ VALUE *do_lookup_var (THREAD *thread, char *name, int scope);
-#define lookup_var(t,n) (do_lookup_var ((t), (n), SCOPE_DEF))
-#define lookup_local_var(t,n) (do_lookup_var ((t), (n), SCOPE_LOCAL))
-#define lookup_thread_var(t,n) (do_lookup_var ((t), (n), SCOPE_THREAD))
-extern VALUE *lookup_global_var (SYSTEM *system, char *name);
-extern VAR *get_var (THREAD *thread, char *name, int scope);
+extern VAR *do_get_var (THREAD *thread, VALUE *name, int scope);
+#define get_var(t,n) (do_get_var ((t), (n), SCOPE_DEF))
+#define get_local_var(t,n) (do_get_var ((t), (n), SCOPE_LOCAL))
+#define get_thread_var(t,n) (do_get_var ((t), (n), SCOPE_THREAD))
+extern VAR *get_global_var (SYSTEM *system, VALUE *name);
 #define free_var(v) sx_free ((v))
 
 extern SYSTEM *create_system (int argc, char **argv);
+extern __INLINE__ void add_gc_value (SYSTEM *system, VALUE *value);
 extern void run_gc (SYSTEM *system);
 extern void free_system (SYSTEM *system);
 
 extern THREAD *create_thread (SYSTEM *system, VALUE *main);
 extern VALUE *load_file (SYSTEM *system, char *file);
 extern int run_thread (THREAD *thread);
-extern void mark_thread (THREAD *thread);
+extern __INLINE__ void mark_thread (THREAD *thread);
 extern void end_thread (THREAD *thread);
 extern void free_thread (THREAD *thread);
-extern THREAD *push_context (THREAD *thread, VALUE *block);
+extern THREAD *push_context (THREAD *thread, VALUE *block, unsigned char flags);
 extern THREAD *pop_context (THREAD *thread);
 extern VALUE *push_value (THREAD *thread, VALUE *value);
 extern __INLINE__ VALUE *get_value (THREAD *thread, int);
@@ -207,10 +210,13 @@ extern void init_stdlib (SYSTEM *system);
 
 struct scriptix_value {
 	char type;
+	unsigned char flags;
+	unsigned char locks;
+	VALUE *gc_next;
 	union {
 		struct {
-			char *str;
 			unsigned int len;
+			char str[0];
 		} str;
 		struct {
 			VALUE *args;
@@ -236,9 +242,6 @@ struct scriptix_value {
 		VALUE *(*cfunc)(THREAD *, VALUE *, unsigned int, unsigned int);
 		NODE *nodes;
 	} data;
-	VALUE *gc_next;
-	unsigned char flags;
-	unsigned char locks;
 };
 
 struct scriptix_node {
@@ -263,6 +266,7 @@ struct scriptix_var {
 struct scriptix_context {
 	VAR *vars;
 	VALUE *block;
+	unsigned char flags;
 };
 
 struct scriptix_system {
@@ -276,7 +280,6 @@ struct scriptix_system {
 
 struct scriptix_thread {
 	SYSTEM *system;
-	VAR *vars;
 	VALUE *main;
 	VALUE *ret;
 	int state;
