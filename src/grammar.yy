@@ -75,6 +75,7 @@
 %token IF "if"
 %token ELSE "else"
 %token WHILE "while"
+%token FOREVER "forever"
 %token DO "do"
 %token AND "&&"
 %token OR "||"
@@ -175,7 +176,7 @@ stmt:	node ';' { $$ = $1; }
 	| TUNTIL '(' expr ')' stmt { $$ = sxp_new_loop (compiler, SXP_LOOP_UNTIL, $3, $5); }
 	| DO stmt WHILE '(' expr ')' ';' { $$ = sxp_new_loop (compiler, SXP_LOOP_DOWHILE, $5, $2); }
 	| DO stmt TUNTIL '(' expr ')' ';' { $$ = sxp_new_loop (compiler, SXP_LOOP_DOUNTIL, $5, $2); }
-	| DO stmt { $$ = sxp_new_loop (compiler, SXP_LOOP_FOREVER, NULL, $2); }
+	| DO stmt FOREVER ';' { $$ = sxp_new_loop (compiler, SXP_LOOP_FOREVER, NULL, $2); }
 	
 	| TFOR '(' node ';' expr ';' node ')' stmt { $$ = sxp_new_for (compiler, $3, $5, $7, $9); }
 /*	| TFOREACH '(' name TIN expr ')' stmt { $$ = sxp_new_foreach (compiler, $3, $5, $7); } */
