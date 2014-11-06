@@ -36,7 +36,7 @@ void *
 sx_malloc (SYSTEM *system, unsigned long size) {
 	void *mem = malloc (size);
 	if (mem == NULL && system != NULL) {
-		run_gc (system);
+		sx_run_gc (system);
 		mem = malloc (size);
 	}
 	return mem;

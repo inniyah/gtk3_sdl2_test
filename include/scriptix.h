@@ -32,100 +32,99 @@
 extern "C" {
 #endif
 
-#define SCRIPTIX_VERSION "0.8"
+#define SX_VERSION "0.9"
 
-#define DATA_STACK_CHUNK_SIZE 50
-#define CONTEXT_STACK_CHUNK_SIZE 10
-#define GC_THRESH_SIZE 200
+#define SX_DATA_CHUNK 50
+#define SX_CONTEXT_CHUNK 10
+#define SX_BLOCK_CHUNK 10
+#define SX_GC_THRESH 200
 
+#ifndef __INLINE__
 #ifdef __GNUC__
 	#define __INLINE__ inline
 #else
 	#define __INLINE__
-#endif
+#endif /* __GNUC__ */
+#endif /* __INLINE__ */
 
-#define MAX_NAME_LEN 128
+#define SX_MAX_NAME 128
 
-#define VALUE_NIL 0
-#define VALUE_NUM 1
-#define VALUE_STRING 2
-#define VALUE_BLOCK 3
-#define VALUE_FUNC 4
-#define VALUE_CFUNC 5
-#define VALUE_ARRAY 6
-#define VALUE_CLASS 7
-#define VALUE_RANGE 8
-#define VALUE_NODE 9
+#define SX_VALUE_NIL 0
+#define SX_VALUE_NUM 1
+#define SX_VALUE_STRING 2
+#define SX_VALUE_BLOCK 3
+#define SX_VALUE_FUNC 4
+#define SX_VALUE_CFUNC 5
+#define SX_VALUE_ARRAY 6
+#define SX_VALUE_CLASS 7
+#define SX_VALUE_RANGE 8
 
-#define NODE_VALUE 1
-#define NODE_EXPR 2
+#define SX_OP_NIL 0
+#define SX_OP_ADD 1
+#define SX_OP_SUBTRACT 2
+#define SX_OP_NEGATE 3
+#define SX_OP_CALL 4
+#define SX_OP_MULTIPLY 5
+#define SX_OP_DIVIDE 6
+#define SX_OP_GT 7
+#define SX_OP_LT 8
+#define SX_OP_GTE 9
+#define SX_OP_LTE 10
+#define SX_OP_EQUAL 11
+#define SX_OP_NEQUAL 12
+#define SX_OP_NOT 13
+#define SX_OP_LOOKUP 14
+#define SX_OP_ASSIGN 15
+#define SX_OP_INDEX 16
+#define SX_OP_PREINCREMENT 17
+#define SX_OP_POSTINCREMENT 18
+#define SX_OP_PREDECREMENT 19
+#define SX_OP_POSTDECREMENT 20
+#define SX_OP_NEWARRAY 21
+#define SX_OP_SETINDEX 22
+#define SX_OP_SIZEOF 23
+#define SX_OP_NEWCLASS 24
+#define SX_OP_SETMEMBER 25
+#define SX_OP_MEMBER 26
+#define SX_OP_NEWINSTANCE 27
+#define SX_OP_ISA 28
+#define SX_OP_TYPEOF 29
+#define SX_OP_EVAL 30
+#define SX_OP_NEWFUNC 31
+#define SX_OP_METHOD 32
+#define SX_OP_NEWRANGE 33
 
-#define OP_NIL 0
-#define OP_ADD 1
-#define OP_SUBTRACT 2
-#define OP_NEGATE 3
-#define OP_CALL 4
-#define OP_MULTIPLY 5
-#define OP_DIVIDE 6
-#define OP_GT 7
-#define OP_LT 8
-#define OP_GTE 9
-#define OP_LTE 10
-#define OP_EQUAL 11
-#define OP_NEQUAL 12
-#define OP_NOT 13
-#define OP_LOOKUP 14
-#define OP_ASSIGN 15
-#define OP_INDEX 16
-#define OP_PREINCREMENT 17
-#define OP_POSTINCREMENT 18
-#define OP_PREDECREMENT 19
-#define OP_POSTDECREMENT 20
-#define OP_NEWARRAY 21
-#define OP_SETINDEX 22
-#define OP_SIZEOF 23
-#define OP_NEWCLASS 24
-#define OP_SETMEMBER 25
-#define OP_MEMBER 26
-#define OP_NEWINSTANCE 27
-#define OP_ISA 28
-#define OP_TYPEOF 29
-#define OP_EVAL 30
-#define OP_NEWFUNC 31
-#define OP_METHOD 32
-#define OP_NEWRANGE 33
+#define SX_OP_FOR 100
+#define SX_OP_IF 101
+#define SX_OP_WHILE 102
+#define SX_OP_BREAK 103
+#define SX_OP_RETURN 104
+#define SX_OP_RAISE 105
+#define SX_OP_OR 106
+#define SX_OP_AND 107
+#define SX_OP_TRY 108
+#define SX_OP_POP 109
 
-#define OP_FOR 100
-#define OP_IF 101
-#define OP_WHILE 102
-#define OP_BREAK 103
-#define OP_RETURN 104
-#define OP_RAISE 105
-#define OP_OR 106
-#define OP_AND 107
-#define OP_TRY 108
-#define OP_POP 109
+#define SX_VFLAG_MARK 0x01
+#define SX_VFLAG_CONST 0x02
 
-#define VFLAG_MARK 0x01
-#define VFLAG_CONST 0x02
+#define SX_SFLAG_GCOFF 0x01
 
-#define SFLAG_GCOFF 0x01
+#define SX_CFLAG_HARD 0x01
 
-#define CFLAG_HARD 0x01
+#define SX_STATE_READY 0
+#define SX_STATE_RUN 1
+#define SX_STATE_BREAK 2
+#define SX_STATE_RETURN 3
+#define SX_STATE_EXIT 4
+#define SX_STATE_ERROR 5
 
-#define STATE_READY 0
-#define STATE_RUN 1
-#define STATE_BREAK 2
-#define STATE_RETURN 3
-#define STATE_EXIT 4
-#define STATE_ERROR 5
+#define SX_SCOPE_DEF 0
+#define SX_SCOPE_LOCAL 1
+#define SX_SCOPE_THREAD 2
+#define SX_SCOPE_GLOBAL 3
 
-#define SCOPE_DEF 0
-#define SCOPE_LOCAL 1
-#define SCOPE_THREAD 2
-#define SCOPE_GLOBAL 3
-
-#define NUM_MARK 0x01
+#define SX_NUM_MARK 0x01
 
 typedef struct scriptix_value VALUE;
 typedef struct scriptix_node NODE;
@@ -138,88 +137,84 @@ extern __INLINE__ void *sx_malloc (SYSTEM *system, unsigned long size);
 extern __INLINE__ void *sx_dupmem (SYSTEM *system, void *mem, unsigned long size);
 #define sx_free free
 
-#define new_nil() ((VALUE *)(NULL))
-#define new_num(i) ((VALUE *)(((i) << 1) | NUM_MARK))
-#define TO_INT(n) ((long)(n) >> 1)
-#define TO_STR(s) ((s)->data.str.str)
-extern VALUE *new_str (SYSTEM *system, char *str);
-extern VALUE *new_block (SYSTEM *system);
-extern VALUE *add_value (SYSTEM *system, VALUE *block, VALUE *value);
-extern VALUE *add_stmt (SYSTEM *system, VALUE *block, int op, unsigned int count);
-extern VALUE *new_func (SYSTEM *system, VALUE *args, VALUE *body);
-extern VALUE *new_cfunc (SYSTEM *system, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int));
-extern VALUE *new_array (SYSTEM *system, unsigned int argc, VALUE **argv);
-extern VALUE *new_stack_array (THREAD *thread, unsigned int argc, unsigned int top);
-extern VALUE *new_class (SYSTEM *system, VALUE *parent);
-extern VALUE *new_user_class (SYSTEM *system, VALUE *parent, void *data, void (*free_data)(void *data), void (*ref_data)(SYSTEM *system, void *data));
-extern VALUE *new_range (SYSTEM *system, int start, int end);
-extern VALUE *copy_value (SYSTEM *system, VALUE *value);
-extern __INLINE__ void mark_value (SYSTEM *system, VALUE *value);
-extern int is_true (VALUE *value);
-extern int are_equal (VALUE *one, VALUE *two);
-extern void print_value (VALUE *value);
-extern __INLINE__ void lock_value (VALUE *value);
-extern __INLINE__ void unlock_value (VALUE *value);
-extern int class_is_a (VALUE *klass, VALUE *par);
-extern VAR *set_member (SYSTEM *system, VALUE *klass, VALUE *name, VALUE *value);
-extern VALUE *get_member (VALUE *klass, VALUE *name);
-extern void free_value (VALUE *value);
+#define sx_new_nil() ((VALUE *)(NULL))
+#define sx_new_num(i) ((VALUE *)(((i) << 1) | SX_NUM_MARK))
+#define SX_TOINT(n) ((long)(n) >> 1)
+#define SX_TOSTR(s) ((s)->data.str.str)
+extern VALUE *sx_new_str (SYSTEM *system, char *str);
+extern VALUE *sx_new_str_len (SYSTEM *system, char *str, unsigned int len);
+extern VALUE *sx_new_block (SYSTEM *system);
+extern VALUE *sx_add_to_block (SYSTEM *system, VALUE *block, VALUE *balue, int op, unsigned int count);
+#define sx_add_value(s,b,v) (sx_add_to_block ((s), (b), (v), 0, 0))
+#define sx_add_stmt(s,b,o,c) (sx_add_to_block ((s), (b), NULL, (o), (c)))
+extern VALUE *sx_new_func (SYSTEM *system, VALUE *args, VALUE *body);
+extern VALUE *sx_new_cfunc (SYSTEM *system, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int));
+extern VALUE *sx_new_array (SYSTEM *system, unsigned int argc, VALUE **argv);
+extern VALUE *sx_new_stack_array (THREAD *thread, unsigned int argc, unsigned int top);
+extern VALUE *sx_new_class (SYSTEM *system, VALUE *parent);
+extern VALUE *sx_new_user_class (SYSTEM *system, VALUE *parent, void *data, void (*free_data)(void *data), void (*ref_data)(SYSTEM *system, void *data));
+extern VALUE *sx_new_range (SYSTEM *system, int start, int end);
+extern VALUE *sx_copy_value (SYSTEM *system, VALUE *value);
+extern __INLINE__ void sx_mark_value (SYSTEM *system, VALUE *value);
+extern int sx_is_true (VALUE *value);
+extern int sx_are_equal (VALUE *one, VALUE *two);
+extern int sx_compare (VALUE *one, VALUE *two);
+extern void sx_print_value (VALUE *value);
+extern __INLINE__ void sx_lock_value (VALUE *value);
+extern __INLINE__ void sx_unlock_value (VALUE *value);
+extern int sx_class_is_a (VALUE *klass, VALUE *par);
+extern VAR *sx_set_member (SYSTEM *system, VALUE *klass, VALUE *name, VALUE *value);
+extern VALUE *sx_get_member (VALUE *klass, VALUE *name);
+extern VALUE *sx_get_index (SYSTEM *system, VALUE *cont, int index);
+extern VALUE *sx_get_section (SYSTEM *system, VALUE *cont, int start, int end);
+extern void sx_free_value (VALUE *value);
 
-#define type_of(v) ((v) == (NULL) ? VALUE_NIL : ((long)(v) & NUM_MARK) ? VALUE_NUM : (v)->type)
-#define IS_NIL(v) ((v) == NULL)
-#define IS_NUM(v) ((long)(v) & NUM_MARK)
-#define IS_STRING(v) ((type_of ((v))) == VALUE_STRING)
-#define IS_BLOCK(v) ((type_of ((v))) == VALUE_BLOCK)
-#define IS_FUNC(v) ((type_of ((v))) == VALUE_FUNC)
-#define IS_CFUNC(v) ((type_of ((v))) == VALUE_CFUNC)
-#define IS_ARRAY(v) ((type_of ((v))) == VALUE_ARRAY)
-#define IS_CLASS(v) ((type_of ((v))) == VALUE_CLASS)
-#define IS_RANGE(v) ((type_of ((v))) == VALUE_RANGE)
-#define IS_NODE(v) ((type_of ((v))) == VALUE_NODE)
+#define sx_type_of(v) ((v) == (NULL) ? SX_VALUE_NIL : ((long)(v) & SX_NUM_MARK) ? SX_VALUE_NUM : (v)->type)
+#define SX_ISNIL(v) ((v) == NULL)
+#define SX_ISNUM(v) ((long)(v) & SX_NUM_MARK)
+#define SX_ISSTRING(v) ((sx_type_of ((v))) == SX_VALUE_STRING)
+#define SX_ISBLOCK(v) ((sx_type_of ((v))) == SX_VALUE_BLOCK)
+#define SX_ISFUNC(v) ((sx_type_of ((v))) == SX_VALUE_FUNC)
+#define SX_ISCFUNC(v) ((sx_type_of ((v))) == SX_VALUE_CFUNC)
+#define SX_ISARRAY(v) ((sx_type_of ((v))) == SX_VALUE_ARRAY)
+#define SX_ISCLASS(v) ((sx_type_of ((v))) == SX_VALUE_CLASS)
+#define SX_ISRANGE(v) ((sx_type_of ((v))) == SX_VALUE_RANGE)
 
-extern int eval (THREAD *thread, VALUE *value);
-#define thread_break(t) ((t) & BFLAG_BREAK || (t) & BFLAG_RETURN || (t) & BFLAG_EXIT)
+extern int sx_eval (THREAD *thread, VALUE *value);
 
-extern VALUE *define_cfunc (SYSTEM *system, char *name, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int));
+extern VALUE *sx_define_cfunc (SYSTEM *system, char *name, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int));
 
-extern VALUE *do_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope);
-#define define_var(t,n,v) (do_define_var ((t), (n), (v), SCOPE_DEF))
-#define define_local_var(t,n,v) (do_define_var ((t), (n), (v), SCOPE_LOCAL))
-#define define_thread_var(t,n,v) (do_define_var ((t), (n), (v), SCOPE_THREAD))
-extern VALUE *define_global_var (SYSTEM *system, VALUE *name, VALUE *value);
-extern VAR *do_get_var (THREAD *thread, VALUE *name, int scope);
-#define get_var(t,n) (do_get_var ((t), (n), SCOPE_DEF))
-#define get_local_var(t,n) (do_get_var ((t), (n), SCOPE_LOCAL))
-#define get_thread_var(t,n) (do_get_var ((t), (n), SCOPE_THREAD))
-extern VAR *get_global_var (SYSTEM *system, VALUE *name);
-#define free_var(v) sx_free ((v))
+extern VALUE *sx_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope);
+extern VALUE *sx_define_system_var (SYSTEM *system, VALUE *name, VALUE *value);
+extern VAR *sx_get_var (THREAD *thread, VALUE *name, int scope);
+extern VAR *sx_get_system_var (SYSTEM *system, VALUE *name);
+#define sx_free_var(v) sx_free ((v))
 
-extern SYSTEM *create_system (int argc, char **argv);
-extern __INLINE__ void add_gc_value (SYSTEM *system, VALUE *value);
-extern void run_gc (SYSTEM *system);
-extern void free_system (SYSTEM *system);
+extern SYSTEM *sx_create_system (int argc, char **argv);
+extern __INLINE__ void sx_add_gc_value (SYSTEM *system, VALUE *value);
+extern void sx_run_gc (SYSTEM *system);
+extern void sx_free_system (SYSTEM *system);
 
-extern THREAD *create_thread (SYSTEM *system, VALUE *main);
-extern VALUE *load_file (SYSTEM *system, char *file);
-extern int run_thread (THREAD *thread);
-extern __INLINE__ void mark_thread (THREAD *thread);
-extern void end_thread (THREAD *thread);
-extern void free_thread (THREAD *thread);
-extern THREAD *push_context (THREAD *thread, VALUE *block, unsigned char flags);
-extern THREAD *pop_context (THREAD *thread);
-extern VALUE *push_value (THREAD *thread, VALUE *value);
-extern __INLINE__ VALUE *get_value (THREAD *thread, int);
-extern __INLINE__ void pop_value (THREAD *thread, int start, unsigned int len);
+extern THREAD *sx_create_thread (SYSTEM *system, VALUE *main);
+extern VALUE *sx_load_file (SYSTEM *system, char *file);
+extern int sx_run_thread (THREAD *thread);
+extern __INLINE__ void sx_mark_thread (THREAD *thread);
+extern void sx_end_thread (THREAD *thread);
+extern void sx_free_thread (THREAD *thread);
+extern THREAD *sx_push_context (THREAD *thread, VALUE *block, unsigned char flags);
+extern THREAD *sx_pop_context (THREAD *thread);
+extern VALUE *sx_push_value (THREAD *thread, VALUE *value);
+extern __INLINE__ VALUE *sx_get_value (THREAD *thread, int);
+extern __INLINE__ void sx_pop_value (THREAD *thread, int start, unsigned int len);
 
 /* standard library calls */
-extern void init_stdlib (SYSTEM *system);
+extern void sx_init_stdlib (SYSTEM *system);
 
 /* special struct for nodes */
 struct _scriptix_node {
 	int op;
 	int count;
 	VALUE *value;
-	struct _scriptix_node *next;
 };
 
 struct scriptix_value {
@@ -252,8 +247,12 @@ struct scriptix_value {
 			int start;
 			int end;
 		} range;
+		struct {
+			struct _scriptix_node *nodes;
+			unsigned int count;
+			unsigned int size;
+		} block;
 		VALUE *(*cfunc)(THREAD *, VALUE *, unsigned int, unsigned int);
-		struct _scriptix_node *nodes;
 	} data;
 };
 

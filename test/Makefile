@@ -1,6 +1,8 @@
-all: test-fact test-scope test-comments test-inc test-class test-error test-logic test-array
+TESTS := test-fact test-scope test-comments test-inc test-class test-error test-logic test-array
 
-test-fact: 
+all: $(TESTS) 
+
+test-fact:
 	../bin/scriptix fact.sx 1000 | grep -q 44 || /bin/false
 
 test-scope:
@@ -31,5 +33,4 @@ dist-clean: clean
 
 dist:
 	mkdir ../scriptix/test
-	cp Makefile *.sx ../scriptix/test/
-
+	cp Makefile $(TESTS:test-%=%.sx) ../scriptix/test/

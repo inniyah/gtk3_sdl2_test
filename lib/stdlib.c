@@ -33,39 +33,51 @@
 #include "scriptix.h"
 
 VALUE *
-stdlib_print (THREAD *thread, VALUE *self, unsigned int argc, unsigned int top) {
+sx_stdlib_print (THREAD *thread, VALUE *self, unsigned int argc, unsigned int top) {
 	unsigned int i;
 	for (i = 0; i < argc; i ++) {
-		print_value (get_value (thread, top + i));
+		sx_print_value (sx_get_value (thread, top + i));
 	}
 	printf ("\n");
-	return new_nil ();
+	return sx_new_nil ();
 }
 
 VALUE *
-stdlib_class_print (THREAD *thread, VALUE *self, unsigned int argc, unsigned int top) {
-	VAR *var;
-	printf ("<<CLASS:");
-	for (var = self->data.klass.members; var != NULL; var = var->next) {
-		printf ("\n  %s->", var->name->data.str.str);
-		print_value (var->value);
+sx_stdlib_concat (THREAD *thread, VALUE *self, unsigned int argc, unsigned int top) {
+	VALUE *ret, *one, *two;
+
+	if (argc != 2) {
+		return sx_new_nil ();
 	}
-	printf ("\n>>\n");
-	return new_nil ();
+
+	one = sx_get_value (thread, top);
+	two = sx_get_value (thread, top + 1);
+
+	if (sx_type_of (one) != sx_type_of (two)) {
+		return sx_new_nil ();
+	}
+
+	if (SX_ISSTRING (one)) {
+		ret = sx_new_str_len (thread->system, NULL, one->data.str.len + one->data.str.len);
+		if (ret == NULL) {
+			return sx_new_nil ();
+		}
+		if (one->data.str.len > 0) {
+			strcpy (SX_TOSTR (ret), SX_TOSTR (one));
+		}
+		if (two->data.str.len > 0) {
+			strcpy (SX_TOSTR (ret) + one->data.str.len, SX_TOSTR (two));
+		}
+		return ret;
+	} else if (SX_ISARRAY (two)) {
+		/* FIXME */
+	}
+
+	return sx_new_nil ();
 }
 
 void
-init_stdlib (SYSTEM *system) {
-	VALUE *class;
-
-	define_cfunc (system, "print", stdlib_print);
-
-	/*
-	class = new_class (system, NULL);
-	lock_value (class);
-	define_global_var (system, "testing", class);
-	class = lookup_global_var (system, "testing");
-	set_member (system, class, "print", new_cfunc (system, stdlib_class_print));
-	unlock_value (class);
-	*/
+sx_init_stdlib (SYSTEM *system) {
+	sx_define_cfunc (system, "print", sx_stdlib_print);
+	sx_define_cfunc (system, "concat", sx_stdlib_concat);
 }

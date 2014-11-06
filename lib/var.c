@@ -34,49 +34,47 @@
 
 
 VALUE *
-define_cfunc (SYSTEM *system, char *name, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int)) {
-	VALUE *cfunc = new_cfunc (system, func);
+sx_define_cfunc (SYSTEM *system, char *name, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int)) {
+	VALUE *cfunc = sx_new_cfunc (system, func);
 	if (cfunc == NULL) {
 		return NULL;
 	}
 
-	return define_global_var (system, new_str (system, name), cfunc);
+	return sx_define_system_var (system, sx_new_str (system, name), cfunc);
 }
 
 VALUE *
-do_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope) {
+sx_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope) {
 	VAR *var;
 
-	if (!IS_STRING (name) || name->data.str.len == 0) {
+	if (!SX_ISSTRING (name) || name->data.str.len == 0) {
 		return NULL;
 	}
 
-	if (scope == SCOPE_GLOBAL) {
-		return define_global_var (thread->system, name, value);
+	if (scope == SX_SCOPE_GLOBAL) {
+		return sx_define_system_var (thread->system, name, value);
 	}
 
-	var = do_get_var (thread, name, scope);
+	var = sx_get_var (thread, name, scope);
 	if (var != NULL) {
-		lock_value (value);
-		unlock_value (var->value);
 		var->value = value;
-		unlock_value (value);
 		return value;
 	}
 
-	lock_value (name);
-	lock_value (value);
-
+	sx_lock_value (name);
+	sx_lock_value (value);
 	var = (VAR *)sx_malloc (thread->system, sizeof (VAR));
+	sx_unlock_value (value);
+	sx_unlock_value (name);
+	
 	if (var == NULL) {
-		unlock_value (value);
 		return NULL;
 	}
 
 	var->name = name;
 	var->value = value;
 
-	if (scope == SCOPE_THREAD) {
+	if (scope == SX_SCOPE_THREAD) {
 		var->next = thread->context_stack[0].vars;
 		thread->context_stack[0].vars = var;
 	} else {
@@ -84,33 +82,27 @@ do_define_var (THREAD *thread, VALUE *name, VALUE *value, int scope) {
 		thread->context_stack[thread->context - 1].vars = var;
 	}
 
-	unlock_value (value);
-	unlock_value (name);
-
 	return value;
 }
 
 VALUE *
-define_global_var (SYSTEM *system, VALUE *name, VALUE *value) {
+sx_define_system_var (SYSTEM *system, VALUE *name, VALUE *value) {
 	VAR *var;
 
 	for (var = system->vars; var != NULL; var = var->next) {
-		if (!strcasecmp (var->name->data.str.str, name->data.str.str)) {
-			lock_value (value);
-			unlock_value (var->value);
+		if (sx_are_equal (name, var->name)) {
 			var->value = value;
-			unlock_value (value);
 			return value;
 		}
 	}
 
-	lock_value (name);
-	lock_value (value);
-
+	sx_lock_value (name);
+	sx_lock_value (value);
 	var = (VAR *)sx_malloc (system, sizeof (VAR));
+	sx_unlock_value (value);
+	sx_unlock_value (name);
+
 	if (var == NULL) {
-		unlock_value (value);
-		unlock_value (name);
 		return NULL;
 	}
 
@@ -119,21 +111,21 @@ define_global_var (SYSTEM *system, VALUE *name, VALUE *value) {
 	var->next = system->vars;
 	system->vars = var;
 
-	unlock_value (value);
-	unlock_value (name);
+	sx_unlock_value (value);
+	sx_unlock_value (name);
 
 	return value;
 }
 
 VAR *
-do_get_var (THREAD *thread, VALUE *name, int scope) {
+sx_get_var (THREAD *thread, VALUE *name, int scope) {
 	VAR *var;
 	int c = 0;
 
 	/* local search only */
-	if (scope == SCOPE_LOCAL) {
+	if (scope == SX_SCOPE_LOCAL) {
 		for (var = thread->context_stack[thread->context - 1].vars; var != NULL; var = var->next) {
-			if (are_equal (var->name, name)) {
+			if (sx_are_equal (var->name, name)) {
 				return var;
 			}
 		}
@@ -141,9 +133,9 @@ do_get_var (THREAD *thread, VALUE *name, int scope) {
 	}
 
 	/* thread search only */
-	if (scope == SCOPE_THREAD) {
+	if (scope == SX_SCOPE_THREAD) {
 		for (var = thread->context_stack[0].vars; var != NULL; var = var->next) {
-			if (are_equal (var->name, name)) {
+			if (sx_are_equal (var->name, name)) {
 				return var;
 			}
 		}
@@ -151,28 +143,28 @@ do_get_var (THREAD *thread, VALUE *name, int scope) {
 	}
 
 	/* default - search thru contexts until top/hard context break */
-	if (scope == SCOPE_DEF) {
+	if (scope == SX_SCOPE_DEF) {
 		for (c = thread->context - 1; c >= 0; -- c) {
 			for (var = thread->context_stack[c].vars; var != NULL; var = var->next) {
-				if (are_equal (var->name, name)) {
+				if (sx_are_equal (var->name, name)) {
 					return var;
 				}
 			}
-			if ((thread->context_stack[c].flags & CFLAG_HARD) != 0 && c != 0) {
+			if ((thread->context_stack[c].flags & SX_CFLAG_HARD) != 0 && c != 0) {
 				c = 1; /* next loop, c will == 0, thus scan thread scope */
 			}
 		}
 	}
 
-	/* only get here on global or def search */
-	return get_global_var (thread->system, name);
+	/* only get here on system or def search */
+	return sx_get_system_var (thread->system, name);
 }
 
 VAR *
-get_global_var (SYSTEM *system, VALUE *name) {
+sx_get_system_var (SYSTEM *system, VALUE *name) {
 	VAR *var;
 	for (var = system->vars; var != NULL; var = var->next) {
-		if (are_equal (var->name, name)) {
+		if (sx_are_equal (var->name, name)) {
 			return var;
 		}
 	}

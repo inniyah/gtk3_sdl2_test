@@ -33,14 +33,14 @@
 #include "scriptix.h"
 
 THREAD *
-create_thread (SYSTEM *system, VALUE *block) {
+sx_create_thread (SYSTEM *system, VALUE *block) {
 	THREAD *thread;
 
-	if (!IS_BLOCK (block)) {
+	if (!SX_ISBLOCK (block)) {
 		return NULL;
 	}
 
-	lock_value (block);
+	sx_lock_value (block);
 	
 	thread = (THREAD *)sx_malloc (system, sizeof (THREAD));
 	if (thread == NULL) {
@@ -48,7 +48,7 @@ create_thread (SYSTEM *system, VALUE *block) {
 		return NULL;
 	}
 
-	unlock_value (block);
+	sx_unlock_value (block);
 
 	thread->system = system;
 	thread->main = block;
@@ -60,14 +60,14 @@ create_thread (SYSTEM *system, VALUE *block) {
 	thread->data_size = 0;
 	thread->data = 0;
 	thread->ret = NULL;
-	thread->state = STATE_READY;
+	thread->state = SX_STATE_READY;
 	system->threads = thread;
 
 	return thread;
 }
 
 void
-end_thread (THREAD *thread) {
+sx_end_thread (THREAD *thread) {
 	THREAD *t;
 
 	if (thread->system->threads == thread) {
@@ -80,55 +80,55 @@ end_thread (THREAD *thread) {
 		}
 	}
 
-	free_thread (thread);
+	sx_free_thread (thread);
 }
 
 void
-free_thread (THREAD *thread) {
+sx_free_thread (THREAD *thread) {
 	while (thread->context > 0) {
-		pop_context (thread);
+		sx_pop_context (thread);
 	}
 
 	sx_free (thread);
 }
 
 void
-mark_thread (THREAD *thread) {
+sx_mark_thread (THREAD *thread) {
 	unsigned int i;
 	VAR *var;
 
 	if (thread->ret) {
-		mark_value (thread->system, thread->ret);
+		sx_mark_value (thread->system, thread->ret);
 	}
 
 	for (i = 0; i < thread->context; i ++) {
-		mark_value (thread->system, thread->context_stack[i].block);
+		sx_mark_value (thread->system, thread->context_stack[i].block);
 		for (var = thread->context_stack[i].vars; var != NULL; var = var->next) {
-			mark_value (thread->system, var->name);
-			mark_value (thread->system, var->value);
+			sx_mark_value (thread->system, var->name);
+			sx_mark_value (thread->system, var->value);
 		}
 	}
 
 	for (i = 0; i < thread->data; i ++) {
-		mark_value (thread->system, thread->data_stack[i]);
+		sx_mark_value (thread->system, thread->data_stack[i]);
 	}
 
-	mark_value (thread->system, thread->main);
+	sx_mark_value (thread->system, thread->main);
 }
 
 THREAD *
-push_context (THREAD *thread, VALUE *block, unsigned char flags) {
-	CONTEXT *new_stack;
+sx_push_context (THREAD *thread, VALUE *block, unsigned char flags) {
+	CONTEXT *sx_new_stack;
 
 	if (thread->context == thread->context_size) {
-		new_stack = sx_malloc (thread->system, (thread->context_size + CONTEXT_STACK_CHUNK_SIZE) * sizeof (CONTEXT));
-		if (new_stack == NULL) {
+		sx_new_stack = sx_malloc (thread->system, (thread->context_size + SX_CONTEXT_CHUNK) * sizeof (CONTEXT));
+		if (sx_new_stack == NULL) {
 			return NULL;
 		}
-		memcpy (new_stack, thread->context_stack, thread->context_size * sizeof (CONTEXT));
-		thread->context_size += CONTEXT_STACK_CHUNK_SIZE;
+		memcpy (sx_new_stack, thread->context_stack, thread->context_size * sizeof (CONTEXT));
+		thread->context_size += SX_CONTEXT_CHUNK;
 		sx_free (thread->context_stack);
-		thread->context_stack = new_stack;
+		thread->context_stack = sx_new_stack;
 	}
 
 	thread->context_stack[thread->context].vars = NULL;
@@ -140,13 +140,13 @@ push_context (THREAD *thread, VALUE *block, unsigned char flags) {
 }
 
 THREAD *
-pop_context (THREAD *thread) {
+sx_pop_context (THREAD *thread) {
 	VAR *rnext;
 
 	if (thread->context > 0) {
 		while (thread->context_stack[thread->context - 1].vars) {
 			rnext = thread->context_stack[thread->context - 1].vars->next;
-			free_var (thread->context_stack[thread->context - 1].vars);
+			sx_free_var (thread->context_stack[thread->context - 1].vars);
 			thread->context_stack[thread->context - 1].vars = rnext;
 		}
 
@@ -159,20 +159,20 @@ pop_context (THREAD *thread) {
 }
 
 VALUE *
-push_value (THREAD *thread, VALUE *value) {
-	VALUE **new_stack;
+sx_push_value (THREAD *thread, VALUE *value) {
+	VALUE **sx_new_stack;
 
 	if (thread->data == thread->data_size) {
-		lock_value (value);
-		new_stack = sx_malloc (thread->system, (thread->data_size + DATA_STACK_CHUNK_SIZE) * sizeof (VALUE *));
-		unlock_value (value);
-		if (new_stack == NULL) {
-			return new_nil ();
+		sx_lock_value (value);
+		sx_new_stack = sx_malloc (thread->system, (thread->data_size + SX_DATA_CHUNK) * sizeof (VALUE *));
+		sx_unlock_value (value);
+		if (sx_new_stack == NULL) {
+			return sx_new_nil ();
 		}
-		memcpy (new_stack, thread->data_stack, thread->data_size * sizeof (VALUE *));
-		thread->data_size += DATA_STACK_CHUNK_SIZE;
+		memcpy (sx_new_stack, thread->data_stack, thread->data_size * sizeof (VALUE *));
+		thread->data_size += SX_DATA_CHUNK;
 		sx_free (thread->data_stack);
-		thread->data_stack = new_stack;
+		thread->data_stack = sx_new_stack;
 	}
 
 	thread->data_stack[thread->data ++] = value;
@@ -181,18 +181,18 @@ push_value (THREAD *thread, VALUE *value) {
 }
 
 VALUE *
-get_value (THREAD *thread, int index) {
+sx_get_value (THREAD *thread, int index) {
 	if (index >= 0 && index < thread->data) {
 		return thread->data_stack[index];
 	} else if (index < 0 && (-index) - 1 < thread->data) {
 		return thread->data_stack[index + thread->data];
 	} else {
-		return new_nil ();
+		return sx_new_nil ();
 	}
 }
 
 void
-pop_value (THREAD *thread, int start, unsigned int len) {
+sx_pop_value (THREAD *thread, int start, unsigned int len) {
 	unsigned int index;
 
 	if (start < 0) {

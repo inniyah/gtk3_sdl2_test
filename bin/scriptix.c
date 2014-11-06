@@ -38,34 +38,34 @@ main (int argc, char **argv) {
 	VALUE *value;
 	int ret;
 
-	system = create_system (argc - 1, argv + 1);
-	init_stdlib (system);
+	system = sx_create_system (argc - 1, argv + 1);
+	sx_init_stdlib (system);
 
 	if (argc > 1 && strcmp (argv[1], "-")) {
-		value = load_file (system, argv[1]);
+		value = sx_load_file (system, argv[1]);
 	} else {
-		value = load_file (system, NULL);
+		value = sx_load_file (system, NULL);
 	}
 
 	if (value == NULL) {
-		free_system (system);
+		sx_free_system (system);
 		return 1;
 	}
 	
-	thread = create_thread (system, value);
+	thread = sx_create_thread (system, value);
 	if (thread == NULL) {
-		free_system (system);
+		sx_free_system (system);
 		return 1;
 	}
 
-	ret = run_thread (thread);
-	if (ret != STATE_EXIT) {
+	ret = sx_run_thread (thread);
+	if (ret != SX_STATE_EXIT) {
 		return 1;
 	}
  
-	ret = IS_NUM (thread->ret) ? TO_INT (thread->ret) : is_true (thread->ret);
+	ret = SX_ISNUM (thread->ret) ? SX_TOINT (thread->ret) : sx_is_true (thread->ret);
 
-	free_system (system);
+	sx_free_system (system);
 
 	return ret;
 }

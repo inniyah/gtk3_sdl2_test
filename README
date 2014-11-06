@@ -22,10 +22,11 @@ The list of current Scriptix features include:
 
 Planned/future features include:
 
+	Cleanup the API
+	Class scope (get rid of self variable in methods)
 	Regular expressions
 	Pre-emptive threading
 	Re-entrant/threadable parsers
-	Reference variables
 
 The one needing the most explanation is likely the pre-emptive threading.  The
 idea there is that scripts, just like processes on a decent OS, should be
@@ -85,17 +86,10 @@ if given the chance, before deciding to use Scriptix for you project.  Of
 all the project out there, Lua seems to closest in terms of architecture,
 but its syntax and symantics aren't quite what they could be.
 
-Anyways, another implementation note is that everything is based on nodes.
-A node is either a value, an expression.  Values are the usual - numbers,
-strings, arrays, etc.  Finally, an expression is a group of nodes that are
-evaluated, then acted upon.
-
-In Scriptix, there are no statements (although the syntax has statements,
-that is merely for syntactical reasons, and not due to limitations of the
-interpreter).  A block is merely a list of nodes that are evaluated in
-order.  Every bit of executable code is thus some form of expression.  And,
-all expressions must return a value (although it can be nil).  This means
-that code blocks, such as if/while statements, return values.
+A block is merely a list of nodes that are evaluated in order.  Every bit
+of executable code is thus some form of expression.  And, all expressions
+must return a value (although it can be nil).  This means that code blocks,
+such as if/while statements, return values.
 
 Also, every block must return a value.  So, if you have a block of just 3
 statements, with no return commands, what will its value be?  It will be
@@ -106,7 +100,7 @@ example is the setting of variables:
 
 	max = if a > b then a else b end
 
-Granted, other language provide even cleaner syntax for such a simple
+Granted, other languages provide even cleaner syntax for such a simple
 operation, but the general idea of blocks returning values should be clear.
 The if statement returned a value for the setting of max.  The two blocks,
 the true case and the false case, each had a statement/node, with no return
@@ -116,7 +110,7 @@ returned.
 Classes work fairly simply.  Every class is just a group of variables, much
 like a nested scope.  You can get or set variables in a class, much like in
 a scope.  However, classes also have a parent class.  When you try to get a
-value from a class, and that variable does not exist, in then searches its
+value from a class, and that variable does not exist, it then searches its
 parent, then the parent's parent, and so on.  This allows simple but
 usable inheritance.
 

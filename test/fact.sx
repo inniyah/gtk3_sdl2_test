@@ -6,11 +6,11 @@ function fact (arg)
 	return (arg + 1) * arg / 2
 end
 
-max = argv[1]
+max = 0 + argv[1] # convert to number
 
 num = 0
 while fact (num + 1) <= max do
-	num = num + 1
+	num ++
 end 
 
 print ('Smallest factorial within ', max, ': fact(', num, ') = ', fact (num))

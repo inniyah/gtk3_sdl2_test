@@ -34,7 +34,7 @@
 
 
 SYSTEM *
-create_system (int argc, char **argv) {
+sx_create_system (int argc, char **argv) {
 	VALUE *args;
 	SYSTEM *system = (SYSTEM *)sx_malloc (NULL, sizeof (SYSTEM));
 	if (system == NULL) {
@@ -46,41 +46,41 @@ create_system (int argc, char **argv) {
 	system->gc_values = NULL;
 	system->flags = 0;
 	system->gc_count = 0;
-	system->gc_thresh = GC_THRESH_SIZE;
+	system->gc_thresh = SX_GC_THRESH;
 
-	define_global_var (system, new_str (system, "VERSION"), new_str (system, SCRIPTIX_VERSION));
-	define_global_var (system, new_str (system, "argc"), new_num (argc));
+	sx_define_system_var (system, sx_new_str (system, "VERSION"), sx_new_str (system, SX_VERSION));
+	sx_define_system_var (system, sx_new_str (system, "argc"), sx_new_num (argc));
 
-	args = new_array (system, argc, NULL);
+	args = sx_new_array (system, argc, NULL);
 	for (-- argc; argc >= 0; -- argc) {
-		args->data.array.list[argc] = new_str (system, argv[argc]);
+		args->data.array.list[argc] = sx_new_str (system, argv[argc]);
 	}
-	define_global_var (system, new_str (system, "argv"), args);
+	sx_define_system_var (system, sx_new_str (system, "argv"), args);
 
 	return system;
 }
 
 void
-free_system (SYSTEM *system) {
+sx_free_system (SYSTEM *system) {
 	THREAD *tnext;
 	VAR *rnext;
 	VALUE *vnext;
 
 	while (system->threads != NULL) {
 		tnext = system->threads->next;
-		free_thread (system->threads);
+		sx_free_thread (system->threads);
 		system->threads = tnext;
 	}
 
 	while (system->vars) {
 		rnext = system->vars->next;
-		free_var (system->vars);
+		sx_free_var (system->vars);
 		system->vars = rnext;
 	}
 
 	while (system->gc_values) {
 		vnext = system->gc_values->gc_next;
-		free_value (system->gc_values);
+		sx_free_value (system->gc_values);
 		system->gc_values = vnext;
 	}
 
@@ -88,8 +88,12 @@ free_system (SYSTEM *system) {
 }
 
 void
-add_gc_value (SYSTEM *system, VALUE *value) {
-	if (IS_NUM (value) || IS_NIL (value)) {
+sx_add_gc_value (SYSTEM *system, VALUE *value) {
+	if (system == NULL) {
+		return;
+	}
+	
+	if (SX_ISNUM (value) || SX_ISNIL (value)) {
 		return;
 	}
 
@@ -100,35 +104,35 @@ add_gc_value (SYSTEM *system, VALUE *value) {
 	value->gc_next = system->gc_values;
 	system->gc_values = value;
 	if (++ system->gc_count >= system->gc_thresh) {
-		lock_value (value);
-		run_gc (system);
-		unlock_value (value);
+		sx_lock_value (value);
+		sx_run_gc (system);
+		sx_unlock_value (value);
 	}
 }
 
 void
-run_gc (SYSTEM *system) {
+sx_run_gc (SYSTEM *system) {
 	THREAD *thread;
 	VAR *var;
 	VALUE *value, *last;
 
-	if (system->flags & SFLAG_GCOFF) {
+	if (system->flags & SX_SFLAG_GCOFF) {
 		return;
 	}
 
 	for (var = system->vars; var != NULL; var = var->next) {
-		mark_value (system, var->name);
-		mark_value (system, var->value);
+		sx_mark_value (system, var->name);
+		sx_mark_value (system, var->value);
 	}
 
 	for (thread = system->threads; thread != NULL; thread = thread->next) {
-		mark_thread (thread);
+		sx_mark_thread (thread);
 	}
 
 	value = system->gc_values;
 	while (value != NULL) {
-		if ((value->flags & VFLAG_MARK) == 0 && value->locks > 0) {
-			mark_value (system, value);
+		if ((value->flags & SX_VFLAG_MARK) == 0 && value->locks > 0) {
+			sx_mark_value (system, value);
 		}
 		value = value->gc_next;
 	}
@@ -136,23 +140,23 @@ run_gc (SYSTEM *system) {
 	last = NULL;
 	value = system->gc_values;
 	while (value != NULL) {
-		if ((value->flags & VFLAG_MARK) == 0) {
+		if ((value->flags & SX_VFLAG_MARK) == 0) {
 			-- system->gc_count;
 			if (last) {
 				last->gc_next = value->gc_next;
-				free_value (value);
+				sx_free_value (value);
 				value = last->gc_next;
 			} else {
 				system->gc_values = value->gc_next;
-				free_value (value);
+				sx_free_value (value);
 				value = system->gc_values;
 			}
 		} else {
-			value->flags &= ~VFLAG_MARK;
+			value->flags &= ~SX_VFLAG_MARK;
 			last = value;
 			value = value->gc_next;
 		}
 	}
 
-	system->gc_thresh = system->gc_count >= GC_THRESH_SIZE ? system->gc_count * 2 : GC_THRESH_SIZE;
+	system->gc_thresh = system->gc_count >= SX_GC_THRESH ? system->gc_count * 2 : SX_GC_THRESH;
 }

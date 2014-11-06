@@ -28,12 +28,17 @@
 %{
 	#include <stdlib.h>
 	#include <string.h>
+	#include <ctype.h>
 
 	#include "scriptix.h"
 	#include "y.tab.h"
 
+	#define LEX_NAME(name,value) if (!strcmp (yytext, name)) { return value; } else 
+
 	extern SYSTEM *parse_system;
 	extern unsigned int parse_lineno;
+
+	__INLINE__ void sxll_to_lower (char *buf);
 %}
 
 %s bcomment
@@ -54,70 +59,43 @@
 # { BEGIN lcomment; }
 [\n] { parse_lineno ++; return TSEP; }
 ; { return TSEP; } 
-'[^\']*' { yytext[strlen (yytext) - 1] = '\0'; sxlval.value = new_str (parse_system, yytext + 1); return TSTR; }
-"[^\"]*" { yytext[strlen (yytext) - 1] = '\0'; sxlval.value = new_str (parse_system, yytext + 1); return TSTR; }
+'[^\']*' { yytext[strlen (yytext) - 1] = '\0'; sxlval.value = sx_new_str (parse_system, yytext + 1); return TSTR; }
+"[^\"]*" { yytext[strlen (yytext) - 1] = '\0'; sxlval.value = sx_new_str (parse_system, yytext + 1); return TSTR; }
 [a-zA-Z_][a-zA-Z0-9_]* { 
-		if (!strcasecmp (yytext, "if")) {
-			return TIF;
-		} else if (!strcasecmp (yytext, "then")) {
-			return TTHEN;
-		} else if (!strcasecmp (yytext, "else")) {
-			return TELSE;
-		} else if (!strcasecmp (yytext, "end")) {
-			return TEND;
-		} else if (!strcasecmp (yytext, "while")) {
-			return TWHILE;
-		} else if (!strcasecmp (yytext, "do")) {
-			return TDO;
-		} else if (!strcasecmp (yytext, "or")) {
-			return TOR;
-		} else if (!strcasecmp (yytext, "and")) {
-			return TAND;
-		} else if (!strcasecmp (yytext, "return")) {
-			return TRETURN;
-		} else if (!strcasecmp (yytext, "break")) {
-			return TBREAK;
-		} else if (!strcasecmp (yytext, "function")) {
-			return TFUNC;
-		} else if (!strcasecmp (yytext, "local")) {
-			return TLOCAL;
-		} else if (!strcasecmp (yytext, "global")) {
-			return TGLOBAL;
-		} else if (!strcasecmp (yytext, "length")) {
-			return TLENGTH;
-		} else if (!strcasecmp (yytext, "thread")) {
-			return TTHREAD;
-		} else if (!strcasecmp (yytext, "class")) {
-			return TCLASS;
-		} else if (!strcasecmp (yytext, "new")) {
-			return TNEW;
-		} else if (!strcasecmp (yytext, "type")) {
-			return TTYPE;
-		} else if (!strcasecmp (yytext, "isa")) {
-			return TISA;
-		} else if (!strcasecmp (yytext, "nil")) {
-			return TNIL;
-		} else if (!strcasecmp (yytext, "raise")) {
-			return TRAISE;
-		} else if (!strcasecmp (yytext, "rescue")) {
-			return TRESCUE;
-		} else if (!strcasecmp (yytext, "try")) {
-			return TTRY;
-		} else if (!strcasecmp (yytext, "in")) {
-			return TIN;
-		} else if (!strcasecmp (yytext, "for")) {
-			return TFOR;
-		} else if (!strcasecmp (yytext, "step")) {
-			return TSTEP;
-		} else if (!strcasecmp (yytext, "to")) {
-			return TTO;
-		} else {
-			strncpy (sxlval.name, yytext, MAX_NAME_LEN);
-			sxlval.name[MAX_NAME_LEN] = 0;
+		sxll_to_lower (yytext);
+		LEX_NAME("if", TIF)
+		LEX_NAME("then", TTHEN)
+		LEX_NAME("else", TELSE)
+		LEX_NAME("end", TEND)
+		LEX_NAME("while", TWHILE)
+		LEX_NAME("do", TDO)
+		LEX_NAME("or", TOR)
+		LEX_NAME("and", TAND)
+		LEX_NAME("return", TRETURN)
+		LEX_NAME("break", TBREAK)
+		LEX_NAME("function", TFUNC)
+		LEX_NAME("local", TLOCAL)
+		LEX_NAME("global", TGLOBAL)
+		LEX_NAME("length", TLENGTH)
+		LEX_NAME("thread", TTHREAD)
+		LEX_NAME("class", TCLASS)
+		LEX_NAME("new", TNEW)
+		LEX_NAME("type", TTYPE)
+		LEX_NAME("isa", TISA)
+		LEX_NAME("nil", TNIL)
+		LEX_NAME("raise", TRAISE)
+		LEX_NAME("rescue", TRESCUE)
+		LEX_NAME("try", TTRY)
+		LEX_NAME("in", TIN)
+		LEX_NAME("for", TFOR)
+		LEX_NAME("step", TSTEP)
+		{
+			strncpy (sxlval.name, yytext, SX_MAX_NAME);
+			sxlval.name[SX_MAX_NAME] = 0;
 			return TNAME;
 		}
 	}
-[0-9]+ { sxlval.value = new_num (atoi (yytext)); return TNUM; }
+[0-9]+ { sxlval.value = sx_new_num (atoi (yytext)); return TNUM; }
 [>]= { return TGTE; }
 [<]= { return TLTE; }
 == { return TEQUALS; }
@@ -132,3 +110,10 @@
 <<EOF>> { return 0; }
 
 %%
+void
+sxll_to_lower (char *buf) {
+	while (*buf != '\0') {
+		*buf = tolower (*buf);
+		++ buf;
+	}
+}

@@ -27,7 +27,8 @@
 #define YY_FLEX_MINOR_VERSION 5
 
 #include <stdio.h>
-#include <errno.h>
+#include <unistd.h>
+
 
 /* cfront 1.2 defines "c_plusplus" instead of "__cplusplus" */
 #ifdef c_plusplus
@@ -40,15 +41,6 @@
 #ifdef __cplusplus
 
 #include <stdlib.h>
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#ifndef YY_ALWAYS_INTERACTIVE
-#ifndef YY_NEVER_INTERACTIVE
-extern int isatty YY_PROTO(( int ));
-#endif
-#endif
-#endif
 
 /* Use prototypes in function declarations. */
 #define YY_USE_PROTOS
@@ -493,17 +485,22 @@ char *yytext;
 #line 29 "lexer.l"
 	#include <stdlib.h>
 	#include <string.h>
+	#include <ctype.h>
 
 	#include "scriptix.h"
 	#include "y.tab.h"
 
+	#define LEX_NAME(name,value) if (!strcmp (yytext, name)) { return value; } else 
+
 	extern SYSTEM *parse_system;
 	extern unsigned int parse_lineno;
+
+	__INLINE__ void sxll_to_lower (char *buf);
 #define bcomment 1
 
 #define lcomment 2
 
-#line 507 "lex.sx.c"
+#line 504 "lex.sx.c"
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -603,20 +600,9 @@ YY_MALLOC_DECL
 			YY_FATAL_ERROR( "input in flex scanner failed" ); \
 		result = n; \
 		} \
-	else \
-		{ \
-		errno=0; \
-		while ( (result = fread(buf, 1, max_size, yyin))==0 && ferror(yyin)) \
-			{ \
-			if( errno != EINTR) \
-				{ \
-				YY_FATAL_ERROR( "input in flex scanner failed" ); \
-				break; \
-				} \
-			errno=0; \
-			clearerr(yyin); \
-			} \
-		}
+	else if ( ((result = fread( buf, 1, max_size, yyin )) == 0) \
+		  && ferror( yyin ) ) \
+		YY_FATAL_ERROR( "input in flex scanner failed" );
 #endif
 
 /* No semi-colon after return; correct usage is to write "yyterminate();" -
@@ -662,13 +648,13 @@ YY_MALLOC_DECL
 YY_DECL
 	{
 	register yy_state_type yy_current_state;
-	register char *yy_cp, *yy_bp;
+	register char *yy_cp = NULL, *yy_bp = NULL;
 	register int yy_act;
 
-#line 42 "lexer.l"
+#line 47 "lexer.l"
 
 
-#line 672 "lex.sx.c"
+#line 658 "lex.sx.c"
 
 	if ( yy_init )
 		{
@@ -753,206 +739,179 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 44 "lexer.l"
+#line 49 "lexer.l"
 { /* IGNORE */ }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 45 "lexer.l"
+#line 50 "lexer.l"
 { parse_lineno ++; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 46 "lexer.l"
+#line 51 "lexer.l"
 { /* IGNORE */ }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 47 "lexer.l"
+#line 52 "lexer.l"
 { BEGIN INITIAL; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 49 "lexer.l"
+#line 54 "lexer.l"
 { /* IGNORE */ }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 50 "lexer.l"
+#line 55 "lexer.l"
 { parse_lineno ++; BEGIN INITIAL; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 52 "lexer.l"
+#line 57 "lexer.l"
 { /* IGNORE */ }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 53 "lexer.l"
+#line 58 "lexer.l"
 { BEGIN bcomment; }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 54 "lexer.l"
+#line 59 "lexer.l"
 { BEGIN lcomment; }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 55 "lexer.l"
+#line 60 "lexer.l"
 { parse_lineno ++; return TSEP; }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 56 "lexer.l"
+#line 61 "lexer.l"
 { return TSEP; } 
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 57 "lexer.l"
-{ yytext[strlen (yytext) - 1] = '\0'; sxlval.value = new_str (parse_system, yytext + 1); return TSTR; }
+#line 62 "lexer.l"
+{ yytext[strlen (yytext) - 1] = '\0'; sxlval.value = sx_new_str (parse_system, yytext + 1); return TSTR; }
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 58 "lexer.l"
-{ yytext[strlen (yytext) - 1] = '\0'; sxlval.value = new_str (parse_system, yytext + 1); return TSTR; }
+#line 63 "lexer.l"
+{ yytext[strlen (yytext) - 1] = '\0'; sxlval.value = sx_new_str (parse_system, yytext + 1); return TSTR; }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 59 "lexer.l"
+#line 64 "lexer.l"
 { 
-		if (!strcasecmp (yytext, "if")) {
-			return TIF;
-		} else if (!strcasecmp (yytext, "then")) {
-			return TTHEN;
-		} else if (!strcasecmp (yytext, "else")) {
-			return TELSE;
-		} else if (!strcasecmp (yytext, "end")) {
-			return TEND;
-		} else if (!strcasecmp (yytext, "while")) {
-			return TWHILE;
-		} else if (!strcasecmp (yytext, "do")) {
-			return TDO;
-		} else if (!strcasecmp (yytext, "or")) {
-			return TOR;
-		} else if (!strcasecmp (yytext, "and")) {
-			return TAND;
-		} else if (!strcasecmp (yytext, "return")) {
-			return TRETURN;
-		} else if (!strcasecmp (yytext, "break")) {
-			return TBREAK;
-		} else if (!strcasecmp (yytext, "function")) {
-			return TFUNC;
-		} else if (!strcasecmp (yytext, "local")) {
-			return TLOCAL;
-		} else if (!strcasecmp (yytext, "global")) {
-			return TGLOBAL;
-		} else if (!strcasecmp (yytext, "length")) {
-			return TLENGTH;
-		} else if (!strcasecmp (yytext, "thread")) {
-			return TTHREAD;
-		} else if (!strcasecmp (yytext, "class")) {
-			return TCLASS;
-		} else if (!strcasecmp (yytext, "new")) {
-			return TNEW;
-		} else if (!strcasecmp (yytext, "type")) {
-			return TTYPE;
-		} else if (!strcasecmp (yytext, "isa")) {
-			return TISA;
-		} else if (!strcasecmp (yytext, "nil")) {
-			return TNIL;
-		} else if (!strcasecmp (yytext, "raise")) {
-			return TRAISE;
-		} else if (!strcasecmp (yytext, "rescue")) {
-			return TRESCUE;
-		} else if (!strcasecmp (yytext, "try")) {
-			return TTRY;
-		} else if (!strcasecmp (yytext, "in")) {
-			return TIN;
-		} else if (!strcasecmp (yytext, "for")) {
-			return TFOR;
-		} else if (!strcasecmp (yytext, "step")) {
-			return TSTEP;
-		} else if (!strcasecmp (yytext, "to")) {
-			return TTO;
-		} else {
-			strncpy (sxlval.name, yytext, MAX_NAME_LEN);
-			sxlval.name[MAX_NAME_LEN] = 0;
+		sxll_to_lower (yytext);
+		LEX_NAME("if", TIF)
+		LEX_NAME("then", TTHEN)
+		LEX_NAME("else", TELSE)
+		LEX_NAME("end", TEND)
+		LEX_NAME("while", TWHILE)
+		LEX_NAME("do", TDO)
+		LEX_NAME("or", TOR)
+		LEX_NAME("and", TAND)
+		LEX_NAME("return", TRETURN)
+		LEX_NAME("break", TBREAK)
+		LEX_NAME("function", TFUNC)
+		LEX_NAME("local", TLOCAL)
+		LEX_NAME("global", TGLOBAL)
+		LEX_NAME("length", TLENGTH)
+		LEX_NAME("thread", TTHREAD)
+		LEX_NAME("class", TCLASS)
+		LEX_NAME("new", TNEW)
+		LEX_NAME("type", TTYPE)
+		LEX_NAME("isa", TISA)
+		LEX_NAME("nil", TNIL)
+		LEX_NAME("raise", TRAISE)
+		LEX_NAME("rescue", TRESCUE)
+		LEX_NAME("try", TTRY)
+		LEX_NAME("in", TIN)
+		LEX_NAME("for", TFOR)
+		LEX_NAME("step", TSTEP)
+		{
+			strncpy (sxlval.name, yytext, SX_MAX_NAME);
+			sxlval.name[SX_MAX_NAME] = 0;
 			return TNAME;
 		}
 	}
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 120 "lexer.l"
-{ sxlval.value = new_num (atoi (yytext)); return TNUM; }
+#line 98 "lexer.l"
+{ sxlval.value = sx_new_num (atoi (yytext)); return TNUM; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 121 "lexer.l"
+#line 99 "lexer.l"
 { return TGTE; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 122 "lexer.l"
+#line 100 "lexer.l"
 { return TLTE; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 123 "lexer.l"
+#line 101 "lexer.l"
 { return TEQUALS; }
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 124 "lexer.l"
+#line 102 "lexer.l"
 { return TADDASSIGN; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 125 "lexer.l"
+#line 103 "lexer.l"
 { return TSUBASSIGN; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 126 "lexer.l"
+#line 104 "lexer.l"
 { return TINCREMENT; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 127 "lexer.l"
+#line 105 "lexer.l"
 { return TDECREMENT; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 128 "lexer.l"
+#line 106 "lexer.l"
 { return TMETHOD; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 129 "lexer.l"
+#line 107 "lexer.l"
 { return TNE; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 130 "lexer.l"
+#line 108 "lexer.l"
 { return TRANGE; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 131 "lexer.l"
+#line 109 "lexer.l"
 { return yytext[0]; }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(bcomment):
 case YY_STATE_EOF(lcomment):
-#line 132 "lexer.l"
+#line 110 "lexer.l"
 { return 0; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 134 "lexer.l"
+#line 112 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 956 "lex.sx.c"
+#line 915 "lex.sx.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1514,15 +1473,6 @@ YY_BUFFER_STATE b;
 	}
 
 
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#ifndef YY_ALWAYS_INTERACTIVE
-#ifndef YY_NEVER_INTERACTIVE
-extern int isatty YY_PROTO(( int ));
-#endif
-#endif
-#endif
 
 #ifdef YY_USE_PROTOS
 void yy_init_buffer( YY_BUFFER_STATE b, FILE *file )
@@ -1840,5 +1790,12 @@ int main()
 	return 0;
 	}
 #endif
-#line 134 "lexer.l"
+#line 112 "lexer.l"
 
+void
+sxll_to_lower (char *buf) {
+	while (*buf != '\0') {
+		*buf = tolower (*buf);
+		++ buf;
+	}
+}
