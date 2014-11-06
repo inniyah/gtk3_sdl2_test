@@ -22,10 +22,10 @@ The list of current Scriptix features include:
 
 Planned/future features include:
 
-	Class scope (get rid of self variable in methods)
 	Regular expressions
 	Pre-emptive threading
 	Re-entrant/threadable parsers
+	Split up _scriptix_value
 
 The one needing the most explanation is likely the pre-emptive threading.  The
 idea there is that scripts, just like processes on a decent OS, should be

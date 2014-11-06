@@ -1,11 +1,11 @@
 try
-	print ('try!')
-	raise 46
+	raise StackError
+	print ('oops - didnt raise')
 	return 1
-rescue
-	print ('catch:', error)
-	return !(error == 46)
+rescue SXError error
+	print ('ok, caught it')
+	return 0
 end
 
-print ('oops')
+print ('oops - didnt catch')
 return 1

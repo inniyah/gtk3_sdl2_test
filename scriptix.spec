@@ -1,10 +1,10 @@
 Summary: A lite-weight scripting interface.
 Name: scriptix
-Version: 0.10
+Version: 0.11
 Release: 1
 Copyright: MIT/X
 Group: Libraries/Interpreters
-Source: http://prdownloads.sourceforge.net/awemud/scriptix-0.10.tar.gz
+Source: http://prdownloads.sourceforge.net/awemud/scriptix-0.11.tar.gz
 BuildRoot: /var/tmp/%{name}-buildroot
 
 %description

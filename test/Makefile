@@ -3,7 +3,7 @@ TESTS := test-fact test-scope test-comments test-inc test-class test-error test-
 all: $(TESTS) 
 
 test-fact:
-	../bin/scriptix fact.sx 1000 | grep -q 44 || /bin/false
+	../bin/scriptix fact.sx 1000 | grep -q 720 || /bin/false
 
 test-scope:
 	../bin/scriptix scope.sx > /dev/null

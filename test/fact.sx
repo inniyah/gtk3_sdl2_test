@@ -1,9 +1,5 @@
-function nfact1(arg)
-	if !arg then 0 else arg + fact (arg - 1) end
-end
-
 function fact (arg)
-	return (arg + 1) * arg / 2
+	if !arg then 1 else arg * fact (arg - 1) end
 end
 
 max = 0 + argv[1] # convert to number

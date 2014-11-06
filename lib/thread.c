@@ -102,7 +102,9 @@ sx_mark_thread (THREAD *thread) {
 	}
 
 	for (i = 0; i < thread->context; i ++) {
-		sx_mark_value (thread->system, thread->context_stack[i].block);
+		if (thread->context_stack[i].klass != NULL) {
+			sx_mark_value (thread->system, thread->context_stack[i].klass);
+		}
 		for (var = thread->context_stack[i].vars; var != NULL; var = var->next) {
 			sx_mark_value (thread->system, var->value);
 		}
@@ -116,7 +118,7 @@ sx_mark_thread (THREAD *thread) {
 }
 
 THREAD *
-sx_push_context (THREAD *thread, VALUE *block, unsigned char flags) {
+sx_push_context (THREAD *thread, VALUE *klass, unsigned char flags) {
 	CONTEXT *sx_new_stack;
 
 	if (thread->context == thread->context_size) {
@@ -131,7 +133,7 @@ sx_push_context (THREAD *thread, VALUE *block, unsigned char flags) {
 	}
 
 	thread->context_stack[thread->context].vars = NULL;
-	thread->context_stack[thread->context].block = block;
+	thread->context_stack[thread->context].klass = klass;
 	thread->context_stack[thread->context].flags = flags;
 	++ thread->context;
 
@@ -192,8 +194,6 @@ sx_get_value (THREAD *thread, int index) {
 
 void
 sx_pop_value (THREAD *thread, int start, unsigned int len) {
-	unsigned int index;
-
 	if (start < 0) {
 		start += thread->data;
 	}
@@ -206,9 +206,7 @@ sx_pop_value (THREAD *thread, int start, unsigned int len) {
 		len = thread->data - start;
 	}
 
-	for (index = start; index < start + len; ++ index) {
-		thread->data_stack[index] = thread->data_stack[index + len];
-	}
+	memcpy (&thread->data_stack[start], &thread->data_stack[start + len], (thread->data - start - len) * sizeof (VALUE *));
 
 	thread->data -= len;
 }

@@ -127,16 +127,26 @@ sx_set_member (SYSTEM *system, VALUE *klass, unsigned int id, VALUE *value) {
 
 VALUE *
 sx_get_member (VALUE *klass, unsigned int id) {
+	VAR *var = sx_find_member (klass, id);
+	if (var != NULL) {
+		return var->value;
+	} else {
+		return sx_new_nil ();
+	}
+}
+
+VAR *
+sx_find_member (VALUE *klass, unsigned int id) {
 	VAR *var;
 
 	while (klass != NULL) {
 		for (var = klass->data.klass.members; var != NULL; var = var->next) {
 			if (id == var->id) {
-				return var->value;
+				return var;
 			}
 		}
 		klass = klass->data.klass.parent;
 	}
 
-	return sx_new_nil ();
+	return NULL;
 }

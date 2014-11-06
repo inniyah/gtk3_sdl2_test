@@ -146,6 +146,13 @@ arg_list: TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($1))
 	| arg_list ',' TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($3))); }
 	;
 
+errors: { parser_push (sx_new_array (parse_system, 0, NULL)); } error_list { temp_val = parser_top (); parser_pop (); pushv (temp_val); }
+	;
+
+error_list: TNAME TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($1))); append_to_array (parser_top (), sx_new_num(sx_name_to_id ($2))); }
+	| arg_list ',' TNAME TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($3))); append_to_array (parser_top (), sx_new_num(sx_name_to_id ($4))); }
+	;
+
 node:	node '+' node { pushn (SX_OP_ADD, 2); }
 	| node '-' node { pushn (SX_OP_SUBTRACT, 2); }
 	| node '*' node { pushn (SX_OP_MULTIPLY, 2); }
@@ -171,10 +178,10 @@ node:	node '+' node { pushn (SX_OP_ADD, 2); }
 
 	| name TADDASSIGN node { pushn (SX_OP_PREINCREMENT, 2); }
 	| name TSUBASSIGN node { pushn (SX_OP_PREDECREMENT, 2); }
-	| name TINCREMENT { pushn (SX_OP_POSTINCREMENT, 1); }
-	| TINCREMENT name { pushn (SX_OP_PREINCREMENT, 1); }
-	| name TDECREMENT { pushn (SX_OP_POSTDECREMENT, 1); }
-	| TDECREMENT name { pushn (SX_OP_PREDECREMENT, 1); }
+	| name TINCREMENT { pushv (sx_new_num (1)); pushn (SX_OP_POSTINCREMENT, 2); }
+	| TINCREMENT name { pushv (sx_new_num (1)); pushn (SX_OP_PREINCREMENT, 2); }
+	| name TDECREMENT { pushv (sx_new_num (1)); pushn (SX_OP_POSTDECREMENT, 2); }
+	| TDECREMENT name { pushv (sx_new_num (1)); pushn (SX_OP_PREDECREMENT, 2); }
 	
 	| TLENGTH '(' node ')' { pushn (SX_OP_SIZEOF, 1); }
 	| TTYPE '(' node ')' { pushn (SX_OP_TYPEOF, 1); }
@@ -195,11 +202,9 @@ node:	node '+' node { pushn (SX_OP_ADD, 2); }
 	| TIF node TTHEN block TEND { pushv (sx_new_nil ()); pushn (SX_OP_IF, 3); }
 	| TIF node TTHEN block TELSE block TEND { pushn (SX_OP_IF, 3); }
 	| TWHILE oblock TDO block TEND { pushn (SX_OP_WHILE, 2); }
-	| TTRY block TRESCUE block TEND { pushn (SX_OP_TRY, 2); }
-	/*
-	| TUNTIL node TDO block TEND { $$ = sx_new_expr (parse_system, SX_OP_WHILE, 2, sx_new_expr (parse_system, SX_OP_NOT, 1, $2), sx_new_node (parse_system, $4)); }
-	| TDO block TEND { $$ = sx_new_expr (parse_system, SX_OP_EVAL, 1, sx_new_node (parse_system, $2)); }
-	*/
+	| TTRY block TRESCUE errors block TEND { pushn (SX_OP_TRY, 3); }
+	| TUNTIL oblock TDO block TEND { pushn (SX_OP_UNTIL, 2); }
+	| TDO block TEND { pushn (SX_OP_EVAL, 1); }
 	| TFOR name TIN node TDO block TEND { pushn (SX_OP_FOR, 3); }
 	| TFOR name TIN node TSTEP TNUM { pushv ($6); } TDO block TEND { pushn (SX_OP_FOR, 4); }
 

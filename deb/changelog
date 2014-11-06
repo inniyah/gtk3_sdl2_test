@@ -1,0 +1,21 @@
+scriptix (0.11-1) unstable; urgency=low
+
+  * New release. 
+
+ -- Sean Middleditch <elanthis@awesomeplay.com>  Mon,  8 Apr 2002 14:52:14 -0400
+
+scriptix (0.10-1) unstable; urgency=low
+
+  * New upstream release. 
+
+ -- Sean Middleditch <elanthis@awesomeplay.com>  Thu,  4 Apr 2002 15:03:11 -0500
+
+scriptix (0.9-1) unstable; urgency=low
+
+  * Initial release.
+
+ -- Sean Middleditch <elanthis@stargrazer>  Wed,  3 Apr 2002 18:17:28 -0500
+
+Local variables:
+mode: debian-changelog
+End:

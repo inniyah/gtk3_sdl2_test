@@ -8,7 +8,7 @@ class k
 	end
 end
 k.test = function ()
-	return self.name
+	return name
 end
 
 g = new k

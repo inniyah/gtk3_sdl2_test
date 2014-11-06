@@ -35,7 +35,7 @@
 
 SYSTEM *
 sx_create_system (int argc, char **argv) {
-	VALUE *args;
+	VALUE *args, *err;
 	SYSTEM *system = (SYSTEM *)sx_malloc (NULL, sizeof (SYSTEM));
 	if (system == NULL) {
 		return system;
@@ -56,6 +56,13 @@ sx_create_system (int argc, char **argv) {
 		args->data.array.list[argc] = sx_new_str (system, argv[argc]);
 	}
 	sx_define_system_var (system, sx_name_to_id ("argv"), args);
+
+	sx_define_system_var (system, sx_name_to_id ("SXError"), (err = sx_new_class (system, sx_new_nil ())));
+	sx_define_system_var (system, sx_name_to_id ("NameError"), sx_new_class (system, err));
+	sx_define_system_var (system, sx_name_to_id ("TypeError"), sx_new_class (system, err));
+	sx_define_system_var (system, sx_name_to_id ("SysError"), sx_new_class (system, err));
+	sx_define_system_var (system, sx_name_to_id ("MemError"), sx_new_class (system, err));
+	sx_define_system_var (system, sx_name_to_id ("StackError"), sx_new_class (system, err));
 
 	return system;
 }

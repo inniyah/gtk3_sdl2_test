@@ -577,6 +577,7 @@ sx_mark_value (SYSTEM *system, VALUE *value) {
 			}
 			break;
 		case SX_VALUE_CLASS:
+			value->flags |= SX_VFLAG_MARK;
 			if (value->data.klass.ref_data) {
 				value->data.klass.ref_data (system, value->data.klass.data);
 			}

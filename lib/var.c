@@ -32,6 +32,23 @@
 
 #include "scriptix.h"
 
+__INLINE__
+VAR *
+_sx_search_context (CONTEXT *context, unsigned int id) {
+	VAR *var;
+
+	for (var = context->vars; var != NULL; var = var->next) {
+		if (id == var->id) {
+			return var;
+		}
+	}
+
+	if (context->klass) {
+		return sx_find_member (context->klass, id);
+	}
+
+	return NULL;
+}
 
 VALUE *
 sx_define_cfunc (SYSTEM *system, char *name, VALUE *(*func)(THREAD *, VALUE *, unsigned int, unsigned int)) {
@@ -113,31 +130,20 @@ sx_get_var (THREAD *thread, unsigned int id, int scope) {
 
 	/* local search only */
 	if (scope == SX_SCOPE_LOCAL) {
-		for (var = thread->context_stack[thread->context - 1].vars; var != NULL; var = var->next) {
-			if (id == var->id) {
-				return var;
-			}
-		}
-		return NULL;
+		return _sx_search_context (&thread->context_stack[thread->context - 1], id);
 	}
 
 	/* thread search only */
 	if (scope == SX_SCOPE_THREAD) {
-		for (var = thread->context_stack[0].vars; var != NULL; var = var->next) {
-			if (id == var->id) {
-				return var;
-			}
-		}
-		return NULL;
+		return _sx_search_context (&thread->context_stack[0], id);
 	}
 
 	/* default - search thru contexts until top/hard context break */
 	if (scope == SX_SCOPE_DEF) {
 		for (c = thread->context - 1; c >= 0; -- c) {
-			for (var = thread->context_stack[c].vars; var != NULL; var = var->next) {
-				if (id == var->id) {
-					return var;
-				}
+			var = _sx_search_context (&thread->context_stack[c], id);
+			if (var != NULL) {
+				return var;
 			}
 			if ((thread->context_stack[c].flags & SX_CFLAG_HARD) != 0 && c != 0) {
 				c = 1; /* next loop, c will == 0, thus scan thread scope */

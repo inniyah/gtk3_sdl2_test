@@ -27,8 +27,8 @@ install: all
 	( cd include ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
 	( cd lib ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
 	( cd bin ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
-	install -D -d $(DESTDIR)/$(prefix)/share/doc/scriptix-0.10
-	install -m 0644 README COPYING $(DESTDIR)/$(prefix)/share/doc/scriptix-0.10
+	install -D -d $(DESTDIR)/$(prefix)/share/doc/scriptix-0.11
+	install -m 0644 README COPYING $(DESTDIR)/$(prefix)/share/doc/scriptix-0.11
 
 dist: all
 	rm -rf scriptix/
@@ -39,6 +39,6 @@ dist: all
 	( cd bin ; make dist )
 	( cd test ; make dist )
 	( cd deb ; make dist )
-	mv scriptix/ scriptix-0.10/
-	tar -zcf scriptix-0.10.tar.gz scriptix-0.10/
-	rm -rf scriptix-0.10/
+	mv scriptix/ scriptix-0.11/
+	tar -zcf scriptix-0.11.tar.gz scriptix-0.11/
+	rm -rf scriptix-0.11/

@@ -102,6 +102,9 @@ extern "C" {
 #define SX_OP_AND 107
 #define SX_OP_TRY 108
 #define SX_OP_POP 109
+#define SX_OP_UNTIL 110
+#define SX_OP_DOWHILE 111
+#define SX_OP_DOUNTIL 112
 
 #define SX_VFLAG_MARK 0x01
 #define SX_VFLAG_CONST 0x02
@@ -163,6 +166,7 @@ extern __INLINE__ void sx_unlock_value (VALUE *value);
 extern int sx_class_is_a (VALUE *klass, VALUE *par);
 extern VAR *sx_set_member (SYSTEM *system, VALUE *klass, unsigned int id, VALUE *value);
 extern VALUE *sx_get_member (VALUE *klass, unsigned int id);
+extern VAR *sx_find_member (VALUE *klass, unsigned int id);
 extern VALUE *sx_get_index (SYSTEM *system, VALUE *cont, int index);
 extern VALUE *sx_get_section (SYSTEM *system, VALUE *cont, int start, int end);
 extern void sx_free_value (VALUE *value);
@@ -265,7 +269,7 @@ struct scriptix_var {
 
 struct scriptix_context {
 	VAR *vars;
-	VALUE *block;
+	VALUE *klass;
 	unsigned char flags;
 };
 
