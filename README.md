@@ -1,4 +1,5 @@
 Scriptix Embedded Scripting Engine
+Copyright (C) 2014, Miriam Ruiz <miriam@debian.org>
 Copyright (C) 2002,2003  AwesomePlay Productions, Inc.
 Sean Middleditch <elanthis@awesomeplay.com>
 Basic Scriptix Information
