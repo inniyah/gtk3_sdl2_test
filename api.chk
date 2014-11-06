@@ -1,0 +1,70 @@
+
+extern SX_FUNC *sx_add_func (SX_SYSTEM *system, SX_FUNC *func);
+extern SX_FUNC *sx_add_method (SX_SYSTEM *system, SX_CLASS *klass, SX_FUNC *func);
+extern SX_FUNC *sx_add_static_method (SX_SYSTEM *system, SX_CLASS *klass, SX_FUNC *func);
+#define sx_add_stmt(s,b,o) (sx_add_to_block ((s), (b), NULL, (o)))
+extern SX_VALUE *sx_add_to_block (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *value, sx_op_type op);
+#define sx_add_value(s,b,v) (sx_add_to_block ((s), (b), (v), 0))
+extern SX_VALUE *sx_append (SX_SYSTEM *system, SX_VALUE *base, SX_VALUE *value);
+extern int sx_are_equal (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two);
+extern int sx_class_is_a (SX_SYSTEM *system, SX_CLASS *klass, SX_CLASS *par);
+extern int sx_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two);
+extern SX_SYSTEM *sx_create_system (void);
+extern SX_THREAD *sx_create_thread (SX_SYSTEM *system, SX_FUNC *func, SX_ARRAY *argv);
+extern SX_THREAD *sx_create_thread_v (SX_SYSTEM *system, SX_FUNC *func, unsigned long argc, ...);
+#define SX_DEFINE_CFUNC(name) void name (SX_THREAD *sx_thread, SX_VALUE *sx_self, unsigned long sx_argc)
+extern SX_VALUE *sx_define_system_var (SX_SYSTEM *system, sx_name_id id, SX_VALUE *value);
+extern SX_VALUE *sx_define_var (SX_THREAD *thread, sx_name_id id, SX_VALUE *value, sx_scope_type scope);
+extern void *sx_dupmem (SX_SYSTEM *system, const void *mem, unsigned long size);
+extern SX_VAR *sx_find_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id);
+#define sx_free free
+extern void sx_free_func (SX_FUNC *func);
+extern void sx_free_namelist (sx_name_id *list);
+extern void sx_free_system (SX_SYSTEM *system);
+extern SX_CALL *sx_get_call (SX_THREAD *thread);
+extern SX_VALUE *sx_get_index (SX_SYSTEM *system, SX_VALUE *cont, long index);
+extern SX_VALUE *sx_get_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id);
+extern SX_FUNC *sx_get_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id);
+extern SX_FUNC *sx_get_static_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id);
+extern SX_VAR *sx_get_system_var (SX_SYSTEM *system, sx_name_id id);
+extern SX_VALUE *sx_get_value (SX_THREAD *thread, long index);
+extern SX_VAR *sx_get_var (SX_THREAD *thread, sx_name_id id, sx_scope_type scope);
+#define SX_ISARRAY(s,v) ((sx_top_class_of ((s),(v))) == (s)->carray)
+#define SX_ISSTRING(s,v) ((sx_top_class_of ((s),(v))) == (s)->cstring)
+extern int sx_is_true (SX_SYSTEM *system, SX_VALUE *value);
+extern void sx_lock_value (SX_VALUE *value);
+extern void *sx_malloc (SX_SYSTEM *system, unsigned long size);
+extern void sx_mark_value (SX_SYSTEM *system, SX_VALUE *value);
+extern SX_VALUE *sx_new_array (SX_SYSTEM *system, unsigned long argc, SX_VALUE **argv);
+extern SX_VALUE *sx_new_block (SX_SYSTEM *system);
+extern SX_FUNC *sx_new_cfunc (SX_SYSTEM *system, sx_name_id id, unsigned long argc, int varg_flag, sx_cfunc func);
+extern SX_CLASS *sx_new_class (SX_SYSTEM *system, sx_name_id id, sx_name_id *members, SX_CLASS *par);
+extern SX_CLASS *sx_new_core_class (SX_SYSTEM *system, sx_name_id id, sx_name_id *members);
+extern SX_VALUE *sx_new_error (SX_THREAD *thread, sx_name_id id, SX_VALUE *data);
+extern SX_FUNC *sx_new_func (SX_SYSTEM *system, sx_name_id id, sx_name_id *args, sx_name_id varg, SX_BLOCK *body);
+extern sx_name_id *sx_new_namelist (SX_SYSTEM *system, unsigned long argc, ...);
+extern sx_name_id *sx_new_namelist_from_array (SX_SYSTEM *system, SX_ARRAY *array);
+#define sx_new_nil() ((SX_VALUE *)(NULL))
+#define sx_new_num(i) ((SX_VALUE *)(((i) << 1) | SX_NUM_MARK))
+extern SX_VALUE *sx_new_object (SX_SYSTEM *system, SX_CLASS *par);
+extern SX_VALUE *sx_new_stack_array (SX_THREAD *thread, unsigned long argc, long top);
+extern SX_VALUE *sx_new_str (SX_SYSTEM *system, const char *str);
+extern SX_VALUE *sx_new_str_len (SX_SYSTEM *system, const char *str, unsigned long len);
+extern int sxp_load_file (SX_SYSTEM *system, const char *file);
+extern int sxp_load_string (SX_SYSTEM *system, const char *buffer);
+extern SX_THREAD *sx_pop_call (SX_THREAD *thread);
+extern void sx_pop_value (SX_THREAD *thread, long start, unsigned long len);
+extern SX_THREAD *sx_push_call (SX_THREAD *thread, SX_FUNC *func, SX_VALUE *klass, unsigned long argc);
+extern SX_VALUE *sx_push_value (SX_THREAD *thread, SX_VALUE *value);
+extern int sx_raise_error (SX_THREAD *thread, sx_name_id error, const char *format, ...);
+extern void sx_run (SX_SYSTEM *system, unsigned long max);
+extern void sx_run_gc (SX_SYSTEM *system);
+extern SX_VALUE *sx_run_until (SX_SYSTEM *system, sx_thread_id id);
+extern SX_VALUE *sx_set_index (SX_SYSTEM *system, SX_VALUE *cont, long index, SX_VALUE *value);
+extern SX_VAR *sx_set_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id, SX_VALUE *value);
+extern int sx_set_option (SX_SYSTEM *system, sx_option_type op, long value);
+extern char *sx_strdup (SX_SYSTEM *system, const char *str);
+#define SX_TOARRAY(s) ((SX_ARRAY *)(s))
+#define SX_TOSTRING(s) ((SX_STRING *)(s))
+extern void sx_unlock_value (SX_VALUE *value);
+extern int sx_value_is_a (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *par);

@@ -50,14 +50,19 @@ sx_create_system (void) {
 	system->threads = NULL;
 	system->vars = NULL;
 	system->classes = NULL;
-	system->gc_values = NULL;
+	system->gc_list = NULL;
 	system->flags = 0;
 	system->gc_count = 0;
-	system->gc_thresh = SX_GC_THRESH;
 	system->gc_hook = NULL;
+	system->cur_gc_thresh = SX_DEF_GC_THRESH;
 	system->print_hook = (sx_print_hook)printf;
 	system->error_hook = _sx_default_error_hook;
 	system->valid_threads = 0;
+
+	system->data_chunk = SX_DEF_DATA_CHUNK;
+	system->context_chunk = SX_DEF_CONTEXT_CHUNK;
+	system->block_chunk = SX_DEF_BLOCK_CHUNK;
+	system->gc_thresh = SX_DEF_GC_THRESH;
 
 	sx_init_ids ();
 
@@ -69,11 +74,11 @@ sx_create_system (void) {
 
 	sx_define_system_var (system, sx_name_to_id ("SX_VERSION"), sx_new_str (system, SX_VERSION));
 
-	sx_new_class (system, sx_NameError, system->cerror);
-	sx_new_class (system, sx_TypeError, system->cerror);
-	sx_new_class (system, sx_MemError, system->cerror);
-	sx_new_class (system, sx_StackError, system->cerror);
-	sx_new_class (system, sx_ArgumentError, system->cerror);
+	sx_new_class (system, sx_NameError, NULL, system->cerror);
+	sx_new_class (system, sx_TypeError, NULL, system->cerror);
+	sx_new_class (system, sx_MemError, NULL, system->cerror);
+	sx_new_class (system, sx_StackError, NULL, system->cerror);
+	sx_new_class (system, sx_ArgumentError, NULL, system->cerror);
 
 	return system;
 }
@@ -97,10 +102,10 @@ sx_free_system (SX_SYSTEM *system) {
 		system->vars = rnext;
 	}
 
-	while (system->gc_values) {
-		vnext = system->gc_values->gc_next;
-		sx_free_value (system, system->gc_values);
-		system->gc_values = vnext;
+	while (system->gc_list) {
+		vnext = system->gc_list->next;
+		sx_free_value (system, system->gc_list);
+		system->gc_list = vnext;
 	}
 
 	while (system->classes) {
@@ -112,95 +117,29 @@ sx_free_system (SX_SYSTEM *system) {
 	sx_free (system);
 }
 
-void
-sx_add_gc_value (SX_SYSTEM *system, SX_VALUE *value) {
-	if (system == NULL) {
-		return;
-	}
-	
-	if (SX_ISNUM (system, value) || SX_ISNIL (system, value)) {
-		return;
-	}
-
-	if (value->gc_next != NULL) {
-		return;
-	}
-
-	value->gc_next = system->gc_values;
-	system->gc_values = value;
-	if (++ system->gc_count >= system->gc_thresh) {
-		sx_lock_value (value);
-		sx_run_gc (system);
-		sx_unlock_value (value);
+int
+sx_set_option (SX_SYSTEM *system, sx_option_type opt, long value) {
+	switch (opt) {
+		case SX_OPT_GCTHRESH:
+			system->gc_thresh = value;
+			return 0;
+		case SX_OPT_BLOCKCHUNK:
+			system->block_chunk = value;
+			return 0;
+		case SX_OPT_DATACHUNK:
+			system->data_chunk = value;
+			return 0;
+		case SX_OPT_CONTEXTCHUNK:
+			system->context_chunk = value;
+			return 0;
+		default:
+			/* unknown option */
+			return 1;
 	}
 }
 
 void
-sx_run_gc (SX_SYSTEM *system) {
-	SX_THREAD *thread;
-	SX_VAR *var;
-	SX_VALUE *value, *last;
-	SX_CLASS *klass;
-	SX_FUNC *func;
-
-	if (system->flags & SX_SFLAG_GCOFF) {
-		return;
-	}
-
-	if (system->gc_hook != NULL) {
-		system->gc_hook (system);
-	}
-
-	for (var = system->vars; var != NULL; var = var->next) {
-		sx_mark_value (system, var->value);
-	}
-
-	for (func = system->funcs; func != NULL; func = func->next) {
-		sx_mark_func (system, func);
-	}
-
-	for (klass = system->classes; klass != NULL; klass = klass->next) {
-		sx_mark_class (system, klass);
-	}
-
-	for (thread = system->threads; thread != NULL; thread = thread->next) {
-		sx_mark_thread (thread);
-	}
-
-	value = system->gc_values;
-	while (value != NULL) {
-		if ((value->flags & SX_VFLAG_MARK) == 0 && value->locks > 0) {
-			sx_mark_value (system, value);
-		}
-		value = value->gc_next;
-	}
-
-	last = NULL;
-	value = system->gc_values;
-	while (value != NULL) {
-		if ((value->flags & SX_VFLAG_MARK) == 0) {
-			-- system->gc_count;
-			if (last) {
-				last->gc_next = value->gc_next;
-				sx_free_value (system, value);
-				value = last->gc_next;
-			} else {
-				system->gc_values = value->gc_next;
-				sx_free_value (system, value);
-				value = system->gc_values;
-			}
-		} else {
-			value->flags &= ~SX_VFLAG_MARK;
-			last = value;
-			value = value->gc_next;
-		}
-	}
-
-	system->gc_thresh = system->gc_count >= SX_GC_THRESH ? system->gc_count * 2 : SX_GC_THRESH;
-}
-
-void
-sx_run (SX_SYSTEM *system, unsigned int max) {
+sx_run (SX_SYSTEM *system, unsigned long max) {
 	SX_THREAD *thread, *last;
 	int state;
 
@@ -286,4 +225,68 @@ sx_run_until (SX_SYSTEM *system, sx_thread_id id) {
 	}
 
 	return NULL;
+}
+
+void
+sx_run_gc (SX_SYSTEM *system) {
+	SX_THREAD *thread;
+	SX_VAR *var;
+	SX_VALUE *value, *last;
+	SX_CLASS *klass;
+	SX_FUNC *func;
+
+	if (system->flags & SX_SFLAG_GCOFF) {
+		return;
+	}
+
+	if (system->gc_hook != NULL) {
+		system->gc_hook (system);
+	}
+
+	for (var = system->vars; var != NULL; var = var->next) {
+		sx_mark_value (system, var->value);
+	}
+
+	for (func = system->funcs; func != NULL; func = func->next) {
+		sx_mark_func (system, func);
+	}
+
+	for (klass = system->classes; klass != NULL; klass = klass->next) {
+		sx_mark_class (system, klass);
+	}
+
+	for (thread = system->threads; thread != NULL; thread = thread->next) {
+		sx_mark_thread (thread);
+	}
+
+	value = system->gc_list;
+	while (value != NULL) {
+		if ((value->flags & SX_VFLAG_MARK) == 0 && value->locks > 0) {
+			sx_mark_value (system, value);
+		}
+		value = value->next;
+	}
+
+	last = NULL;
+	value = system->gc_list;
+	while (value != NULL) {
+		if ((value->flags & SX_VFLAG_MARK) == 0) {
+			-- system->gc_count;
+			if (last) {
+				last->next = value->next;
+				sx_free_value (system, value);
+				value = last->next;
+			} else {
+				system->gc_list = value->next;
+				sx_free_value (system, value);
+				value = system->gc_list;
+			}
+		} else {
+			value->flags &= ~SX_VFLAG_MARK;
+			last = value;
+			value = value->next;
+		}
+	}
+
+	system->cur_gc_thresh = system->gc_count >= system->gc_thresh ? system->gc_count * 2 : system->gc_thresh;
 }

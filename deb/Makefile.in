@@ -1,0 +1,9 @@
+all:
+
+clean:
+
+dist-clean:
+
+dist:
+	mkdir ../scriptix/deb/
+	cp -f dirs control.in changelog rules README.debian Makefile.in copyright ../scriptix/deb/

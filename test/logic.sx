@@ -11,7 +11,7 @@ succeed () {
 	return 1;
 }
 
-main (argv) {
-	if ((attempt (argv[1], argv[2]) && succeed())) return 0;
-	if ((attempt (argv[1], argv[2]) || fail())) return 1;
+main (one, two) {
+	if ((attempt (one, two) && succeed())) return 0;
+	if ((attempt (one, two) || fail())) return 1;
 }

@@ -41,7 +41,7 @@ SX_DEFINE_CFUNC (sx_stdlib_print) {
 }
 
 SX_DEFINE_CFUNC (sx_stdlib_printl) {
-	sx_stdlib_print (sx_thread, sx_self, sx_data, sx_argc);
+	sx_stdlib_print (sx_thread, sx_self, sx_argc);
 	sx_thread->system->print_hook ("\r\n");
 	sx_push_value (sx_thread, NULL);
 }
@@ -52,7 +52,7 @@ SX_DEFINE_CFUNC (sx_stdlib_get_tid) {
 
 void
 sx_init_stdlib (SX_SYSTEM *system) {
-	sx_new_cfunc (system, sx_name_to_id ("print"), sx_stdlib_print, NULL);
-	sx_new_cfunc (system, sx_name_to_id ("printl"), sx_stdlib_printl, NULL);
-	sx_new_cfunc (system, sx_name_to_id ("get_tid"), sx_stdlib_get_tid, NULL);
+	sx_add_func (system, sx_new_cfunc (system, sx_name_to_id ("print"), 0, 1, sx_stdlib_print));
+	sx_add_func (system, sx_new_cfunc (system, sx_name_to_id ("printl"), 0, 1, sx_stdlib_printl));
+	sx_add_func (system, sx_new_cfunc (system, sx_name_to_id ("get_tid"), 0, 0, sx_stdlib_get_tid));
 }

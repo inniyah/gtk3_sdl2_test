@@ -34,12 +34,12 @@ libsxparse.a: $(YYOBJ)
 	$(AR) -cr $@ $^
 
 libscriptix.so.@BASE_VERSION@: $(SOSXOBJ)
-	$(CC) -shared -Wl,--soname,libscriptix.so.0 -o $@ $^
+	$(CC) -shared -Wl,--soname,$@ -o $@ $^
 	ln -sf $@ libscriptix.so.0
 	ln -sf libscriptix.so.0 libscriptix.so
 
 libsxparse.so.@BASE_VERSION@: $(SOYYOBJ)
-	$(CC) -shared -Wl,--soname,libsxparse.so.0 -o $@ $^
+	$(CC) -shared -Wl,--soname,$@ -o $@ $^
 	ln -sf $@ libsxparse.so.0
 	ln -sf libsxparse.so.0 libsxparse.so
 

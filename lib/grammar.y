@@ -44,11 +44,6 @@
 	int sxlex (void);
 
 	SXP_INFO *parse_info = NULL;
-
-	extern FILE *sxin;
-	int sxparse (void);
-
-	extern const char *sx_parser_inbuf;
 %}
 
 %union {
@@ -56,12 +51,13 @@
 	SX_VALUE *value;
 	char name[SX_MAX_NAME + 1];
 	sx_name_id id;
+	struct _sxp_arg_list args;
 }
 
 %token<value> TNUM TSTR
 %token<name> TNAME
 %token TIF TELSE TWHILE TDO TAND TOR TGTE TLTE TNE TSTATMETHOD
-%token TRETURN TBREAK TLOCAL TGLOBAL TEQUALS TCONTINUE
+%token TRETURN TBREAK TLOCAL TGLOBAL TEQUALS TCONTINUE TSUPER
 %token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT TSTATIC
 %token TCLASS TNEW TUNTIL TNIL TRAISE TRESCUE TTRY TIN TFOR
 
@@ -82,8 +78,9 @@
 %nonassoc TELSE
 
 %type<node> node args block stmts stmt control expr
-%type<value> arg_names errors
+%type<value> arg_names_list errors data
 %type<id> name
+%type<args> arg_names
 
 %%
 program:
@@ -99,11 +96,17 @@ cblock:	cstmt
 	| cblock cstmt
 	;
 
-cstmt:	name '(' arg_names ')' '{' block '}' { sxp_add_method (parse_info->classes, $1, (SX_ARRAY *)$3, $6); }
-	| TSTATIC name '(' arg_names ')' '{' block '}' { sxp_add_static_method (parse_info->classes, $2, (SX_ARRAY *)$4, $7); }
+cstmt:	name '(' arg_names ')' '{' block '}' { sxp_add_method (parse_info->classes, $1, (SX_ARRAY *)$3.args, $3.varg, $6); }
+	| TSTATIC name '(' arg_names ')' '{' block '}' { sxp_add_static_method (parse_info->classes, $2, (SX_ARRAY *)$4.args, $4.varg, $7); }
+	| name ';' { 
+		if (parse_info->classes->members == NULL) {
+			parse_info->classes->members = (SX_ARRAY *)sx_new_array (parse_info->system, 0, NULL);
+		}
+		sx_append (parse_info->system, (SX_VALUE *)parse_info->classes->members, sx_new_num ($1));
+	}
 	;
 
-function: name '(' arg_names ')' '{' block '}' { sxp_new_func (parse_info, $1, (SX_ARRAY *)$3, $6); }
+function: name '(' arg_names ')' '{' block '}' { sxp_new_func (parse_info, $1, (SX_ARRAY *)$3.args, $3.varg, $6); }
 	;
 
 block: { $$ = NULL; }
@@ -148,9 +151,14 @@ args: { $$ = NULL; }
 	| args ',' expr { $$ = $1; sxp_append ($$, $3); }
 	;
 
-arg_names: { $$ = NULL; }
-	| name { $$ = sx_append (parse_info->system, sx_new_array (parse_info->system, 0, NULL), sx_new_num ($1)); }
-	| arg_names ',' name { $$ = sx_append (parse_info->system, $1, sx_new_num ($3)); }
+arg_names: { $$.args = NULL; $$.varg = 0; }
+	| arg_names_list { $$.args = $1; $$.varg = 0; }
+	| arg_names_list ',' '&' name { $$.args = $1; $$.varg = $4; }
+	| '&' name { $$.args = NULL; $$.varg = $2; }
+	;
+
+arg_names_list: name { $$ = sx_append (parse_info->system, sx_new_array (parse_info->system, 0, NULL), sx_new_num ($1)); }
+	| arg_names_list ',' name { $$ = sx_append (parse_info->system, $1, sx_new_num ($3)); }
 	;
 
 errors: { $$ = NULL; }
@@ -192,6 +200,7 @@ expr:	expr '+' expr { $$ = sxp_new_math (parse_info, SX_OP_ADD, $1, $3); }
 	
 	| expr TISA name { $$ = sxp_new_isa (parse_info, $1, $3); }
 	| name '(' args ')' { $$ = sxp_new_call (parse_info, $1, $3); }
+	| TSUPER '(' args ')' { $$ = sxp_new_supr (parse_info, $3); }
 
 	| name TSTATMETHOD name '(' args ')' { $$ = sxp_new_smet (parse_info, $1, $3, $5); }
 	| expr '.' name '(' args ')' { $$ = sxp_new_meth (parse_info, $1, $3, $5); }
@@ -200,14 +209,18 @@ expr:	expr '+' expr { $$ = sxp_new_math (parse_info, SX_OP_ADD, $1, $3); }
 
 	| expr '[' expr ']' { $$ = sxp_new_indx (parse_info, $1, $3); }
 	| '[' args ']' { $$ = sxp_new_arry (parse_info, $2); }
-	
-	| TNUM { $$ = sxp_new_data (parse_info, $1);  }
-	| TSTR { $$ = sxp_new_data (parse_info, $1); }
-	| TNIL { $$ = sxp_new_data (parse_info, NULL); }
+
+	| data { $$ = sxp_new_data (parse_info, $1); }
 
 	| name { $$ = sxp_new_name (parse_info, $1, SX_SCOPE_DEF); }
 	| TLOCAL name { $$ = sxp_new_name (parse_info, $2, SX_SCOPE_LOCAL); }
 	| TGLOBAL name { $$ = sxp_new_name (parse_info, $2, SX_SCOPE_GLOBAL); }
+	;
+
+	
+data:	TNUM { $$ = $1;  }
+	| TSTR { $$ = $1; }
+	| TNIL { $$ = NULL; }
 	;
 
 name:	TNAME { $$ = sx_name_to_id ($1); }
@@ -238,7 +251,7 @@ sxwrap (void) {
 }
 
 int
-sx_load_file (SX_SYSTEM *system, const char *file) {
+sxp_load_file (SX_SYSTEM *system, const char *file) {
 	int ret, flags;
 
 	if (file == NULL) {
@@ -247,7 +260,7 @@ sx_load_file (SX_SYSTEM *system, const char *file) {
 		sxin = fopen (file, "r");
 		if (sxin == NULL) {
 			fprintf (stderr, "Could not open '%s'\n", file);
-			return 0;
+			return 1;
 		}
 	}
 
@@ -285,7 +298,7 @@ sx_load_file (SX_SYSTEM *system, const char *file) {
 }
 
 int
-sx_load_string (SX_SYSTEM *system, const char *buf) {
+sxp_load_string (SX_SYSTEM *system, const char *buf) {
 	int ret, flags;
 
 	if (buf == NULL) {

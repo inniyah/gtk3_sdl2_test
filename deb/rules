@@ -3,6 +3,11 @@
 # based on the sample debian/rules file for GNU hello by Ian Jackson.
 
 package=scriptix
+BV=$(shell cat debian/version-info | grep BASE_VERSION | sed 's/BASE_VERSION=//')
+
+devpkg=libscriptix-dev
+libpkg=libscriptix$(BV)
+binpkg=scriptix
 
 build:
 	$(checkdir)
@@ -16,7 +21,7 @@ clean:
 	-rm -f build
 	-$(MAKE) clean
 	-rm -f `find . -name "*~"`
-	-rm -rf debian/tmp debian/files* core debian/substvars
+	-rm -rf debian/tmp debian/$(devpkg) debian/$(libpkg) debian/files* core debian/substvars
 
 binary-indep: checkroot build
 	$(checkdir)
@@ -30,14 +35,27 @@ binary-arch: checkroot build
 	install -d debian/tmp
 	cd debian/tmp && install -d `cat ../dirs`
 	$(MAKE) install DESTDIR=`pwd`/debian/tmp
-	rm -f `pwd`/debian/tmp/usr/share/doc/scriptix/COPYING
+	ln -s tmp debian/$(binpkg)
+	install -D -d debian/$(devpkg)/usr/lib
+	install -D -d debian/$(devpkg)/usr/include/scriptix
+	install -D -d debian/$(libpkg)/usr/lib
+	mv debian/tmp/usr/include/scriptix/*.h debian/$(devpkg)/usr/include/scriptix
+	mv debian/tmp/usr/lib/*.a debian/$(devpkg)/usr/lib
+	mv debian/tmp/usr/lib/*.so.$(BV) debian/$(libpkg)/usr/lib
+	rm -rf debian/tmp/usr/include
+	rm -rf debian/tmp/usr/lib
+	rm -f debian/tmp/usr/share/doc/scriptix/COPYING
 # Must have debmake installed for this to work. Otherwise please copy
 # /usr/bin/debstd into the debian directory and change debstd to debian/debstd
-	debstd README 
-	dpkg-gencontrol -isp
-	chown -R root.root debian/tmp
-	chmod -R go=rX debian/tmp
-	dpkg --build debian/tmp ..
+	debstd -u README 
+	dpkg-gencontrol -isp -Pdebian/$(binpkg) -p$(binpkg)
+	dpkg-gencontrol -isp -Pdebian/$(devpkg) -p$(devpkg)
+	dpkg-gencontrol -isp -Pdebian/$(libpkg) -p$(libpkg)
+	chown -R root.root debian/$(binpkg) debian/$(devpkg) debian/$(libpkg)
+	chmod -R go=rX debian/$(binpkg) debian/$(devpkg) debian/$(libpkg)
+	dpkg --build debian/$(binpkg) ..
+	dpkg --build debian/$(devpkg) ..
+	dpkg --build debian/$(libpkg) ..
 
 define checkdir
 	test -f debian/rules

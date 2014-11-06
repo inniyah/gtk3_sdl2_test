@@ -33,6 +33,8 @@ rm -rf $RPM_BUILD_ROOT
 /usr/bin/scriptix-conf
 /usr/include/scriptix/scriptix.h
 /usr/include/scriptix/config.h
+/usr/include/scriptix/parser.h
+/usr/include/scriptix/system.h
 /usr/lib/libscriptix.a
 /usr/lib/libsxparse.a
 /usr/lib/libscriptix.so.@BASE_VERSION@

@@ -60,6 +60,7 @@
 #define SXP_CFOR 30
 #define SXP_CONT 31
 #define SXP_SMET 32
+#define SXP_SUPR 33
 
 #define SXP_W_WD 1
 #define SXP_W_DW 2
@@ -87,6 +88,7 @@ struct scriptix_parse_jump {
 struct scriptix_parse_function {
 	sx_name_id name;
 	SX_ARRAY *args;
+	sx_name_id varg;
 	SXP_NODE *body;
 	SXP_FUNC *next;
 };
@@ -97,6 +99,7 @@ struct scriptix_parse_class {
 	sx_name_id parent;
 	SXP_FUNC *methods;
 	SXP_FUNC *static_methods;
+	SX_ARRAY *members;
 	SXP_CLASS *next;
 };
 
@@ -220,11 +223,11 @@ SXP_INFO *sxp_new_info (SX_SYSTEM *system);
 void sxp_del_info (SXP_INFO *info);
 
 SXP_CLASS *sxp_new_class (SXP_INFO *info, sx_name_id name, sx_name_id parent);
-void sxp_add_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, SXP_NODE *body);
-void sxp_add_static_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, SXP_NODE *body);
+void sxp_add_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, sx_name_id varg, SXP_NODE *body);
+void sxp_add_static_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, sx_name_id varg, SXP_NODE *body);
 void sxp_del_class (SXP_CLASS *klass);
 
-SXP_FUNC *sxp_new_func (SXP_INFO *info, sx_name_id name, SX_ARRAY *args, SXP_NODE *body);
+SXP_FUNC *sxp_new_func (SXP_INFO *info, sx_name_id name, SX_ARRAY *args, sx_name_id varg, SXP_NODE *body);
 void sxp_del_func (SXP_FUNC *func);
 
 SXP_JUMP *sxp_new_break (SXP_INFO *info, unsigned long loc);
@@ -237,8 +240,8 @@ void sxp_pop_block (SXP_INFO *info, SX_BLOCK *block, unsigned long breakl, unsig
 
 extern SXP_NODE *sxp_new_math (SXP_INFO *info, int op, SXP_NODE *left, SXP_NODE *right);
 extern SXP_NODE *sxp_new_data (SXP_INFO *info, SX_VALUE *value);
+extern SXP_NODE *sxp_new_nega (SXP_INFO *info, SXP_NODE *node);
 extern SXP_NODE *sxp_new_nodet (SXP_INFO *info, SXP_NODE *node, int type);
-#define sxp_new_nega(i,n) sxp_new_nodet((i), (n),SXP_NEGA)
 #define sxp_new_not(i,n) sxp_new_nodet((i), (n),SXP_NOT)
 extern SXP_NODE *sxp_new_logic (SXP_INFO *info, SXP_NODE *left, SXP_NODE *right, int type);
 #define sxp_new_and(i,l,r) sxp_new_logic((i), (l),(r),SXP_AND)
@@ -271,9 +274,23 @@ extern SXP_NODE *sxp_new_try (SXP_INFO *info, SX_VALUE *names, SXP_NODE *body, S
 extern SXP_NODE *sxp_new_for (SXP_INFO *info, sx_name_id name, SXP_NODE *node, SXP_NODE *body);
 extern SXP_NODE *sxp_new_cfor (SXP_INFO *info, SXP_NODE *start, SXP_NODE *test, SXP_NODE *inc, SXP_NODE *body);
 extern SXP_NODE *sxp_new_cont (SXP_INFO *info);
+extern SXP_NODE *sxp_new_supr (SXP_INFO *info, SXP_NODE *args);
 
 extern SXP_NODE *sxp_append (SXP_NODE *base, SXP_NODE *add);
 
 extern int sxp_compile (SXP_INFO *info);
+
+/* globals for during compilation */
+extern SXP_INFO *parse_info;
+extern FILE *sxin;
+extern const char *sx_parser_inbuf;
+
+extern __INLINE__ void parser_add_line (void);
+int sxparse (void);
+
+struct _sxp_arg_list {
+	SX_VALUE *args;
+	sx_name_id varg;
+};
 
 #endif

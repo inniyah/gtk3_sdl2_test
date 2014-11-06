@@ -53,7 +53,7 @@ _sx_array_new (SX_SYSTEM *system, SX_CLASS *klass) {
 
 void
 _sx_array_print (SX_SYSTEM *system, SX_ARRAY *value) {
-	unsigned int i;
+	unsigned long i;
 	if (value->count > 0) {
 		system->print_hook ("[");
 		sx_print_value (system, value->list[0]);
@@ -69,7 +69,7 @@ _sx_array_print (SX_SYSTEM *system, SX_ARRAY *value) {
 
 void
 _sx_array_mark (SX_SYSTEM *system, SX_ARRAY *value) {
-	unsigned int i;
+	unsigned long i;
 	for (i = 0; i < value->count; ++ i) {
 		sx_mark_value (system, value->list[i]);
 	}
@@ -89,7 +89,7 @@ _sx_array_true (SX_SYSTEM *system, SX_ARRAY *value) {
 }
 
 SX_VALUE *
-_sx_array_get_index (SX_SYSTEM *system, SX_ARRAY *value, int index) {
+_sx_array_get_index (SX_SYSTEM *system, SX_ARRAY *value, long index) {
 	if (value->count == 0) {
 		return sx_new_nil ();
 	}
@@ -107,7 +107,7 @@ _sx_array_get_index (SX_SYSTEM *system, SX_ARRAY *value, int index) {
 }
 
 SX_VALUE *
-_sx_array_set_index (SX_SYSTEM *system, SX_ARRAY *array, int index, SX_VALUE *value) {
+_sx_array_set_index (SX_SYSTEM *system, SX_ARRAY *array, long index, SX_VALUE *value) {
 	if (array->count == 0) {
 		return sx_new_nil ();
 	}
@@ -158,11 +158,17 @@ _sx_array_append (SX_SYSTEM *system, SX_ARRAY *array, SX_VALUE *add) {
 	return (SX_VALUE *)array;
 }
 
+/* methods */
+
+SX_DEFINE_CFUNC(_sx_array_length) {
+	sx_push_value (sx_thread, sx_new_num (((SX_ARRAY *)sx_self)->count));
+}
+
 SX_CLASS *
 sx_init_array (SX_SYSTEM *system) {
 	SX_CLASS *klass;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("array"));
+	klass = sx_new_core_class (system, sx_name_to_id ("array"), NULL);
 	if (klass == NULL) {
 		return NULL;
 	}
@@ -176,11 +182,13 @@ sx_init_array (SX_SYSTEM *system) {
 	klass->core->fsetindex = (sx_class_set_index)_sx_array_set_index;
 	klass->core->fappend = (sx_class_append)_sx_array_append;
 
+	sx_add_method (system, klass, sx_new_cfunc (system, sx_name_to_id ("length"), 0, 0, _sx_array_length));
+
 	return klass;
 }
 
 SX_VALUE *
-sx_new_array (SX_SYSTEM *system, unsigned int argc, SX_VALUE **argv) {
+sx_new_array (SX_SYSTEM *system, unsigned long argc, SX_VALUE **argv) {
 	SX_ARRAY *value = (SX_ARRAY *)sx_malloc (system, sizeof (SX_ARRAY));
 	if (value == NULL) {
 		return NULL;

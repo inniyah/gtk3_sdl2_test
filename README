@@ -4,7 +4,7 @@ information regarding the licensing terms and warranty for this software
 
 Scriptix is a simple extension language (not to be confused with a full-scale
 programming language).  The intent of Scriptix is to allow easy, fast,
-powerful scripting/plugin support for any application.
+and powerful scripting support for any application.
 
 The list of current Scriptix features include:
 
@@ -18,17 +18,9 @@ The list of current Scriptix features include:
 	Exceptions
 	While/until/do/for loops and blocks
 
-Features you won't likely see, ever, as they are unnecessary overkill:
-
-	Script-defined operator overloading
-	In-script module loading/including/requiring
-	Virtual variables
-	Weird/unusual built-in datatypes
-	OS/System interfaces
-	Massively large standard library/class system
-
 Planned/future features (i.e. Todo list):
 
+	Documentation
 	Advanced thread control
 	A moderate standard library, useful for simple embedding purposes
 	Optimization system
@@ -37,6 +29,15 @@ Planned/future features (i.e. Todo list):
 	Regular expressions
 	Floating-point and bignum support
 	Better error system for C functions
+
+Features you won't likely see, ever, as they are unnecessary overkill:
+
+	Script-defined operator overloading
+	In-script module loading/including/requiring
+	Virtual variables
+	Weird/unusual built-in datatypes
+	OS/System interfaces
+	Massively large standard library/class system
 
 Model:
 Scriptix is based on a byte-code interpreter.  The compiler parses the input

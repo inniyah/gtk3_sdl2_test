@@ -132,8 +132,12 @@ SX_DEFINE_CFUNC(_sx_str_concat) {
 	return;
 }
 
+SX_DEFINE_CFUNC(_sx_str_method_to_num) {
+	sx_push_value (sx_thread, _sx_str_to_num (sx_thread->system, (SX_STRING *)sx_self));
+}
+
 SX_VALUE *
-_sx_str_get_index (SX_SYSTEM *system, SX_STRING *value, int index) {
+_sx_str_get_index (SX_SYSTEM *system, SX_STRING *value, long index) {
 	if (value->len == 0) {
 		return sx_new_str (system, NULL);
 	}
@@ -154,7 +158,7 @@ SX_CLASS *
 sx_init_string (SX_SYSTEM *system) {
 	SX_CLASS *klass;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("String"));
+	klass = sx_new_core_class (system, sx_name_to_id ("String"), NULL);
 	if (klass == NULL) {
 		return NULL;
 	}
@@ -167,8 +171,9 @@ sx_init_string (SX_SYSTEM *system) {
 	klass->core->ftrue = (sx_class_true)_sx_str_true;
 	klass->core->fgetindex = (sx_class_get_index)_sx_str_get_index;
 
-	sx_add_cmethod (system, klass, sx_name_to_id ("length"), _sx_str_length, NULL);
-	sx_add_static_cmethod (system, klass, sx_name_to_id ("concat"), _sx_str_concat, NULL);
+	sx_add_method (system, klass, sx_new_cfunc (system, sx_name_to_id ("length"), 0, 0, _sx_str_length));
+	sx_add_method (system, klass, sx_new_cfunc (system, sx_name_to_id ("to_num"), 0, 0, _sx_str_method_to_num));
+	sx_add_static_method (system, klass, sx_new_cfunc (system, sx_name_to_id ("concat"), 2, 0, _sx_str_concat));
 
 	return klass;
 }
@@ -176,7 +181,7 @@ sx_init_string (SX_SYSTEM *system) {
 SX_VALUE *
 sx_new_str (SX_SYSTEM *system, const char *str) {
 	SX_STRING *value;
-	unsigned int len;
+	unsigned long len;
 	
 	if (str == NULL) {
 		len = 0;
@@ -203,7 +208,7 @@ sx_new_str (SX_SYSTEM *system, const char *str) {
 }
 
 SX_VALUE *
-sx_new_str_len (SX_SYSTEM *system, const char *str, unsigned int len) {
+sx_new_str_len (SX_SYSTEM *system, const char *str, unsigned long len) {
 	SX_STRING *value;
 	
 	value = (SX_STRING *)sx_malloc (system, sizeof (SX_STRING) + (len + 1) * sizeof (char));

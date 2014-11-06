@@ -5,8 +5,13 @@ fact (arg) {
 		return arg * fact (arg - 1);
 }
 
-main (argv) {
-	max = 0 + argv[1]; # convert to number
+main (&argv) {
+	if (argv.length () != 1) {
+		printl ('Usage: fact.sx <value>');
+		return;
+	}
+
+	max = argv[0].to_num ();
 
 	num = 0;
 	while (fact (num + 1) <= max)

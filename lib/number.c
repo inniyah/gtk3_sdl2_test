@@ -51,7 +51,7 @@ SX_CLASS *
 sx_init_number (SX_SYSTEM *system) {
 	SX_CLASS *klass;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("Number"));
+	klass = sx_new_core_class (system, sx_name_to_id ("Number"), NULL);
 	if (klass == NULL) {
 		return NULL;
 	}

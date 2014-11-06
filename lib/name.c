@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "scriptix.h"
 #include "config.h"
@@ -81,7 +82,7 @@ sx_name_to_id (const char *name) {
 }
 
 const char *
-sx_name_id_to_name (unsigned int id) {
+sx_name_id_to_name (sx_name_id id) {
 	struct _scriptix_name_id *ni;
 
 	if (!id) {
@@ -114,4 +115,79 @@ sx_init_ids (void) {
 	sx_NameError = sx_name_to_id ("NameError");
 	sx_ArgumentError = sx_name_to_id ("ArgumentError");
 	sx_MemError = sx_name_to_id ("MemError");
+}
+
+sx_name_id *
+sx_new_namelist (SX_SYSTEM *system, unsigned long argc, ...) {
+	sx_name_id *list;
+	va_list va;
+	unsigned long i;
+
+	if (argc == 0) {
+		return NULL;
+	}
+
+	list = sx_malloc (system, (argc + 1) * sizeof (sx_name_id));
+	if (list == NULL) {
+		return NULL;
+	}
+
+	va_start (va, argc);
+	for (i = 0; i < argc; ++ i) {
+		list[i] = va_arg (va, sx_name_id);
+	}
+	va_end (va);
+
+	list[i] = 0;
+
+	return list;
+}
+
+sx_name_id *
+sx_new_namelist_from_array (SX_SYSTEM *system, SX_ARRAY *array) {
+	sx_name_id *list;
+	unsigned long i;
+
+	if (array == NULL) {
+		return NULL;
+	}
+
+	if (array->count == 0) {
+		return NULL;
+	}
+
+	sx_lock_value ((SX_VALUE *)array);
+	list = sx_malloc (system, (array->count + 1) * sizeof (sx_name_id));
+	sx_unlock_value ((SX_VALUE *)array);
+	if (list == NULL) {
+		return NULL;
+	}
+
+	for (i = 0; i < array->count; ++ i) {
+		list[i] = SX_TOINT (array->list[i]);
+	}
+	list[i] = 0;
+	
+	return list;
+}
+
+unsigned long
+sx_sizeof_namelist (sx_name_id *list) {
+	unsigned long argc;
+
+	if (!list)
+		return 0;
+
+	for (argc = 0; list[argc] != 0; ++ argc)
+		;
+
+	return argc;
+
+}
+
+void
+sx_free_namelist (sx_name_id *list) {
+	if (list != NULL) {
+		sx_free (list);
+	}
 }

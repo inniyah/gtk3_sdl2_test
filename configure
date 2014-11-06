@@ -523,8 +523,8 @@ fi
 
 
 
-BASE_VERSION=0.17
-VERSION=0.17
+BASE_VERSION=0.18
+VERSION=0.18
 
 
 cat >> confdefs.h <<EOF
@@ -1003,6 +1003,8 @@ ac_given_srcdir=$srcdir
 trap 'rm -fr `echo "Makefile
 	lib/Makefile
 	bin/Makefile
+	deb/Makefile
+	deb/control
 	scriptix-conf
 	scriptix.spec
  include/config.h" | sed "s/:[^ ]*//g"` conftest*; exit 1' 1 2 15
@@ -1084,6 +1086,8 @@ cat >> $CONFIG_STATUS <<EOF
 CONFIG_FILES=\${CONFIG_FILES-"Makefile
 	lib/Makefile
 	bin/Makefile
+	deb/Makefile
+	deb/control
 	scriptix-conf
 	scriptix.spec
 "}
@@ -1261,3 +1265,6 @@ test "$no_create" = yes || ${CONFIG_SHELL-/bin/sh} $CONFIG_STATUS || exit 1
 
 
 chmod +x scriptix-conf
+
+echo "VERSION=$VERSION" > deb/version-info
+echo "BASE_VERSION=$BASE_VERSION" >> deb/version-info

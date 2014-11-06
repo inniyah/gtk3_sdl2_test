@@ -72,7 +72,7 @@ SX_CLASS *
 sx_init_block (SX_SYSTEM *system) {
 	SX_CLASS *klass;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("block"));
+	klass = sx_new_core_class (system, sx_name_to_id ("block"), NULL);
 	if (klass == NULL) {
 		return NULL;
 	}
@@ -101,14 +101,14 @@ sx_new_block (SX_SYSTEM *system) {
 }
 
 SX_VALUE *
-sx_add_to_block (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *value, int op) {
+sx_add_to_block (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *value, sx_op_type op) {
 	struct _scriptix_node *sx_new_nodes;
 
 	if (SX_ISBLOCK (system, block)) {
 		if (SX_TOBLOCK(block)->count == SX_TOBLOCK(block)->size) {
 			sx_lock_value (block);
 			sx_lock_value (value);
-			sx_new_nodes = sx_malloc (system, sizeof (struct _scriptix_node) * (SX_TOBLOCK(block)->count + SX_BLOCK_CHUNK));
+			sx_new_nodes = sx_malloc (system, sizeof (struct _scriptix_node) * (SX_TOBLOCK(block)->count + system->block_chunk));
 			sx_unlock_value (block);
 			sx_unlock_value (value);
 			if (sx_new_nodes == NULL) {
@@ -120,7 +120,7 @@ sx_add_to_block (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *value, int op) {
 				sx_free (SX_TOBLOCK(block)->nodes);
 			}
 			SX_TOBLOCK(block)->nodes = sx_new_nodes;
-			SX_TOBLOCK(block)->size += SX_BLOCK_CHUNK;
+			SX_TOBLOCK(block)->size += system->block_chunk;
 		}
 		SX_TOBLOCK(block)->nodes[SX_TOBLOCK(block)->count].value = value;
 		SX_TOBLOCK(block)->nodes[SX_TOBLOCK(block)->count].op = op;

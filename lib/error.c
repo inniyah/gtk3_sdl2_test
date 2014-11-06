@@ -82,7 +82,7 @@ SX_CLASS *
 sx_init_error (SX_SYSTEM *system) {
 	SX_CLASS *klass;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("Error"));
+	klass = sx_new_core_class (system, sx_name_to_id ("Error"), NULL);
 	if (klass == NULL) {
 		return NULL;
 	}
@@ -116,6 +116,7 @@ SX_VALUE *
 sx_new_error (SX_THREAD *thread, sx_name_id id, SX_VALUE *value) {
 	SX_ERROR *error;
 	SX_CLASS *klass;
+	SX_CALL *call;
 
 	klass = sx_get_class (thread->system, id);
 	if (!sx_class_is_a (thread->system, klass, thread->system->cerror)) {
@@ -129,9 +130,11 @@ sx_new_error (SX_THREAD *thread, sx_name_id id, SX_VALUE *value) {
 		return NULL;
 	}
 
-	error->line = thread->line;
-	if (thread->file)
-		error->file = thread->file;
+	call = sx_get_call (thread);
+
+	error->line = call->line;
+	if (call->file)
+		error->file = call->file;
 	else
 		error->file = sx_new_str (thread->system, "<unknown>");
 	error->data = value;

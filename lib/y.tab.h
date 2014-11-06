@@ -7,6 +7,7 @@ typedef union {
 	SX_VALUE *value;
 	char name[SX_MAX_NAME + 1];
 	sx_name_id id;
+	struct _sxp_arg_list args;
 } yystype;
 # define YYSTYPE yystype
 # define YYSTYPE_IS_TRIVIAL 1
@@ -30,24 +31,25 @@ typedef union {
 # define	TGLOBAL	273
 # define	TEQUALS	274
 # define	TCONTINUE	275
-# define	TADDASSIGN	276
-# define	TSUBASSIGN	277
-# define	TINCREMENT	278
-# define	TDECREMENT	279
-# define	TSTATIC	280
-# define	TCLASS	281
-# define	TNEW	282
-# define	TUNTIL	283
-# define	TNIL	284
-# define	TRAISE	285
-# define	TRESCUE	286
-# define	TTRY	287
-# define	TIN	288
-# define	TFOR	289
-# define	TISA	290
-# define	TLENGTH	291
-# define	TRANGE	292
-# define	CUNARY	293
+# define	TSUPER	276
+# define	TADDASSIGN	277
+# define	TSUBASSIGN	278
+# define	TINCREMENT	279
+# define	TDECREMENT	280
+# define	TSTATIC	281
+# define	TCLASS	282
+# define	TNEW	283
+# define	TUNTIL	284
+# define	TNIL	285
+# define	TRAISE	286
+# define	TRESCUE	287
+# define	TTRY	288
+# define	TIN	289
+# define	TFOR	290
+# define	TISA	291
+# define	TLENGTH	292
+# define	TRANGE	293
+# define	CUNARY	294
 
 
 extern YYSTYPE sxlval;

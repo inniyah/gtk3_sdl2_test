@@ -34,7 +34,7 @@
 
 __INLINE__
 SX_VAR *
-_sx_search_call (SX_CALL *call, unsigned int id) {
+_sx_search_call (SX_CALL *call, sx_name_id id) {
 	SX_VAR *var;
 
 	for (var = call->vars; var != NULL; var = var->next) {
@@ -47,7 +47,7 @@ _sx_search_call (SX_CALL *call, unsigned int id) {
 }
 
 SX_VALUE *
-sx_define_var (SX_THREAD *thread, unsigned int id, SX_VALUE *value, int scope) {
+sx_define_var (SX_THREAD *thread, sx_name_id id, SX_VALUE *value, sx_scope_type scope) {
 	SX_VAR *var;
 
 	if (scope == SX_SCOPE_GLOBAL) {
@@ -88,7 +88,7 @@ sx_define_var (SX_THREAD *thread, unsigned int id, SX_VALUE *value, int scope) {
 }
 
 SX_VALUE *
-sx_define_system_var (SX_SYSTEM *system, unsigned int id, SX_VALUE *value) {
+sx_define_system_var (SX_SYSTEM *system, sx_name_id id, SX_VALUE *value) {
 	SX_VAR *var;
 
 	for (var = system->vars; var != NULL; var = var->next) {
@@ -116,7 +116,7 @@ sx_define_system_var (SX_SYSTEM *system, unsigned int id, SX_VALUE *value) {
 }
 
 SX_VAR *
-sx_get_var (SX_THREAD *thread, unsigned int id, int scope) {
+sx_get_var (SX_THREAD *thread, sx_name_id id, sx_scope_type scope) {
 	SX_VAR *var;
 
 	/* local search only */
@@ -157,7 +157,7 @@ sx_get_var (SX_THREAD *thread, unsigned int id, int scope) {
 }
 
 SX_VAR *
-sx_get_system_var (SX_SYSTEM *system, unsigned int id) {
+sx_get_system_var (SX_SYSTEM *system, sx_name_id id) {
 	SX_VAR *var;
 	for (var = system->vars; var != NULL; var = var->next) {
 		if (id == var->id) {

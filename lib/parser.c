@@ -103,6 +103,7 @@ sxp_new_class (SXP_INFO *info, sx_name_id name, sx_name_id parent) {
 	klass->static_methods = NULL;
 	klass->name = name;
 	klass->parent = parent;
+	klass->members = NULL;
 	klass->next = info->classes;
 	info->classes = klass;
 
@@ -110,7 +111,7 @@ sxp_new_class (SXP_INFO *info, sx_name_id name, sx_name_id parent) {
 }
 
 void
-sxp_add_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, SXP_NODE *body) {
+sxp_add_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, sx_name_id varg, SXP_NODE *body) {
 	SXP_FUNC *func = sx_malloc (klass->info->system, sizeof (SXP_FUNC));
 	if (!func)
 		return;
@@ -118,13 +119,14 @@ sxp_add_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, SXP_NODE *bod
 	func->name = name;
 	func->args = args;
 	func->body = body;
+	func->varg = varg;
 
 	func->next = klass->methods;
 	klass->methods = func;
 }
 
 void
-sxp_add_static_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, SXP_NODE *body) {
+sxp_add_static_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, sx_name_id varg, SXP_NODE *body) {
 	SXP_FUNC *func = sx_malloc (klass->info->system, sizeof (SXP_FUNC));
 	if (!func)
 		return;
@@ -132,6 +134,7 @@ sxp_add_static_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, SXP_NO
 	func->name = name;
 	func->args = args;
 	func->body = body;
+	func->varg = varg;
 
 	func->next = klass->static_methods;
 	klass->static_methods = func;
@@ -157,13 +160,14 @@ sxp_del_class (SXP_CLASS *klass) {
 }
 
 SXP_FUNC *
-sxp_new_func (SXP_INFO *info, sx_name_id name, SX_ARRAY *args, SXP_NODE *body) {
+sxp_new_func (SXP_INFO *info, sx_name_id name, SX_ARRAY *args, sx_name_id varg, SXP_NODE *body) {
 	SXP_FUNC *func = sx_malloc (info->system, sizeof (SXP_FUNC));
 	if (!func)
 		return NULL;
 
 	func->name = name;
 	func->args = args;
+	func->varg = varg;
 	func->body = body;
 
 	func->next = info->funcs;
@@ -323,6 +327,19 @@ sxp_new_data (SXP_INFO *info, SX_VALUE *value) {
 	SXP_NODE *node = _sxp_new_node (info, SXP_DATA);
 	node->data.data = value;
 	return node;
+}
+
+SXP_NODE *
+sxp_new_nega (SXP_INFO *info, SXP_NODE *node) {
+	/* hack to speed up negative numbers */
+	if (node->type == SXP_DATA && SX_ISNUM (info->system, node->data.data)) {
+		node->data.data = sx_new_num (- SX_TOINT (node->data.data));
+		return node;
+	} else {
+		SXP_NODE *ret = _sxp_new_node (info, SXP_NEGA);
+		ret->data.node = node;
+		return ret;
+	}
 }
 
 SXP_NODE *
@@ -510,6 +527,13 @@ sxp_new_smet (SXP_INFO *info, sx_name_id klass, sx_name_id func, SXP_NODE *args)
 	ret->data.smet.klass = klass;
 	ret->data.smet.func = func;
 	ret->data.smet.args = args;
+	return ret;
+}
+
+SXP_NODE *
+sxp_new_supr (SXP_INFO *info, SXP_NODE *args) {
+	SXP_NODE *ret = _sxp_new_node (info, SXP_SUPR);
+	ret->data.call.args = args;
 	return ret;
 }
 
@@ -840,6 +864,11 @@ _sxp_comp (SX_VALUE *block, SXP_NODE *node) {
 			sx_add_value (node->info->system, block, sx_new_num (node->data.smet.func));
 			sx_add_stmt (node->info->system, block, SX_OP_STATIC_METHOD);
 			break;
+		case SXP_SUPR:
+			_sxp_comp (block, node->data.call.args);
+			sx_add_value (node->info->system, block, sx_new_num (_sxp_count (node->data.call.args)));
+			sx_add_stmt (node->info->system, block, SX_OP_SUPER);
+			break;
 	}
 	if (node->next)
 		_sxp_comp (block, node->next);
@@ -850,6 +879,7 @@ _sxp_build_class (SXP_CLASS *klassd) {
 	SX_CLASS *klass;
 	SXP_FUNC *func;
 	SX_VALUE *block;
+	sx_name_id *names;
 
 	if (klassd->next)
 		if (!_sxp_build_class (klassd->next))
@@ -865,34 +895,45 @@ _sxp_build_class (SXP_CLASS *klassd) {
 		klass = NULL;
 	}
 
-	klass = sx_new_class (klassd->info->system, klassd->name, klass);
+	names = sx_new_namelist_from_array (klassd->info->system, klassd->members);
+	klass = sx_new_class (klassd->info->system, klassd->name, names, klass);
 	if (!klass) {
 		sxp_error (klassd->info, "Failed to create class");
 		return 0;
 	}
 
 	for (func = klassd->methods; func != NULL; func = func->next) {
+		names = sx_new_namelist_from_array (klassd->info->system, func->args);
 		block = sx_new_block (klassd->info->system);
 		if (!block) {
 			sxp_error (klassd->info, "Failed to create block");
+			if (names)
+				sx_free_namelist (names);
 			return 0;
 		}
 		_sxp_comp (block, func->body);
 		sx_add_value (klassd->info->system, block, NULL);
 		sxp_do_returns (klassd->info, (SX_BLOCK *)block, ((SX_BLOCK *)block)->count);
-		sx_add_method (klassd->info->system, klass, func->name, func->args, (SX_BLOCK *)block);
+		sx_add_method (klassd->info->system, klass, sx_new_func (klassd->info->system, func->name, names, func->varg, (SX_BLOCK *)block));
+		if (names)
+			sx_free_namelist (names);
 	}
 
 	for (func = klassd->static_methods; func != NULL; func = func->next) {
+		names = sx_new_namelist_from_array (klassd->info->system, func->args);
 		block = sx_new_block (klassd->info->system);
 		if (!block) {
 			sxp_error (klassd->info, "Failed to create block");
+			if (names)
+				sx_free_namelist (names);
 			return 0;
 		}
 		_sxp_comp (block, func->body);
 		sx_add_value (klassd->info->system, block, NULL);
 		sxp_do_returns (klassd->info, (SX_BLOCK *)block, ((SX_BLOCK *)block)->count);
-		sx_add_static_method (klassd->info->system, klass, func->name, func->args, (SX_BLOCK *)block);
+		sx_add_static_method (klassd->info->system, klass, sx_new_func (klassd->info->system, func->name, names, func->varg, (SX_BLOCK *)block));
+		if (names)
+			sx_free_namelist (names);
 	}
 
 	return 1;
@@ -902,21 +943,27 @@ int
 sxp_compile (SXP_INFO *info) {
 	SX_VALUE *block;
 	SXP_FUNC *func;
+	sx_name_id *names;
 
 	if (info->classes)
 		if (!_sxp_build_class (info->classes))
 			return 1;
 
 	for (func = info->funcs; func != NULL; func = func->next) {
+		names = sx_new_namelist_from_array (info->system, func->args);
 		block = sx_new_block (info->system);
 		if (!block) {
 			sxp_error (info, "Failed to create block");
+			if (names)
+				sx_free_namelist (names);
 			return 1;
 		}
 		_sxp_comp (block, func->body);
 		sx_add_value (info->system, block, NULL);
 		sxp_do_returns (info, (SX_BLOCK *)block, ((SX_BLOCK *)block)->count);
-		sx_new_func (info->system, func->name, (SX_ARRAY *)func->args, (SX_BLOCK *)block);
+		sx_add_func (info->system, sx_new_func (info->system, func->name, names, func->varg, (SX_BLOCK *)block));
+		if (names)
+			sx_free_namelist (names);
 	}
 
 	return 0;

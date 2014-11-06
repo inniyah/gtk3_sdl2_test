@@ -34,21 +34,21 @@ install: all
 dist: all
 	rm -rf scriptix/
 	mkdir scriptix
-	cp scriptix.spec scriptix.spec.in scriptix-conf.in README COPYING Makefile Makefile.in configure configure.in scriptix/
+	cp scriptix.spec scriptix.spec.in scriptix-conf.in README COPYING Makefile Makefile.in configure configure.in api.lst api.chk check-api.sh scriptix/
 	( cd include ; make dist )
 	( cd lib ; make dist )
 	( cd bin ; make dist )
 	( cd test ; make dist )
 	( cd deb ; make dist )
-	mv scriptix/ scriptix-0.17/
-	tar -zcf scriptix-0.17.tar.gz scriptix-0.17/
-	rm -rf scriptix-0.17/
+	mv scriptix/ scriptix-0.18/
+	tar -zcf scriptix-0.18.tar.gz scriptix-0.18/
+	rm -rf scriptix-0.18/
 
 deb:
 	if [ ! -d debian/ ] ; then ln -s deb debian ; fi
 	debuild
 
 rpm: dist
-	rpm -ta scriptix-0.17.tar.gz
+	rpm -ta scriptix-0.18.tar.gz
 
 .PHONY: deb rpm dist install clean all dist-clean

@@ -44,9 +44,6 @@
 	__INLINE__ void sx_lex_str_escape (char esc);
 	__INLINE__ void sx_lex_str_push (char c);
 
-	extern SXP_INFO *parse_info;
-	extern __INLINE__ void parser_add_line (void);
-
 	__INLINE__ void sxll_to_lower (char *buf);
 
 	#define YY_INPUT(b,r,m) sx_parser_input((b),&(r),(m))
@@ -104,6 +101,7 @@
 		LEX_NAME("for", TFOR)
 		LEX_NAME("continue", TCONTINUE)
 		LEX_NAME("static", TSTATIC)
+		LEX_NAME("super", TSUPER)
 		{
 			strncpy (sxlval.name, yytext, SX_MAX_NAME);
 			sxlval.name[SX_MAX_NAME] = 0;

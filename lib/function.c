@@ -1,5 +1,5 @@
 /*
- * Scriptix - Lite-weight scripting interface
+ * Scriptix - Lite-weight scripting longerface
  * Copyright (c) 2002, AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
@@ -35,57 +35,68 @@
 
 void
 sx_mark_func (SX_SYSTEM *system, SX_FUNC *func) {
-	if (func->args != NULL) {
-		sx_mark_value (system, (SX_VALUE *)func->args);
-	}
 	if (func->body != NULL) {
 		sx_mark_value (system, (SX_VALUE *)func->body);
-	}
-	if (func->data != NULL) {
-		sx_mark_value (system, func->data);
 	}
 }
 
 SX_FUNC *
-sx_new_func (SX_SYSTEM *system, sx_name_id id, SX_ARRAY *args, SX_BLOCK *body) {
+sx_new_func (SX_SYSTEM *system, sx_name_id id, sx_name_id *args, sx_name_id varg, SX_BLOCK *body) {
 	SX_FUNC *func;
 
-	sx_lock_value ((SX_VALUE *)args);
 	sx_lock_value ((SX_VALUE *)body);
 	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
-	sx_unlock_value ((SX_VALUE *)body);
-	sx_unlock_value ((SX_VALUE *)args);
 	if (func == NULL) {
+		sx_unlock_value ((SX_VALUE *)body);
 		return NULL;
+	}
+	if (args != NULL) {
+		func->argc = sx_sizeof_namelist (args);
+		func->arg_names = sx_dupmem (system, args, func->argc * sizeof (sx_name_id));
+		sx_unlock_value ((SX_VALUE *)body);
+		if (func->arg_names == NULL) {
+			return NULL;
+		}
+	} else {
+		sx_unlock_value ((SX_VALUE *)body);
+		func->arg_names = NULL;
+		func->argc = 0;
 	}
 
 	func->id = id;
-	func->args = args;
+	func->var_arg_name = varg;
 	func->body = body;
 	func->cfunc = NULL;
-
-	func->next = system->funcs;
-	system->funcs = func;
+	func->next = NULL;
 
 	return func;
 }
 
 SX_FUNC *
-sx_new_cfunc (SX_SYSTEM *system, sx_name_id id, sx_cfunc cfunc, SX_VALUE *data) {
+sx_new_cfunc (SX_SYSTEM *system, sx_name_id id, unsigned long argc, int varg, sx_cfunc cfunc) {
 	SX_FUNC *func ;
 	
-	sx_lock_value (data);
 	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
-	sx_unlock_value (data);
 	if (func == NULL) {
 		return NULL;
 	}
 
 	func->cfunc = cfunc;
 	func->body = NULL;
-	func->args = NULL;
-	func->data = data;
+	func->arg_names = NULL;
+	func->var_arg_name = varg;
+	func->argc = argc;
 	func->id = id;
+	func->next = NULL;
+
+	return func;
+}
+
+SX_FUNC *
+sx_add_func (SX_SYSTEM *system, SX_FUNC *func) {
+	if (func == NULL) {
+		return NULL;
+	}
 
 	func->next = system->funcs;
 	system->funcs = func;
@@ -107,5 +118,8 @@ sx_get_func (SX_SYSTEM *system, sx_name_id name) {
 
 void
 sx_free_func (SX_FUNC *func) {
+	if (func->arg_names) {
+		sx_free (func->arg_names);
+	}
 	sx_free (func);
 }

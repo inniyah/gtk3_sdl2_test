@@ -32,7 +32,7 @@
 #include "scriptix.h"
 
 int
-sx_eval (SX_THREAD *thread, unsigned int max) {
+sx_eval (SX_THREAD *thread, unsigned long max) {
 	unsigned int count;
 	unsigned int i;
 	unsigned int op_count = max;
@@ -54,7 +54,7 @@ run_code:
 		if (call->func->cfunc) {
 			count = thread->data;
 
-			call->func->cfunc (thread, call->klass, call->func->data, call->argc);
+			call->func->cfunc (thread, call->klass, call->argc);
 
 			sx_pop_call (thread);
 			continue;
@@ -175,9 +175,14 @@ run_code:
 					func = sx_get_func (thread->system, name);
 					sx_pop_value (thread, -2, 2);
 					if (func != NULL) {
-						sx_push_call (thread, func, NULL, count);
-						/* jump to executation stage */
-						goto run_code;
+						if (func->argc > count || (func->argc < count && func->var_arg_name == 0)) {
+							sx_pop_value (thread, -count, count);
+							sx_raise_error (thread, sx_ArgumentError, "Incorrect number of arguments to function '%s'", sx_name_id_to_name (func->id));
+						} else {
+							sx_push_call (thread, func, NULL, count);
+							/* jump to executation stage */
+							goto run_code;
+						}
 					} else {
 						sx_pop_value (thread, -count, count);
 						sx_raise_error (thread, sx_NameError, "Function '%s' does not exist", sx_name_id_to_name (name));
@@ -310,21 +315,26 @@ run_code:
 					klass = sx_get_class (thread->system, name);
 					sx_pop_value (thread, -2, 2);
 					if (klass != NULL) {
-						ret = sx_new_object (thread->system, klass);
-						if (ret) {
-							/* ugly hack */
-							thread->data_stack[thread->data - count - 1] = ret;
-							func = sx_get_method (thread->system, klass, sx_init_id);
-							if (func) {
-								sx_push_call (thread, func, ret, count);
-								goto run_code;
+						func = sx_get_method (thread->system, klass, sx_init_id);
+						if (func && (func->argc > count || (func->argc < count && func->var_arg_name == 0))) {
+							sx_pop_value (thread, -count, count);
+							sx_raise_error (thread, sx_ArgumentError, "Incorrect number of arguments to the init method on class '%s'", sx_name_id_to_name (klass->id));
+						} else {
+							ret = sx_new_object (thread->system, klass);
+							if (ret) {
+								/* ugly hack */
+								thread->data_stack[thread->data - count - 1] = ret;
+								if (func) {
+									sx_push_call (thread, func, ret, count);
+									goto run_code;
+								} else {
+									sx_pop_value (thread, -count, count);
+									sx_push_value (thread, NULL);
+								}
 							} else {
 								sx_pop_value (thread, -count, count);
-								sx_push_value (thread, NULL);
+								sx_raise_error (thread, sx_MemError, "Failed to create object '%s'", sx_name_id_to_name (klass->id));
 							}
-						} else {
-							sx_pop_value (thread, -count, count);
-							sx_raise_error (thread, sx_MemError, "Failed to create object '%s'", sx_name_id_to_name (klass->id));
 						}
 					} else {
 						sx_pop_value (thread, -count, count);
@@ -351,9 +361,14 @@ run_code:
 					if (klass) {
 						func = sx_get_method (thread->system, klass, name);
 						if (func != NULL) {
-							sx_push_call (thread, func, value, count);
-							/* jump to executation stage */
-							goto run_code;
+							if (func->argc > count || (func->argc < count && func->var_arg_name == 0)) {
+								sx_pop_value (thread, -count, count);
+								sx_raise_error (thread, sx_ArgumentError, "Incorrect number of arguments to method '%s' on class '%s'", sx_name_id_to_name (func->id), sx_name_id_to_name (klass->id));
+							} else {
+								sx_push_call (thread, func, value, count);
+								/* jump to executation stage */
+								goto run_code;
+							}
 						} else {
 							sx_pop_value (thread, -count, count);
 							sx_raise_error (thread, sx_NameError, "Method '%s' on class '%s' does not exist", sx_name_id_to_name (name), sx_name_id_to_name (klass->id));
@@ -372,9 +387,14 @@ run_code:
 					if (klass) {
 						func = sx_get_static_method (thread->system, klass, name);
 						if (func != NULL) {
-							sx_push_call (thread, func, NULL, count);
-							/* jump to executation stage */
-							goto run_code;
+							if (func->argc > count || (func->argc < count && func->var_arg_name == 0)) {
+								sx_pop_value (thread, -count, count);
+								sx_raise_error (thread, sx_ArgumentError, "Incorrect number of arguments to method '%s' on class '%s'", sx_name_id_to_name (func->id), sx_name_id_to_name (klass->id));
+							} else {
+								sx_push_call (thread, func, NULL, count);
+								/* jump to executation stage */
+								goto run_code;
+							}
 						} else {
 							sx_pop_value (thread, -count, count);
 							sx_raise_error (thread, sx_NameError, "Static method '%s' on class '%s' does not exist", sx_name_id_to_name (name), sx_name_id_to_name (klass->id));
@@ -386,7 +406,7 @@ run_code:
 				case SX_OP_SETFILELINE:
 					value = sx_get_value (thread, -2);
 					if (SX_ISSTRING (thread->system, value)) {
-						thread->file = value;
+						call->file = value;
 					} else {
 						sx_pop_value (thread, -2, 2);
 						sx_raise_error (thread, sx_TypeError, "Tried to set filename to a non-string");
@@ -394,7 +414,7 @@ run_code:
 					}
 					value = sx_get_value (thread, -1);
 					if (SX_ISNUM (thread->system, value)) {
-						thread->line = SX_TOINT (value);
+						call->line = SX_TOINT (value);
 					} else {
 						sx_pop_value (thread, -2, 2);
 						sx_raise_error (thread, sx_TypeError, "Tried to set file line to a non-number");
@@ -403,7 +423,7 @@ run_code:
 					sx_pop_value (thread, -2, 2);
 					break;
 				case SX_OP_NEXTLINE:
-					++ thread->line;
+					++ call->line;
 					break;
 				case SX_OP_POP:
 					sx_pop_value (thread, -1, 1);
@@ -427,6 +447,39 @@ run_code:
 					}
 					sx_pop_value (thread, -1, 1);
 					break;
+				case SX_OP_SUPER:
+					count = SX_TOINT (sx_get_value (thread, -1));
+					value = call->klass;
+					name = call->func->id;
+
+					if (value == NULL) {
+						sx_pop_value (thread, -count - 1, count + 1);
+						sx_raise_error (thread, sx_NameError, "Calling super() outside of a class method");
+					} else {
+						klass = sx_class_of (thread->system, value);
+						if (klass == NULL || klass->par == NULL) {
+							sx_pop_value (thread, -count - 1, count + 1);
+							sx_raise_error (thread, sx_NameError, "Calling super() with no parent");
+						} else {
+							klass = klass->par;
+							func = sx_get_method (thread->system, klass, name);
+							if (func != NULL) {
+								if (func->argc > count || (func->argc < count && func->var_arg_name == 0)) {
+									sx_pop_value (thread, -count - 1, count + 1);
+									sx_raise_error (thread, sx_ArgumentError, "Incorrect number of arguments to method '%s' on class '%s'", sx_name_id_to_name (func->id), sx_name_id_to_name (klass->id));
+								} else {
+									sx_pop_value (thread, -1, 1);
+									sx_push_call (thread, func, value, count);
+									/* jump to executation stage */
+									goto run_code;
+								}
+							} else {
+								sx_pop_value (thread, -count - 1, count + 1);
+								sx_raise_error (thread, sx_NameError, "Method '%s' on class '%s' does not exist", sx_name_id_to_name (name), sx_name_id_to_name (klass->id));
+							}
+						}
+					}
+					break;
 			}
 
 			/* exit out of function on thread switch */
@@ -446,7 +499,7 @@ run_code:
 }
 
 int
-sx_run_thread (SX_THREAD *thread, unsigned int max) {
+sx_run_thread (SX_THREAD *thread, unsigned long max) {
 	if (thread->state != SX_STATE_RUN) {
 		return thread->state;
 	}

@@ -1,6 +1,8 @@
 class test {
-	init (name) {
-		self.name = name;
+	name;
+
+	init (init_name) {
+		name = init_name;
 	}
 	set_name (new_name) {
 		name = new_name;
@@ -11,8 +13,8 @@ class test {
 }
 
 class child : test {
-	init (name) {
-		self.name = string::concat ('init ', name);
+	init (init_name) {
+		super (string::concat ('init ', init_name));
 	}
 	set_name (new_name) {
 		name = string::concat ('child ', new_name);
@@ -46,7 +48,7 @@ main () {
 	}
 
 	if (! a isa test) {
-		printl ('a isa failed');
+		printl ('a isa test failed');
 	}
 
 	if (! b isa test) {

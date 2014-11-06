@@ -467,9 +467,6 @@ char *yytext;
 	__INLINE__ void sx_lex_str_escape (char esc);
 	__INLINE__ void sx_lex_str_push (char c);
 
-	extern SXP_INFO *parse_info;
-	extern __INLINE__ void parser_add_line (void);
-
 	__INLINE__ void sxll_to_lower (char *buf);
 
 	#define YY_INPUT(b,r,m) sx_parser_input((b),&(r),(m))
@@ -484,7 +481,7 @@ char *yytext;
 
 #define DSTRING 4
 
-#line 488 "lex.sx.c"
+#line 485 "lex.sx.c"
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -646,10 +643,10 @@ YY_DECL
 	register char *yy_cp, *yy_bp;
 	register int yy_act;
 
-#line 63 "lexer.l"
+#line 60 "lexer.l"
 
 
-#line 653 "lex.sx.c"
+#line 650 "lex.sx.c"
 
 	if ( yy_init )
 		{
@@ -734,92 +731,92 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 65 "lexer.l"
+#line 62 "lexer.l"
 { /* IGNORE */ }
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 66 "lexer.l"
+#line 63 "lexer.l"
 { parser_add_line (); }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 67 "lexer.l"
+#line 64 "lexer.l"
 { /* IGNORE */ }
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 68 "lexer.l"
+#line 65 "lexer.l"
 { BEGIN INITIAL; }
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 70 "lexer.l"
+#line 67 "lexer.l"
 { /* IGNORE */ }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 71 "lexer.l"
+#line 68 "lexer.l"
 { parser_add_line (); BEGIN INITIAL; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 73 "lexer.l"
+#line 70 "lexer.l"
 { sx_lex_str_escape (yytext[1]); }
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 74 "lexer.l"
+#line 71 "lexer.l"
 { sx_lex_str_push (yytext[0]); }
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 75 "lexer.l"
+#line 72 "lexer.l"
 { sx_lex_str_push (yytext[0]); }
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 76 "lexer.l"
+#line 73 "lexer.l"
 { parser_add_line (); sx_lex_str_push ('\n'); }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 77 "lexer.l"
+#line 74 "lexer.l"
 { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_info->system, sx_lex_str); return TSTR; } 
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 78 "lexer.l"
+#line 75 "lexer.l"
 { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_info->system, sx_lex_str); return TSTR; } 
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 80 "lexer.l"
+#line 77 "lexer.l"
 { /* IGNORE */ }
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 81 "lexer.l"
+#line 78 "lexer.l"
 { BEGIN BCOMMENT; }
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 82 "lexer.l"
+#line 79 "lexer.l"
 { BEGIN LCOMMENT; }
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 83 "lexer.l"
+#line 80 "lexer.l"
 { BEGIN LCOMMENT; }
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 84 "lexer.l"
+#line 81 "lexer.l"
 { parser_add_line (); }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 85 "lexer.l"
+#line 82 "lexer.l"
 { 
 		sxll_to_lower (yytext);
 		LEX_NAME("if", TIF)
@@ -842,6 +839,7 @@ YY_RULE_SETUP
 		LEX_NAME("for", TFOR)
 		LEX_NAME("continue", TCONTINUE)
 		LEX_NAME("static", TSTATIC)
+		LEX_NAME("super", TSUPER)
 		{
 			strncpy (sxlval.name, yytext, SX_MAX_NAME);
 			sxlval.name[SX_MAX_NAME] = 0;
@@ -851,77 +849,77 @@ YY_RULE_SETUP
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 113 "lexer.l"
+#line 111 "lexer.l"
 { sxlval.value = sx_new_num (atoi (yytext)); return TNUM; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 114 "lexer.l"
+#line 112 "lexer.l"
 { return TGTE; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 115 "lexer.l"
+#line 113 "lexer.l"
 { return TLTE; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 116 "lexer.l"
+#line 114 "lexer.l"
 { return TEQUALS; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 117 "lexer.l"
+#line 115 "lexer.l"
 { return TADDASSIGN; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 118 "lexer.l"
+#line 116 "lexer.l"
 { return TSUBASSIGN; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 119 "lexer.l"
+#line 117 "lexer.l"
 { return TINCREMENT; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 120 "lexer.l"
+#line 118 "lexer.l"
 { return TDECREMENT; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 121 "lexer.l"
+#line 119 "lexer.l"
 { return TOR; }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 122 "lexer.l"
+#line 120 "lexer.l"
 { return TAND; }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 123 "lexer.l"
+#line 121 "lexer.l"
 { return TNE; }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 124 "lexer.l"
+#line 122 "lexer.l"
 { return TSTATMETHOD; }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 125 "lexer.l"
+#line 123 "lexer.l"
 { sx_lex_str_i = 0; BEGIN SSTRING; }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 126 "lexer.l"
+#line 124 "lexer.l"
 { sx_lex_str_i = 0; BEGIN DSTRING; }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 127 "lexer.l"
+#line 125 "lexer.l"
 { return yytext[0]; }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
@@ -929,15 +927,15 @@ case YY_STATE_EOF(BCOMMENT):
 case YY_STATE_EOF(LCOMMENT):
 case YY_STATE_EOF(SSTRING):
 case YY_STATE_EOF(DSTRING):
-#line 128 "lexer.l"
+#line 126 "lexer.l"
 { return 0; }
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 130 "lexer.l"
+#line 128 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 941 "lex.sx.c"
+#line 939 "lex.sx.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1825,7 +1823,7 @@ int main()
 	return 0;
 	}
 #endif
-#line 130 "lexer.l"
+#line 128 "lexer.l"
 
 void
 sxll_to_lower (char *buf) {

@@ -37,12 +37,17 @@
 void
 sx_clear_value (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *klass) {
 	value->locks = 0;
+	value->flags = 0;
 	value->klass = klass;
 	value->members = NULL;
-	value->flags = 0;
-	value->gc_next = NULL;
+	value->next = system->gc_list;
+	system->gc_list = value;
 
-	sx_add_gc_value (system, value);
+	if (++ system->gc_count >= system->gc_thresh) {
+		sx_lock_value (value);
+		sx_run_gc (system);
+		sx_unlock_value (value);
+	}
 }
 
 void
@@ -153,7 +158,7 @@ sx_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
 }
 
 SX_VALUE *
-sx_get_index (SX_SYSTEM *system, SX_VALUE *cont, int index) {
+sx_get_index (SX_SYSTEM *system, SX_VALUE *cont, long index) {
 	if (cont != NULL) {
 		SX_CLASS *klass = sx_class_of (system, cont);
 		if (klass && klass->core && klass->core->fgetindex) {
@@ -164,7 +169,7 @@ sx_get_index (SX_SYSTEM *system, SX_VALUE *cont, int index) {
 }
 
 SX_VALUE *
-sx_set_index (SX_SYSTEM *system, SX_VALUE *cont, int index, SX_VALUE *value) {
+sx_set_index (SX_SYSTEM *system, SX_VALUE *cont, long index, SX_VALUE *value) {
 	if (cont != NULL) {
 		SX_CLASS *klass = sx_class_of (system, cont);
 		if (klass && klass->core && klass->core->fsetindex) {
