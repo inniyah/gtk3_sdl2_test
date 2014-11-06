@@ -54,8 +54,8 @@
 
 %token<value> TNUM TSTR
 %token<id> TNAME TTYPE
-%token TIF TELSE TWHILE TDO TAND TOR TGTE TLTE TNE
-%token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT 
+%token TIF TELSE TWHILE TDO TAND TOR TGTE TLTE TNE TFOREACH
+%token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT  TNEW
 %token TUNTIL TNIL TRESCUE TIN TFOR TCONTINUE TYIELD
 
 %nonassoc TBREAK TRETURN 
@@ -104,7 +104,7 @@ stmt:	node ';' { $$ = $1; }
 	| TDO stmt TWHILE '(' expr ')' ';' { $$ = sxp_new_whil (sxp_parser_info, $5, $2, SXP_W_DW); }
 	| TDO stmt TUNTIL '(' expr ')' ';' { $$ = sxp_new_whil (sxp_parser_info, $5, $2, SXP_W_DU); }
 	
-	| TFOR '(' name TIN expr ')' stmt { $$ = sxp_new_for (sxp_parser_info, $3, $5, $7); }
+	| TFOREACH '(' name TIN expr ')' stmt { $$ = sxp_new_for (sxp_parser_info, $3, $5, $7); }
 	| TFOR '(' node ';' expr ';' node ')' stmt { $$ = sxp_new_cfor (sxp_parser_info, $3, $5, $7, $9); }
 
 	| type name ';' {}
@@ -174,6 +174,7 @@ expr:	expr '+' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_ADD, $1, $3); }
 	| '(' type ')' expr %prec TCAST { $$ = sxp_new_cast (sxp_parser_info, $4, $2); }
 	| name '(' args ')' { $$ = sxp_new_call (sxp_parser_info, $1, $3); }
 
+	| TNEW type { $$ = sxp_new_new (sxp_parser_info, $2); }
 	| type '.' name '(' args ')' { $$ = sxp_new_smet (sxp_parser_info, $1, $3, $5); }
 	| expr '.' name '(' args ')' { $$ = sxp_new_meth (sxp_parser_info, $1, $3, $5); }
 	| expr '.' name { $$ = sxp_new_getm (sxp_parser_info, $1, $3); }
@@ -183,7 +184,7 @@ expr:	expr '+' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_ADD, $1, $3); }
 
 	| data { $$ = sxp_new_data (sxp_parser_info, $1); }
 
-	| name { $$ = sxp_new_name (sxp_parser_info, $1); }
+	| name { $$ = sxp_new_look (sxp_parser_info, $1); }
 	;
 
 	
@@ -202,13 +203,7 @@ type:	TTYPE { $$ = $1; }
 
 int
 sxerror (const char *str) {
-	if (sxp_parser_info->system->error_hook != NULL) {
-		char buffer[512];
-		snprintf (buffer, 512, "File %s, line %d: %s", sxp_parser_info->file ? SX_TOSTRING (sxp_parser_info->file)->str : "<input>", sxp_parser_info->line, str);
-		sxp_parser_info->system->error_hook (buffer);
-	} else {
-		fprintf (stderr, "Scriptix Error: File %s, line %d: %s\n", sxp_parser_info->file ? SX_TOSTRING (sxp_parser_info->file)->str : "<input>", sxp_parser_info->line, str);
-	}
+	sxp_error (sxp_parser_info, str);
 	return 1;
 }
 

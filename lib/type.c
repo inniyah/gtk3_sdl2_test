@@ -161,3 +161,13 @@ sx_get_type (SX_SYSTEM system, sx_name_id id) {
 
 	return NULL;
 }
+
+SX_VALUE
+sx_type_create_new (SX_SYSTEM system, SX_TYPE type)
+{
+	if (type && type->fnew) {
+		return type->fnew (system, type);
+	} else {
+		return NULL;
+	}
+}

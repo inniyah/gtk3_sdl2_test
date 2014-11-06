@@ -523,8 +523,8 @@ fi
 
 
 
-BASE_VERSION=0.20
-VERSION=0.20
+BASE_VERSION=0.21
+VERSION=0.21
 
 
 cat >> confdefs.h <<EOF

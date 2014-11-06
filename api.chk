@@ -47,7 +47,7 @@ extern int sx_raise_error (SX_THREAD thread, const char *format, ...);
 extern int sx_raise_sys_error (SX_THREAD thread, const char *format, ...);
 extern void sx_run (SX_SYSTEM system, unsigned long max);
 extern int sx_runable (SX_SYSTEM system);
-extern SX_VALUE sx_run_until (SX_SYSTEM system, sx_thread_id id);
+extern void sx_wait (SX_SYSTEM system, sx_thread_id id, int *retval);
 extern int sx_set_option (SX_SYSTEM system, sx_option_type op, long value);
 #define SX_TOARRAY(s) ((SX_ARRAY )(s))
 #define SX_TOSTRING(s) ((SX_STRING )(s))

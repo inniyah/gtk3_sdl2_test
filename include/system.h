@@ -4,6 +4,8 @@
 /* check for SNPRINTF define */
 #ifdef _MSC_VER
 #define snprintf _snprintf
+#define vsnprintf _vsnprintf
+#define strncasecmp strnicmp
 #endif
 
 #endif

@@ -37,7 +37,7 @@ enum {
 	SXP_AND,
 	SXP_OR,
 	SXP_CALL,
-	SXP_NAME,
+	SXP_LOOK,
 	SXP_ASSI,
 	SXP_STMT,
 	SXP_IF,
@@ -60,6 +60,7 @@ enum {
 	SXP_SUPR,
 	SXP_YELD,
 	SXP_IN,
+	SXP_NEW,
 };
 
 #define SXP_W_WD 1
@@ -128,9 +129,6 @@ struct scriptix_parse_node {
 		} call;
 		struct {
 			sx_name_id name;
-		} name;
-		struct {
-			sx_name_id name;
 			SXP_NODE *node;
 		} assi;
 		struct {
@@ -190,6 +188,7 @@ struct scriptix_parse_node {
 			sx_name_id func;
 			SXP_NODE *args;
 		} smet;
+		sx_name_id name;
 		SX_VALUE data;
 		SXP_NODE *node;
 	} data;
@@ -225,7 +224,6 @@ extern SXP_NODE *sxp_new_logic (SXP_INFO *info, SXP_NODE *left, SXP_NODE *right,
 #define sxp_new_and(i,l,r) sxp_new_logic((i), (l),(r),SXP_AND)
 #define sxp_new_or(i,l,r) sxp_new_logic((i), (l),(r),SXP_OR)
 extern SXP_NODE *sxp_new_call (SXP_INFO *info, sx_name_id name, SXP_NODE *args);
-extern SXP_NODE *sxp_new_name (SXP_INFO *info, sx_name_id name);
 extern SXP_NODE *sxp_new_assi (SXP_INFO *info, sx_name_id name, SXP_NODE *node);
 extern SXP_NODE *sxp_new_stmt (SXP_INFO *info, SXP_NODE *node);
 extern SXP_NODE *sxp_new_if (SXP_INFO *info, SXP_NODE *test, SXP_NODE *th, SXP_NODE *el);
@@ -250,6 +248,9 @@ extern SXP_NODE *sxp_new_cont (SXP_INFO *info);
 extern SXP_NODE *sxp_new_supr (SXP_INFO *info, SXP_NODE *args);
 extern SXP_NODE *sxp_new_yeld (SXP_INFO *info);
 #define sxp_new_in(i,v,b) sxp_new_logic((i), (v), (b), SXP_IN)
+extern SXP_NODE *sxp_new_name (SXP_INFO *info, sx_name_id name, int type);
+#define sxp_new_new(i,n) sxp_new_name ((i), (n), SXP_NEW)
+#define sxp_new_look(i,n) sxp_new_name ((i), (n), SXP_LOOK)
 
 extern SXP_NODE *sxp_append (SXP_NODE *base, SXP_NODE *add);
 

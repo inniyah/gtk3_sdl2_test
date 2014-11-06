@@ -46,7 +46,7 @@ sx_raise_error
 sx_raise_sys_error
 sx_run
 sx_runable
-sx_run_until
+sx_wait
 sx_set_option
 SX_TOARRAY
 SX_TOSTRING

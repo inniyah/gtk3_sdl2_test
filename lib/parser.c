@@ -30,15 +30,12 @@
 
 #include "scriptix.h"
 #include "parser.h"
+#include "system.h"
 
 void
 sxp_error (SXP_INFO *info, const char *msg) {
 	if (info->system->error_hook != NULL) {
-		char buffer[512];
-		snprintf (buffer, 512, "File %s, line %d: %s", SX_TOSTRING (info->last_file)->str, info->last_line, msg);
-		info->system->error_hook (buffer);
-	} else {
-		fprintf (stderr, "Scriptix Error: File %s, line %d: %s\n", SX_TOSTRING (info->last_file)->str, info->last_line, msg);
+		info->system->error_hook (info->file ? SX_TOSTRING (info->file)->str : "<input>", info->line, msg);
 	}
 }
 
@@ -296,13 +293,6 @@ sxp_new_call (SXP_INFO *info, sx_name_id name, SXP_NODE *args) {
 }
 
 SXP_NODE *
-sxp_new_name (SXP_INFO *info, sx_name_id name) {
-	SXP_NODE *ret = _sxp_new_node (info, SXP_NAME);
-	ret->data.name.name = name;
-	return ret;
-}
-
-SXP_NODE *
 sxp_new_assi (SXP_INFO *info, sx_name_id name, SXP_NODE *node) {
 	SXP_NODE *ret = _sxp_new_node (info, SXP_ASSI);
 	ret->data.assi.name = name;
@@ -448,6 +438,13 @@ sxp_new_supr (SXP_INFO *info, SXP_NODE *args) {
 SXP_NODE *
 sxp_new_yeld (SXP_INFO *info) {
 	SXP_NODE *ret = _sxp_new_node (info, SXP_YELD);
+	return ret;
+}
+
+SXP_NODE *
+sxp_new_name (SXP_INFO *info, sx_name_id name, int type) {
+	SXP_NODE *ret = _sxp_new_node (info, type);
+	ret->data.name = name;
 	return ret;
 }
 

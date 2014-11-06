@@ -88,8 +88,10 @@
 		LEX_NAME("nil", TNIL)
 		LEX_NAME("in", TIN)
 		LEX_NAME("for", TFOR)
+		LEX_NAME("foreach", TFOREACH)
 		LEX_NAME("continue", TCONTINUE)
 		LEX_NAME("yield", TYIELD)
+		LEX_NAME("new", TNEW)
 		{
 			sxlval.id = sx_name_to_id (yytext);
 			if (sx_get_type (sxp_parser_info->system, sxlval.id))

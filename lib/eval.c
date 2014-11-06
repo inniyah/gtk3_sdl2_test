@@ -69,7 +69,7 @@ run_code:
 
 		block = call->func->body;
 
-		while (call->op_ptr < block->count && thread->state == SX_STATE_RUN) {
+		while (call->op_ptr < block->count && thread->state == SX_STATE_RUNNING) {
 			/* store op for faster access */
 			op = block->nodes[call->op_ptr].op;
 
@@ -368,7 +368,7 @@ run_code:
 					sx_pop_value (thread, -1, 1);
 					break;
 				case SX_OP_YIELD:
-					thread->state = SX_STATE_SWITCH;
+					/* break - switch */
 					return thread->state;
 					break;
 				case SX_OP_IN:
@@ -380,12 +380,18 @@ run_code:
 						sx_push_value (thread, NULL);
 					}
 					break;
+				case SX_OP_NEW:
+					name = SX_TOINT (sx_get_value (thread, -1)); /* the type */
+					type = sx_get_type (thread->system, name);
+					sx_pop_value (thread, -1, 1);
+					sx_push_value (thread, sx_type_create_new (thread->system, type));
+					break;
 			}
 
 			/* exit out of function on thread switch */
-			if (max && thread->state == SX_STATE_RUN) {
+			if (max && thread->state == SX_STATE_RUNNING) {
 				if (-- op_count == 0) {
-					thread->state = SX_STATE_SWITCH;
+					/* berak - switch */
 					return thread->state;
 				}
 			}
@@ -395,23 +401,26 @@ run_code:
 		sx_pop_call (thread);
 	}
 
+	/* we finished */
+	thread->state = SX_STATE_FINISHED;
+
 	return thread->state;
 }
 
 int
 sx_run_thread (SX_THREAD thread, unsigned long max) {
-	if (thread->state != SX_STATE_RUN) {
+	if (thread->state != SX_STATE_READY) {
 		return thread->state;
 	}
 
+	thread->state = SX_STATE_RUNNING;
 	sx_eval (thread, max);
+	if (thread->state == SX_STATE_RUNNING)
+		thread->state = SX_STATE_READY;
 
-	if (thread->data > 0) {
+	if (thread->data > 0 && thread->state != SX_STATE_RUNNING) {
 		thread->ret = sx_get_value (thread, -1);
 	}
-
-	if (thread->state == SX_STATE_RUN)
-		thread->state = SX_STATE_EXIT;
 
 	return thread->state;
 }

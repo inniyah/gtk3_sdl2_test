@@ -1,5 +1,5 @@
 test (a) {
-	for (i in a) {
+	foreach (i in a) {
 		printl ('--', i);
 		for (n = 3; n <= 9; n += 3) {
 			printl ('In - ', n, ':', i);

@@ -30,6 +30,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "scriptix.h"
 #include "system.h"
@@ -108,49 +109,6 @@ _sx_str_is_in (SX_SYSTEM system, SX_STRING string, SX_VALUE value) {
 	return 0;
 }
 
-/* methods */
-static
-SX_DEFINE_CFUNC(_sx_str_length) {
-	*sx_ret = sx_new_num (SX_TOSTRING (sx_self)->len);
-}
-
-static
-SX_DEFINE_CFUNC(_sx_str_concat) {
-	SX_VALUE ret;
-	SX_VALUE value1 = sx_argv[0];
-	SX_VALUE value2 = sx_argv[1];
-
-	if (!SX_ISSTRING (sx_thread->system, value1)) {
-		value1 = sx_to_str (sx_thread->system, value1);
-		if (!SX_ISSTRING (sx_thread->system, value1)) {
-			sx_raise_error (sx_thread, "Argument cannot be converted to a string");
-			return;
-		}
-	}
-
-	if (!SX_ISSTRING (sx_thread->system, value2)) {
-		value2 = sx_to_str (sx_thread->system, value2);
-		if (!SX_ISSTRING (sx_thread->system, value2)) {
-			sx_raise_error (sx_thread, "Argument cannot be converted to a string");
-			return;
-		}
-	}
-
-	ret = sx_new_str_len (sx_thread->system, NULL, SX_TOSTRING(value1)->len + SX_TOSTRING(value2)->len);
-	memcpy (SX_TOSTRING(ret)->str, SX_TOSTRING(value1)->str, SX_TOSTRING(value1)->len * sizeof (char));
-	memcpy (SX_TOSTRING(ret)->str + SX_TOSTRING(value1)->len, SX_TOSTRING(value2)->str, SX_TOSTRING(value2)->len * sizeof (char));
-	SX_TOSTRING(ret)->str[SX_TOSTRING(ret)->len] = '\0';
-
-	*sx_ret = ret;
-
-	return;
-}
-
-static
-SX_DEFINE_CFUNC(_sx_str_method_to_num) {
-	*sx_ret = _sx_str_to_num (sx_thread->system, (SX_STRING )sx_self);
-}
-
 static
 SX_VALUE 
 _sx_str_get_index (SX_SYSTEM system, SX_STRING value, long index) {
@@ -169,6 +127,113 @@ _sx_str_get_index (SX_SYSTEM system, SX_STRING value, long index) {
 	
 	return sx_new_str_len (system, value->str + index, 1);
 }
+
+/* methods */
+static
+SX_DEFINE_CFUNC(_sx_str_length) {
+	*sx_ret = sx_new_num (SX_TOSTRING (sx_self)->len);
+}
+
+static
+SX_DEFINE_CFUNC(_sx_str_smethod_concat) {
+	unsigned long len, i;
+
+	/* calc length */
+	len = 0;
+	for (i = 0; i < sx_argc; ++ i) {
+		if (SX_ISSTRING (sx_thread->system, sx_argv[i])) {
+			len += SX_TOSTRING(sx_argv[i])->len;
+		}
+	}
+
+	/* allocate string */
+	*sx_ret = sx_new_str_len (sx_thread->system, NULL, len);
+	if (*sx_ret == NULL) {
+		sx_raise_error (sx_thread, "Out of memory");
+		return;
+	}
+
+	/* copy into */
+	len = 0; /* pointer to index */
+	for (i = 0; i < sx_argc; ++ i) {
+		if (SX_ISSTRING (sx_thread->system, sx_argv[i])) {
+			memcpy (SX_TOSTRING(*sx_ret)->str + len, SX_TOSTRING(sx_argv[i])->str, SX_TOSTRING(sx_argv[i])->len * sizeof (char));
+			len += SX_TOSTRING(sx_argv[i])->len;
+		}
+	}
+
+	/* finish */
+	SX_TOSTRING(*sx_ret)->str[SX_TOSTRING(*sx_ret)->len] = '\0';
+}
+
+static
+SX_DEFINE_CFUNC(_sx_str_method_to_num) {
+	*sx_ret = _sx_str_to_num (sx_thread->system, (SX_STRING )sx_self);
+}
+
+static
+SX_DEFINE_CFUNC(_sx_str_method_split) {
+	SX_VALUE array;
+	const char *c, *needle, *haystack;
+	int nlen;
+
+	if (!SX_ISSTRING(sx_thread->system, sx_argv[0])) {
+		sx_raise_error (sx_thread, "Argument 1 to String::split() is not a string");
+		return;
+	}
+
+	haystack = SX_TOSTRING(sx_self)->str;
+	needle = SX_TOSTRING(sx_argv[0])->str;
+	nlen = strlen (needle);
+
+	array = sx_new_array (sx_thread->system, 0, NULL);
+	if (array == NULL) {
+		sx_raise_error (sx_thread, "Out of memory");
+		return;
+	}
+	*sx_ret = array;
+
+	/* no needle */
+	if (nlen == 0) {
+		sx_append (sx_thread->system, array, sx_self);
+		return;
+	}
+
+	/* find substr */
+	for (c = haystack; *c != '\0'; ++ c) {
+		if (!strncasecmp (c, needle, strlen (needle))) {
+			sx_append (sx_thread->system, array, sx_new_str_len (sx_thread->system, haystack, c - haystack));
+			haystack = c + nlen;
+		}
+	}
+
+	/* append last */
+	if (*haystack != '\0') {
+		sx_append (sx_thread->system, array, sx_new_str_len (sx_thread->system, haystack, strlen(haystack)));
+	}
+}
+
+static
+SX_DEFINE_CFUNC(_sx_str_method_tolower) {
+	unsigned int i;
+	*sx_ret = sx_new_str_len (sx_thread->system, SX_TOSTRING(sx_self)->str, SX_TOSTRING(sx_self)->len);
+	for (i = 0; i < SX_TOSTRING(sx_self)->len; ++ i) {
+		SX_TOSTRING(sx_self)->str[i] = tolower (SX_TOSTRING(sx_self)->str[i]);
+	}
+
+}
+
+static
+SX_DEFINE_CFUNC(_sx_str_method_toupper) {
+	unsigned int i;
+	*sx_ret = sx_new_str_len (sx_thread->system, SX_TOSTRING(sx_self)->str, SX_TOSTRING(sx_self)->len);
+	for (i = 0; i < SX_TOSTRING(sx_self)->len; ++ i) {
+		SX_TOSTRING(sx_self)->str[i] = toupper (SX_TOSTRING(sx_self)->str[i]);
+	}
+
+}
+
+/* INIT */
 
 SX_TYPE 
 sx_init_string (SX_SYSTEM system) {
@@ -189,7 +254,11 @@ sx_init_string (SX_SYSTEM system) {
 
 	sx_add_method (system, type, "length", 0, 0, _sx_str_length);
 	sx_add_method (system, type, "to_num", 0, 0, _sx_str_method_to_num);
-	sx_add_static_method (system, type, "concat", 2, 0, _sx_str_concat);
+	sx_add_method (system, type, "split", 1, 0, _sx_str_method_split);
+	sx_add_method (system, type, "tolower", 0, 0, _sx_str_method_tolower);
+	sx_add_method (system, type, "toupper", 0, 0, _sx_str_method_toupper);
+
+	sx_add_static_method (system, type, "concat", 2, 1, _sx_str_smethod_concat);
 
 	return type;
 }

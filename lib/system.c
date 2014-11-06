@@ -33,11 +33,10 @@
 #include "scriptix.h"
 #include "config.h"
 
+static
 void
-_sx_default_error_hook (const char *str) {
-	if (str) {
-		fprintf (stderr, "Unhandled error: %s\n", str);
-	}
+_sx_default_error_hook (const char *file, unsigned int line, const char *str) {
+	fprintf (stderr, "Unhandled error: %s:%d: %s\n", file, line,str);
 }
 
 SX_SYSTEM 
@@ -112,16 +111,16 @@ sx_free_system (SX_SYSTEM system) {
 
 	sx_unref_module (system->core);
 
-	while (system->types != NULL) {
-		ynext = system->types->next;
-		sx_free (system->types);
-		system->types = ynext;
-	}
-
 	while (system->gc_list) {
 		vnext = system->gc_list->next;
 		sx_free_value (system, system->gc_list);
 		system->gc_list = vnext;
+	}
+
+	while (system->types != NULL) {
+		ynext = system->types->next;
+		sx_free (system->types);
+		system->types = ynext;
 	}
 
 	sx_free (system);
@@ -155,91 +154,62 @@ sx_set_option (SX_SYSTEM system, sx_option_type opt, long value) {
 
 void
 sx_run (SX_SYSTEM system, unsigned long max) {
-	SX_THREAD thread, last;
+	SX_THREAD thread, next;
 	int state;
 
-	last = NULL;
-	for (thread = system->threads; thread != NULL; ) {
+	thread = system->threads;
+	while (thread != NULL) {
 		state = sx_run_thread (thread, max);
-		switch (state) {
-			case SX_STATE_ERROR:
-			case SX_STATE_EXIT:
-				if (last != NULL) {
-					last->next = thread->next;
-					sx_free_thread (thread);
-					thread = last->next;
-				} else {
-					system->threads = thread->next;
-					sx_free_thread (thread);
-					thread = system->threads;
-				}
-				-- system->valid_threads;
-				break;
-			case SX_STATE_SWITCH:
-				thread->state = SX_STATE_RUN;
-				/* fall thru */
-			default:
-				thread = thread->next;
-				break;
+		if (state == SX_STATE_FINISHED || state == SX_STATE_FAILED) {
+			next = thread->next;
+			sx_end_thread (thread);
+			thread = next;
+		} else {
+			thread = thread->next;
 		}
 	}
 }
 
-SX_VALUE 
-sx_run_until (SX_SYSTEM system, sx_thread_id id) {
-	SX_THREAD thread, last;
-	SX_VALUE ret = NULL;
+void
+sx_wait (SX_SYSTEM system, sx_thread_id id, int *retval) {
+	SX_THREAD thread, next;
 	int state;
+	int run_flag = 1;
 
+	/* check existance of valid thread */
 	if (id == 0) {
-		return NULL;
+		return;
 	}
-
 	for (thread = system->threads; thread != NULL && thread->id != id; thread = thread->next)
 		;
-
 	if (thread == NULL) {
-		return NULL;
+		return;
 	}
 
-	while (id != 0) {
-		last = NULL;
-		for (thread = system->threads; thread != NULL; ) {
-			state = sx_run_thread (thread, 1000); 	/* FIXME: conigure value comewhoe */
-			switch (state) {
-				case SX_STATE_ERROR:
-				case SX_STATE_EXIT:
-					if (id == thread->id) {
-						id = 0; /* mark "return value" */
-						ret = thread->ret;
+	thread = system->threads;
+	while (thread != NULL) {
+		state = sx_run_thread (thread, 1000); /* FIXME: dynamic */
+		if (state == SX_STATE_FINISHED || state == SX_STATE_FAILED) {
+			/* our thread? */
+			if (thread->id == id) {
+				run_flag = 0; /* end run */ 
+				/* return value */
+				if (retval) {
+					*retval = 0;
+					if (SX_ISNUM (thread->system, thread->ret)) {
+						*retval = SX_TOINT (thread->ret);
 					}
-
-					if (last != NULL) {
-						last->next = thread->next;
-						sx_free_thread (thread);
-						thread = last->next;
-					} else {
-						system->threads = thread->next;
-						sx_free_thread (thread);
-						thread = system->threads;
-					}
-					-- system->valid_threads;
-
-					if (id == 0) {
-						return ret;
-					}
-					break;
-				case SX_STATE_SWITCH:
-					thread->state = SX_STATE_RUN;
-					/* fall thru */
-				default:
-					thread = thread->next;
-					break;
+				}
 			}
+
+			next = thread->next;
+			sx_end_thread (thread);
+			thread = next;
+			-- system->valid_threads;
+		} else {
+			thread = thread->next;
 		}
 	}
-
-	return NULL;
 }
 
 void

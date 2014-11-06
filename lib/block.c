@@ -55,7 +55,7 @@ SX_TYPE
 sx_init_block (SX_SYSTEM system) {
 	SX_TYPE type;
 
-	type = sx_new_type (system, "block");
+	type = sx_new_type (system, "Block");
 	if (type == NULL) {
 		return NULL;
 	}

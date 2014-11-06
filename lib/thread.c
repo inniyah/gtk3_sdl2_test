@@ -46,7 +46,10 @@ sx_create_thread (SX_MODULE module, SX_FUNC func, SX_ARRAY argv) {
 
 	thread->module = module;
 	thread->system = module->system;
+	thread->prev = NULL;
 	thread->next = module->system->threads;
+	if (thread->next)
+		thread->next->prev = thread;
 	thread->call_stack = NULL;
 	thread->call_size = 0;
 	thread->call = 0;
@@ -54,7 +57,7 @@ sx_create_thread (SX_MODULE module, SX_FUNC func, SX_ARRAY argv) {
 	thread->data_size = 0;
 	thread->data = 0;
 	thread->ret = NULL;
-	thread->state = SX_STATE_RUN;
+	thread->state = SX_STATE_READY;
 	thread->id = ++_free_id;
 	module->system->threads = thread;
 	++ module->system->valid_threads;
@@ -73,17 +76,15 @@ sx_create_thread (SX_MODULE module, SX_FUNC func, SX_ARRAY argv) {
 
 void
 sx_end_thread (SX_THREAD thread) {
-	SX_THREAD t;
-
-	if (thread->system->threads == thread) {
+	if (thread->prev == NULL) {
 		thread->system->threads = thread->next;
 	} else {
-		for (t = thread->system->threads; t->next != thread && t->next != NULL; t = t->next)
-			;
-		if (t->next != NULL) {
-			t->next = t->next->next;
-		}
+		thread->prev->next = thread->next;
 	}
+	if (thread->next != NULL) {
+		thread->next->prev = thread->prev;
+	}
+	-- thread->system->valid_threads;
 
 	sx_free_thread (thread);
 }

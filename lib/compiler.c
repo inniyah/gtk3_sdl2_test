@@ -114,8 +114,8 @@ _sxp_comp (SX_VALUE block, SXP_NODE *node) {
 			sx_add_value (node->info->system, block, sx_new_num (node->data.call.name));
 			sx_add_stmt (node->info->system, block, SX_OP_CALL);
 			break;
-		case SXP_NAME:
-			sx_add_value (node->info->system, block, sx_new_num (node->data.name.name));
+		case SXP_LOOK:
+			sx_add_value (node->info->system, block, sx_new_num (node->data.name));
 			sx_add_stmt (node->info->system, block, SX_OP_LOOKUP);
 			break;
 		case SXP_ASSI:
@@ -313,6 +313,10 @@ _sxp_comp (SX_VALUE block, SXP_NODE *node) {
 			else
 				sx_add_value (node->info->system, block, NULL);
 			sx_add_stmt (node->info->system, block, SX_OP_IN);
+			break;
+		case SXP_NEW:
+			sx_add_value (node->info->system, block, sx_new_num (node->data.name));
+			sx_add_stmt (node->info->system, block, SX_OP_NEW);
 			break;
 	}
 	if (node->next)

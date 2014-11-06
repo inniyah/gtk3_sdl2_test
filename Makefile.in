@@ -34,7 +34,7 @@ install: all
 dist: all
 	rm -rf scriptix/
 	mkdir scriptix
-	cp scriptix.spec scriptix.spec.in scriptix-conf.in README COPYING Makefile Makefile.in configure configure.in api.lst api.chk check-api.sh scriptix/
+	cp scriptix.spec scriptix.spec.in scriptix.vim scriptix-conf.in README COPYING Makefile Makefile.in configure configure.in api.lst api.chk check-api.sh scriptix/
 	( cd include ; make dist )
 	( cd lib ; make dist )
 	( cd bin ; make dist )

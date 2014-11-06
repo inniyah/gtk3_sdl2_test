@@ -2,16 +2,19 @@
 
 case "$1" in
 	--cflags)
-		if [ "@prefix@" != "/usr" ]; then echo "-I@prefix@/include"; fi
+		# cc should like in /usr/local and /usr for include files
+		if test '@prefix@' != '/usr' && test '@prefix@' != '/usr/local' ; then
+			echo '-I@prefix@/include'
+		fi
 		;;
 	--lflags)
-		if [ "@prefix@" != "/usr" ]; then echo "-L@prefix@/lib"; fi
+		echo '-L@prefix@/lib'
 		;;
 	--libs)
-		echo "-lscriptix -lsxparse"
+		echo '-lscriptix -lsxparse'
 		;;
 	--version)
-		echo "@VERSION@"
+		echo '@VERSION@'
 		;;
 	--check)
 		set "VER" `echo "$2" | sed 's/\./ /g'`
@@ -26,11 +29,11 @@ case "$1" in
 	--help)
 		echo "Help: $0"
 		echo
-		echo "  --cflags   Print compilation flags"
-		echo "  --lflags   Print linker flags"
-		echo "  --libs     Print library flags"
-		echo "  --version  Print version"
-		echo "  --help     This list"
+		echo '  --cflags   Print compilation flags'
+		echo '  --lflags   Print linker flags'
+		echo '  --libs     Print library flags'
+		echo '  --version  Print version'
+		echo '  --help     This list'
 		echo
 		exit 1
 		;;

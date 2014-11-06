@@ -83,16 +83,17 @@ typedef enum sx_op_type {
 	SX_OP_STATIC_METHOD,
 	SX_OP_YIELD,
 	SX_OP_IN,
+	SX_OP_NEW,
 } sx_op_type;
 
 	/* system flags */
 #define SX_SFLAG_GCOFF (1 << 0)
 
 typedef enum sx_state_type {
-	SX_STATE_RUN = 0,
-	SX_STATE_EXIT,
-	SX_STATE_ERROR,
-	SX_STATE_SWITCH,
+	SX_STATE_READY = 0,
+	SX_STATE_RUNNING,
+	SX_STATE_FINISHED,
+	SX_STATE_FAILED,
 } sx_state_type;
 
 typedef enum {
@@ -126,7 +127,7 @@ typedef unsigned long sx_thread_id;
 
 typedef void (*sx_gc_hook)(SX_SYSTEM system);
 typedef int (*sx_print_hook)(const char *str, ...);
-typedef void (*sx_error_hook)(const char *str);
+typedef void (*sx_error_hook)(const char *file, unsigned int line, const char *str);
 
 typedef void (*sx_type_mark)(SX_SYSTEM system, SX_VALUE obj);
 typedef void (*sx_type_del)(SX_SYSTEM system, SX_VALUE obj);
@@ -140,6 +141,7 @@ typedef SX_VALUE (*sx_type_get_index)(SX_SYSTEM system, SX_VALUE value, long ind
 typedef SX_VALUE (*sx_type_set_index)(SX_SYSTEM system, SX_VALUE value, long index, SX_VALUE set);
 typedef SX_VALUE (*sx_type_append)(SX_SYSTEM system, SX_VALUE value, SX_VALUE add);
 typedef int (*sx_type_is_in)(SX_SYSTEM system, SX_VALUE value, SX_VALUE sub);
+typedef SX_VALUE (*sx_type_new)(SX_SYSTEM system, SX_TYPE);
 
 typedef void (*sx_cfunc)(SX_THREAD thread, SX_VALUE self, unsigned long args, SX_VALUE *argv, SX_VALUE *ret);
 #define SX_DEFINE_CFUNC(name) void name (SX_THREAD sx_thread, SX_VALUE sx_self, unsigned long sx_argc, SX_VALUE *sx_argv, SX_VALUE *sx_ret)
@@ -213,7 +215,7 @@ extern SX_SYSTEM sx_create_system (void);
 extern int sx_set_option (SX_SYSTEM system, sx_option_type op, long value);
 extern void sx_run_gc (SX_SYSTEM system);
 extern void sx_run (SX_SYSTEM system, unsigned long max);
-extern SX_VALUE sx_run_until (SX_SYSTEM system, sx_thread_id id);
+extern void sx_wait (SX_SYSTEM system, sx_thread_id id, int *retval);
 extern int sx_runable (SX_SYSTEM system);
 extern void sx_free_system (SX_SYSTEM system);
 
@@ -244,6 +246,7 @@ extern __INLINE__ unsigned long sx_unref_type (SX_TYPE type);
 extern SX_TYPE sx_type_is_a (SX_SYSTEM system, SX_TYPE base, SX_TYPE par);
 extern SX_VALUE sx_value_is_a (SX_SYSTEM system, SX_VALUE base, SX_TYPE par);
 extern SX_TYPE sx_get_type (SX_SYSTEM system, sx_name_id id);
+extern SX_VALUE sx_type_create_new (SX_SYSTEM system, SX_TYPE type);
 
 extern SX_OBJECT sx_new_object (SX_SYSTEM system, SX_TYPE par, void *data);
 #define sx_object_data(obj) ((obj)->data)
@@ -317,6 +320,7 @@ struct scriptix_type {
 	sx_type_set_index fsetindex;
 	sx_type_append fappend;
 	sx_type_is_in fisin;
+	sx_type_new fnew;
 
 	SX_TYPE next;
 };
@@ -448,6 +452,7 @@ struct scriptix_thread {
 	unsigned long data;
 	unsigned long data_size;
 
+	SX_THREAD prev;
 	SX_THREAD next;
 };
 

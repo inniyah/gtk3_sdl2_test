@@ -30,9 +30,11 @@
 #include <stdarg.h>
 
 #include "scriptix.h"
+#include "system.h"
 
 int
 sx_raise_error (SX_THREAD thread, const char *format, ...) {
+	SX_CALL call;
 	SX_VALUE value;
 	char buf[256]; /* big enough */
 	va_list va;
@@ -41,12 +43,17 @@ sx_raise_error (SX_THREAD thread, const char *format, ...) {
 	vsnprintf (buf, sizeof(buf), format, va);
 	va_end (va);
 	if (thread->system->error_hook != NULL) {
-		thread->system->error_hook (buf);
+		call = sx_get_call (thread);
+		if (call) {
+			thread->system->error_hook (call->file ? SX_TOSTRING(call->file)->str : "n/a", call->line, buf);
+		} else {
+			thread->system->error_hook ("n/a", 0, buf);
+		}
 	}
 
 	value = sx_new_str (thread->system, buf);
 
 	sx_push_value (thread, value);
-	thread->state = SX_STATE_ERROR;
+	thread->state = SX_STATE_FAILED;
 	return thread->state;
 }

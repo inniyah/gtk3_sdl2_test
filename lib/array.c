@@ -34,6 +34,14 @@
 #include "scriptix.h"
 #include "system.h"
 
+static
+SX_VALUE
+_sx_array_new (SX_SYSTEM system, SX_TYPE type)
+{
+	return sx_new_array (system, 0, NULL);
+}
+
+static
 void
 _sx_array_print (SX_SYSTEM system, SX_ARRAY value) {
 	unsigned long i;
@@ -50,6 +58,7 @@ _sx_array_print (SX_SYSTEM system, SX_ARRAY value) {
 	}
 }
 
+static
 void
 _sx_array_mark (SX_SYSTEM system, SX_ARRAY value) {
 	unsigned long i;
@@ -58,6 +67,7 @@ _sx_array_mark (SX_SYSTEM system, SX_ARRAY value) {
 	}
 }
 
+static
 void
 _sx_array_del (SX_SYSTEM system, SX_ARRAY value) {
 	if (value->count > 0) {
@@ -65,11 +75,13 @@ _sx_array_del (SX_SYSTEM system, SX_ARRAY value) {
 	}
 }
 
+static
 int
 _sx_array_true (SX_SYSTEM system, SX_ARRAY value) {
 	return value->count > 0;
 }
 
+static
 SX_VALUE 
 _sx_array_get_index (SX_SYSTEM system, SX_ARRAY value, long index) {
 	if (value->count == 0) {
@@ -88,6 +100,7 @@ _sx_array_get_index (SX_SYSTEM system, SX_ARRAY value, long index) {
 	return value->list[index];
 }
 
+static
 SX_VALUE 
 _sx_array_set_index (SX_SYSTEM system, SX_ARRAY array, long index, SX_VALUE value) {
 	if (array->count == 0) {
@@ -106,6 +119,7 @@ _sx_array_set_index (SX_SYSTEM system, SX_ARRAY array, long index, SX_VALUE valu
 	return array->list[index] = value;
 }
 
+static
 SX_VALUE 
 _sx_array_append (SX_SYSTEM system, SX_ARRAY array, SX_VALUE add) {
 	SX_VALUE *nlist;
@@ -132,6 +146,7 @@ _sx_array_append (SX_SYSTEM system, SX_ARRAY array, SX_VALUE add) {
 	return (SX_VALUE )array;
 }
 
+static
 int
 _sx_array_is_in (SX_SYSTEM system, SX_ARRAY array, SX_VALUE value) {
 	unsigned long i;
@@ -145,15 +160,36 @@ _sx_array_is_in (SX_SYSTEM system, SX_ARRAY array, SX_VALUE value) {
 
 /* methods */
 
-SX_DEFINE_CFUNC(_sx_array_length) {
+static
+SX_DEFINE_CFUNC(_sx_array_method_length) {
 	*sx_ret = sx_new_num (((SX_ARRAY )sx_self)->count);
 }
+
+static
+SX_DEFINE_CFUNC(_sx_array_method_append) {
+	*sx_ret = _sx_array_append (sx_thread->system, (SX_ARRAY)sx_self, sx_argv[0]);
+}
+
+static
+SX_DEFINE_CFUNC(_sx_array_method_remove) {
+	unsigned long i;
+	for (i = 0; i < SX_TOARRAY(sx_self)->count; ++ i) {
+		if (sx_are_equal (sx_thread->system, SX_TOARRAY(sx_self)->list[i], sx_argv[0])) {
+			memcpy (&SX_TOARRAY(sx_self)->list[i], &SX_TOARRAY(sx_self)->list[i + 1], (SX_TOARRAY(sx_self)->count - i - 1) * sizeof (SX_VALUE ));
+			-- SX_TOARRAY(sx_self)->count;
+			*sx_ret = sx_new_num (1);
+			return;
+		}
+	}
+}
+
+/* init */
 
 SX_TYPE 
 sx_init_array (SX_SYSTEM system) {
 	SX_TYPE type;
 
-	type = sx_new_type (system, "array");
+	type = sx_new_type (system, "Array");
 	if (type == NULL) {
 		return NULL;
 	}
@@ -166,8 +202,11 @@ sx_init_array (SX_SYSTEM system) {
 	type->fsetindex = (sx_type_set_index)_sx_array_set_index;
 	type->fappend = (sx_type_append)_sx_array_append;
 	type->fisin = (sx_type_is_in)_sx_array_is_in;
+	type->fnew = (sx_type_new)_sx_array_new;
 
-	sx_add_method (system, type, "length", 0, 0, _sx_array_length);
+	sx_add_method (system, type, "length", 0, 0, _sx_array_method_length);
+	sx_add_method (system, type, "append", 1, 0, _sx_array_method_append);
+	sx_add_method (system, type, "remove", 1, 0, _sx_array_method_remove);
 
 	return type;
 }
