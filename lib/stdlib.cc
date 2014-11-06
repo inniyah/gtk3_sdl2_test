@@ -80,8 +80,11 @@ StdlibFork (Thread* thread, size_t argc, Value** argv)
 	}
 
 	// FIXME: error on failure
-	Thread* nthread = new Thread (thread->GetSystem(), SX_TOFUNC(argv[0]), Number::ToInt (argv[1]), 0, NULL);
-	return Number::Create ((long)nthread >> 2);
+	Thread* nthread = thread->GetSystem()->CreateThread(SX_TOFUNC(argv[0]), argc - 1, &argv[1]);
+	if (nthread)
+		return Number::Create (nthread->GetID());
+	else
+		return Number::Create (-1);
 }
 
 static

@@ -49,7 +49,7 @@ Iterator::MethodNext(Thread* thread, Value* self, size_t argc, Value** argv)
 }
 
 // Define type parameters
-SX_TYPEIMPL(Iterator, "Iterator", Value)
+SX_TYPEIMPL(Iterator, "Iterator", Value, SX_TYPECREATENONE(Iterator))
 
 // Our methods
 SX_BEGINMETHODS(Iterator)

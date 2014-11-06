@@ -65,9 +65,6 @@ _sxp_count (ParserNode *node) {
 static
 void
 _sxp_put_line (ParserFunction* func, ParserNode *node) {
-	func->func->AddValue(node->info->system, (Value*)node->file);
-	func->func->AddValue(node->info->system, Number::Create (node->line));
-	func->func->AddOpcode(node->info->system, OP_SETFILELINE);
 }
 
 bool
@@ -77,36 +74,51 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 	unsigned long pos2;
 
 	while (node != NULL) {
-		// output debug info
+		// output debug info - file
 		if (node->file != last_file) {
 			_sxp_put_line (func, node);
-		} else if (node->line == last_line + 1) {
-			func->func->AddOpcode(system, OP_NEXTLINE);
-		} else if (node->line != last_line) {
-			_sxp_put_line (func, node);
+			func->func->AddValue(node->info->system, (Value*)node->file);
+			func->func->AddOpcode(node->info->system, OP_SETFILE);
+			last_file = node->file;
 		}
 
-		// store line
-		last_file = node->file;
-		last_line = node->line;
+		// output debug info - line
+		if (node->line == last_line + 1) {
+			func->func->AddOpcode(system, OP_NEXTLINE);
+			last_line = node->line;
+		} else if (node->line != last_line) {
+			func->func->AddOpcode(system, OP_SETLINE);
+			func->func->AddOparg(system, node->line);
+			last_line = node->line;
+		}
 
+		// select operations...
 		switch (node->type) {
+			// no operation
+			case SXP_NOOP:
+				// ignore
+				break;
+			// basic mathematical operation (+, /, -, *)
 			case SXP_MATH:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				_test(CompileNode (func, node->parts.nodes[1]))
 				func->func->AddOpcode(system, (sx_op_type)node->parts.op);
 				break;
+			// push data onto stack
 			case SXP_DATA:
 				func->func->AddValue(system, node->parts.value);
 				break;
+			// unary negation
 			case SXP_NEGATE:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_NEGATE);
 				break;
+			// unary not operation
 			case SXP_NOT:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_NOT);
 				break;
+			// short-cut or operator
 			case SXP_OR:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_TEST);
@@ -117,6 +129,7 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				_test(CompileNode (func, node->parts.nodes[1]))
 				func->func->nodes[pos] = func->func->count - pos;
 				break;
+			// short cut and operation
 			case SXP_AND:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_TEST);
@@ -127,12 +140,14 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				_test(CompileNode (func, node->parts.nodes[1]))
 				func->func->nodes[pos] = func->func->count - pos;
 				break;
+			// call a function
 			case SXP_INVOKE:
 				_test(CompileNode (func, node->parts.nodes[1]))
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_INVOKE);
 				func->func->AddOparg (system, _sxp_count (node->parts.nodes[1]));
 				break;
+			// retrieve a variable/global
 			case SXP_LOOKUP:
 			{
 				Value* lfunc;
@@ -141,7 +156,7 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				long index;
 
 				// do variable lookup
-				index = GetVar(func, node->parts.names[0]);
+				index = GetVar(func, node->parts.name);
 				if (index >= 0) {
 					func->func->AddOpcode(system, OP_LOOKUP);
 					func->func->AddOparg(system, index);
@@ -149,8 +164,8 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				}
 
 				// search for function
-				for (std::list<ParserFunction*>::iterator dfunc = funcs.begin(); dfunc != funcs.end(); ++dfunc) {
-					if ((*dfunc)->name == node->parts.names[0]) {
+				for (FunctionList::iterator dfunc = funcs.begin(); dfunc != funcs.end(); ++dfunc) {
+					if ((*dfunc)->name == node->parts.name) {
 						func->func->AddValue(system, SX_TOVALUE((*dfunc)->func));
 						found = 1;
 						break;
@@ -162,7 +177,7 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				}
 
 				// external function?
-				lfunc = system->GetFunction(node->parts.names[0]);
+				lfunc = system->GetFunction(node->parts.name);
 				if (lfunc) {
 					// add function
 					func->func->AddValue(system, lfunc);
@@ -170,7 +185,7 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				}
 
 				// global variable?
-				index = GetGlobal(node->parts.names[0]);
+				index = GetGlobal(node->parts.name);
 				if (index >= 0) {
 					func->func->AddValue(system, globals);
 					func->func->AddValue(system, Number::Create(index));
@@ -179,22 +194,23 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				}
 
 				// global constant?
-				gval = system->GetGlobal(node->parts.names[0]);
+				gval = system->GetGlobal(node->parts.name);
 				if (gval) {
 					func->func->AddValue(system, gval);
 					break;
 				}
 
 				// failure...
-				_sxp_node_error (node, "Unknown identifier '%s'", IDToName (node->parts.names[0]));
+				_sxp_node_error (node, "Error: Unknown identifier '%s'", IDToName (node->parts.name));
 				return false;
 			}
+			// set a variable
 			case SXP_ASSIGN:
 			{
-				long index = GetVar(func, node->parts.names[0]);
+				long index = GetVar(func, node->parts.name);
 				if (index < 0) {
 					// global variable?
-					index = GetGlobal(node->parts.names[0]);
+					index = GetGlobal(node->parts.name);
 					if (index >= 0) {
 						// do a lookup
 						func->func->AddValue(system, SX_TOVALUE(globals));
@@ -204,17 +220,19 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 						break;
 						
 					}
-					index = AddVar(func, node->parts.names[0]);
+					index = AddVar(func, node->parts.name);
 				}
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_ASSIGN);
 				func->func->AddOparg(system, index);
 				break;
 			}
+			// pop the return of the expression - single statement
 			case SXP_STATEMENT:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_POP);
 				break;
+			// conditional block
 			case SXP_IF:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_TEST);
@@ -234,9 +252,9 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 					func->func->nodes[pos] = func->func->count - pos;
 				}
 				break;
+			// a kind of loop
 			case SXP_LOOP:
 				PushBlock(func->func);
-				_sxp_put_line (func, node);
 				switch (node->parts.op) {
 					case SXP_LOOP_WHILE:
 						// while... do - test true, loop
@@ -282,29 +300,33 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				}
 				PopBlock();
 				break;
+			// set a value in a List
 			case SXP_SETINDEX:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				_test(CompileNode (func, node->parts.nodes[1]))
 				_test(CompileNode (func, node->parts.nodes[2]))
 				func->func->AddOpcode(system, OP_SETINDEX);
 				break;
+			// get a value from a List
 			case SXP_GETINDEX:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				_test(CompileNode (func, node->parts.nodes[1]))
 				func->func->AddOpcode(system, OP_INDEX);
 				break;
+			// generate an array from stack value
 			case SXP_ARRAY:
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_NEWARRAY);
 				func->func->AddOparg(system, _sxp_count(node->parts.nodes[0]));
 				break;
+			// increment a normal variable, push result
 			case SXP_PREINC:
 			{
 				long index;
 				// do variable lookup
-				index = GetVar(func, node->parts.names[0]);
+				index = GetVar(func, node->parts.name);
 				if (index < 0) {
-					_sxp_node_error (node, "Undefined variable '%s'", IDToName (node->parts.names[0]));
+					_sxp_node_error (node, "Error: Undefined variable '%s'", IDToName (node->parts.name));
 					break;
 				}
 
@@ -313,13 +335,14 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				func->func->AddOpcode(system, OP_PREINCREMENT);
 				break;
 			}
+			// push a normal variable, then increment its value
 			case SXP_POSTINC:
 			{
 				long index;
 				// do variable lookup
-				index = GetVar(func, node->parts.names[0]);
+				index = GetVar(func, node->parts.name);
 				if (index < 0) {
-					_sxp_node_error (node, "Undefined variable '%s'", IDToName (node->parts.names[0]));
+					_sxp_node_error (node, "Error: Undefined variable '%s'", IDToName (node->parts.name));
 					break;
 				}
 
@@ -328,6 +351,7 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				func->func->AddOpcode(system, OP_POSTINCREMENT);
 				break;
 			}
+			// return from the current call stack
 			case SXP_RETURN:
 				if (node->parts.nodes[0] != NULL)
 					_test(CompileNode (func, node->parts.nodes[0]))
@@ -337,12 +361,11 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				returns.push_back(func->func->count);
 				func->func->AddOparg(system, 0);
 				break;
+			// break from current loop/block
 			case SXP_BREAK:
 				_test(AddBreak())
 				break;
-			case SXP_CONTINUE:
-				_test(AddContinue())
-				break;
+			// invoke a method on an object
 			case SXP_METHOD:
 				// value
 				_test(CompileNode (func, node->parts.nodes[0]))
@@ -351,22 +374,16 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 					_test(CompileNode (func, node->parts.nodes[1]))
 				// call
 				func->func->AddOpcode(system, OP_METHOD);
-				func->func->AddOparg (system, node->parts.names[0]);
+				func->func->AddOparg (system, node->parts.name);
 				func->func->AddOparg (system, _sxp_count (node->parts.nodes[1]));
 				break;
+			// convert a value into another type if possible
 			case SXP_CAST:
 				_test(CompileNode (func, node->parts.nodes[0]))
-				func->func->AddValue(system, new TypeValue (system, system->GetType(node->parts.names[0])));
+				func->func->AddValue(system, new TypeValue(system, node->parts.type));
 				func->func->AddOpcode(system, OP_TYPECAST);
 				break;
-			case SXP_STRINGCAST:
-				_test(CompileNode (func, node->parts.nodes[0]))
-				func->func->AddOpcode(system, OP_STRINGCAST);
-				break;
-			case SXP_INTCAST:
-				_test(CompileNode (func, node->parts.nodes[0]))
-				func->func->AddOpcode(system, OP_INTCAST);
-				break;
+			// special loop with a setup section, test, post-body expression
 			case SXP_FOR:
 				// setup
 				_test(CompileNode (func, node->parts.nodes[0]))
@@ -379,7 +396,6 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				// increment
 				_test(CompileNode (func, node->parts.nodes[2]))
 				func->func->nodes[pos] = func->func->count - pos;
-				_sxp_put_line (func, node);
 				// loop test
 				_test(CompileNode (func, node->parts.nodes[1]))
 				func->func->AddOpcode(system, OP_TEST);
@@ -392,17 +408,24 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				// end
 				PopBlock();
 				break;
+			// return to start of current loop/block
+			case SXP_CONTINUE:
+				_test(AddContinue())
+				break;
+			// call a static class method
 			case SXP_SMETHOD:
 				if (node->parts.nodes[0])
 					_test(CompileNode (func, node->parts.nodes[0]))
-				func->func->AddValue(system, new TypeValue (system, system->GetType(node->parts.names[0])));
+				func->func->AddValue(system, new TypeValue(system, node->parts.type));
 				func->func->AddOpcode(system, OP_STATIC_METHOD);
-				func->func->AddOparg (system, node->parts.names[1]);
+				func->func->AddOparg (system, node->parts.name);
 				func->func->AddOparg(system, _sxp_count (node->parts.nodes[0]));
 				break;
+			// break current thread
 			case SXP_YIELD:
 				func->func->AddOpcode(system, OP_YIELD);
 				break;
+			// check if a value is in a List
 			case SXP_IN:
 				// first put in list to check
 				if (node->parts.nodes[1]) {
@@ -419,32 +442,41 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				// set op
 				func->func->AddOpcode(system, OP_IN);
 				break;
+			// construct a new object of the specified type
 			case SXP_NEW:
-				func->func->AddValue(system, new TypeValue (system, system->GetType(node->parts.names[0])));
-				func->func->AddOpcode(system, OP_STATIC_METHOD);
-				func->func->AddOparg(system, NameToID("new"));
-				func->func->AddOparg(system, 0);
+				func->func->AddValue(system, new TypeValue(system, node->parts.type));
+				func->func->AddOpcode(system, OP_NEW);
+				if (node->parts.op) {
+					if (node->parts.nodes[0])
+						_test(CompileNode(func, node->parts.nodes[0]))
+					func->func->AddOpcode(system, OP_METHOD);
+					func->func->AddOparg(system, NameToID("new"));
+					func->func->AddOparg(system, _sxp_count (node->parts.nodes[0]));
+				}
 				break;
+			// set a Struct member
 			case SXP_SETMEMBER:
 				// object
 				_test(CompileNode (func, node->parts.nodes[0]))
 				// value
 				_test(CompileNode (func, node->parts.nodes[1]))
 				func->func->AddOpcode(system, OP_SET_MEMBER);
-				func->func->AddOparg(system, node->parts.names[0]);
+				func->func->AddOparg(system, node->parts.name);
 				break;
+			// retrieve a Struct member
 			case SXP_GETMEMBER:
 				// object
 				_test(CompileNode (func, node->parts.nodes[0]))
 				func->func->AddOpcode(system, OP_GET_MEMBER);
-				func->func->AddOparg(system, node->parts.names[0]);
+				func->func->AddOparg(system, node->parts.name);
 				break;
+			// iterate over the items in a specialized list
 			case SXP_FOREACH:
 			{
 				// set variable
-				long index = GetVar(func, node->parts.names[0]);
+				long index = GetVar(func, node->parts.name);
 				if (index < 0) {
-					index = AddVar(func, node->parts.names[0]);
+					index = AddVar(func, node->parts.name);
 				}
 
 				// set iterator object
@@ -465,15 +497,15 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				func->func->AddOpcode(system, OP_POP);
 				break;
 			}
-			case SXP_CONCAT:
-				_test(CompileNode (func, node->parts.nodes[0]));
-				_test(CompileNode (func, node->parts.nodes[1]));
-				func->func->AddOpcode(system, OP_CONCAT);
+			// force a value into a string if possible
+			case SXP_STRINGCAST:
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, OP_STRINGCAST);
 				break;
-
-			// NOOP - special
-			case SXP_NOOP:
-				// ignore
+			// force a value into an int if possible
+			case SXP_INTCAST:
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, OP_INTCAST);
 				break;
 		}
 		node = node->next;
@@ -485,16 +517,27 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 int
 Scriptix::ParserState::Compile(void) {
 	// make function data
-	for (std::list<ParserFunction*>::iterator func = funcs.begin(); func != funcs.end(); ++func) {
+	for (FunctionList::iterator func = funcs.begin(); func != funcs.end(); ++func) {
 		(*func)->func = new Function (system, (*func)->name, ((*func)->vars).size(), (*func)->varg);
 		if (!(*func)->func) {
 			Error("Failed to create function");
 			return -1;
 		}
 	}
-	for (std::vector<ParserExtend*>::iterator extend = extends.begin(); extend != extends.end(); ++extend) {
-		for (std::vector<ParserFunction*>::iterator func = (*extend)->methods.begin(); func != (*extend)->methods.end(); ++func) {
-			if ((*extend)->type->GetMethod((*func)->name) != NULL) {
+
+	// create type extensions
+	for (ExtendList::iterator extend = extends.begin(); extend != extends.end(); ++extend) {
+		for (ParserExtend::MethodList::iterator func = (*extend)->methods.begin(); func != (*extend)->methods.end(); ++func) {
+			// check existance
+			if ((*func)->staticm && (*extend)->type->GetStaticMethod((*func)->name) != NULL) {
+				std::string errmsg = "Attempt to extend type '";
+				errmsg += IDToName((*extend)->type->GetName());
+				errmsg += "' with static method '";
+				errmsg += IDToName((*func)->name);
+				errmsg += "' which already exists";
+				Error(errmsg.c_str());
+				return -1;
+			} else if (!(*func)->staticm && (*extend)->type->GetMethod((*func)->name) != NULL) {
 				std::string errmsg = "Attempt to extend type '";
 				errmsg += IDToName((*extend)->type->GetName());
 				errmsg += "' with method '";
@@ -503,6 +546,8 @@ Scriptix::ParserState::Compile(void) {
 				Error(errmsg.c_str());
 				return -1;
 			}
+
+			// create function
 			(*func)->func = new Function (system, (*func)->name, ((*func)->vars).size(), (*func)->varg);
 			if (!(*func)->func) {
 				Error("Failed to create function");
@@ -512,10 +557,19 @@ Scriptix::ParserState::Compile(void) {
 	}
 
 	// compile blocks
-	for (std::list<ParserFunction*>::iterator func = funcs.begin(); func != funcs.end(); ++func) {
+	for (FunctionList::iterator func = funcs.begin(); func != funcs.end(); ++func) {
+		// setup vararg
 		if ((*func)->varg)
 			(*func)->vars.push_back((*func)->varg);
+
+		// optimize
 		(*func)->body = sxp_transform ((*func)->body);
+
+		// reset file/line
+		last_file = NULL;
+		last_line = 0;
+
+		// compile node
 		if (!CompileNode (*func, (*func)->body))
 			return -1; // failed
 		(*func)->func->AddValue(system, SX_NIL);
@@ -529,11 +583,22 @@ Scriptix::ParserState::Compile(void) {
 		// variable count
 		(*func)->func->varc = (*func)->vars.size();
 	}
-	for (std::vector<ParserExtend*>::iterator extend = extends.begin(); extend != extends.end(); ++extend) {
-		for (std::vector<ParserFunction*>::iterator func = (*extend)->methods.begin(); func != (*extend)->methods.end(); ++func) {
+
+	// compile type method extensions
+	for (ExtendList::iterator extend = extends.begin(); extend != extends.end(); ++extend) {
+		for (ParserExtend::MethodList::iterator func = (*extend)->methods.begin(); func != (*extend)->methods.end(); ++func) {
+			// setup vararg
 			if ((*func)->varg)
 				(*func)->vars.push_back((*func)->varg);
+
+			// optimize
 			(*func)->body = sxp_transform ((*func)->body);
+
+			// reset file/line
+			last_file = NULL;
+			last_line = 0;
+
+			// compile
 			if (!CompileNode (*func, (*func)->body))
 				return -1; // failed
 			(*func)->func->AddValue(system, SX_NIL);
@@ -550,25 +615,23 @@ Scriptix::ParserState::Compile(void) {
 	}
 
 	// everything went right, extend types
-	for (std::vector<ParserExtend*>::iterator extend = extends.begin(); extend != extends.end(); ++extend) {
-		for (std::vector<ParserFunction*>::iterator func = (*extend)->methods.begin(); func != (*extend)->methods.end(); ++func) {
-			Method* method = new Method();
-			// FIXME: error check - god this is annoying
-			method->name = (*func)->func->id;
-			method->argc = (*func)->func->argc;
-			method->varg = (*func)->func->varg;
-			method->method = NULL;
-			method->sxmethod = (*func)->func;
-			(*extend)->type->AddMethod(method);
+	for (ExtendList::iterator extend = extends.begin(); extend != extends.end(); ++extend) {
+		for (ParserExtend::MethodList::iterator func = (*extend)->methods.begin(); func != (*extend)->methods.end(); ++func) {
+			// static or no?
+			if ((*func)->staticm)
+				(*extend)->type->AddStaticMethod((*func)->func);
+			else
+				(*extend)->type->AddMethod((*func)->func);
 		}
 	}
 
 	// everything went right, publicize and tag
-	for (std::list<ParserFunction*>::iterator func = funcs.begin(); func != funcs.end(); ++func) {
+	for (FunctionList::iterator func = funcs.begin(); func != funcs.end(); ++func) {
 		// make public if public
 		if ((*func)->pub)
 			system->AddFunction((*func)->func);
 
+		// invoke tags
 		if ((*func)->tag)
 			system->HandleFunctionTag ((*func)->tag, (*func)->func);
 	}

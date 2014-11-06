@@ -8,3 +8,6 @@ docs_DATA=README COPYING
 
 pkgconfdir=${prefix}/lib/pkgconfig
 pkgconf_DATA=scriptix.pc
+
+rpm: dist
+	rpmbuild -ta "${PACKAGE_TARNAME}-${PACKAGE_VERSION}.tar.gz"

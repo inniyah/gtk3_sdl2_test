@@ -137,7 +137,7 @@ Scriptix::ParserState::AddExtend(Type* type)
 
 // add a function to a typ extension
 ParserFunction*
-Scriptix::ParserState::AddExtendFunc(NameID name, const NameList& args, NameID varg, ParserNode* body)
+Scriptix::ParserState::AddExtendFunc(NameID name, const NameList& args, NameID varg, ParserNode* body, bool staticm)
 {
 	if (extends.empty())
 		return NULL;
@@ -151,10 +151,53 @@ Scriptix::ParserState::AddExtendFunc(NameID name, const NameList& args, NameID v
 	func->varg = varg;
 	func->body = body;
 	func->pub = false;
+	func->staticm = staticm;
 	func->tag = 0;
+
+	// append magic 'self' argument
+	if (!staticm)
+		func->vars.insert(func->vars.begin(), NameToID("self"));
 
 	extends.back()->methods.push_back(func);
 	return func;
+}
+
+// add a new type
+Type*
+Scriptix::ParserState::AddType(NameID name, const Type* parent)
+{
+	// lookup type
+	if (GetType(name) != NULL) {
+		Error (std::string("Attempt to create type '") + IDToName(name) + "' which already exists.");
+		return NULL;
+	}
+
+	// create type
+	Type* type = new Type(system, name, parent, NULL);
+	if (!type) {
+		delete type;
+		return NULL;
+	}
+	types.push_back(type);
+
+	// create extend
+	if (!AddExtend(type)) {
+		delete type;
+		return NULL;
+	}
+
+	// success
+	return type;
+}
+
+// get a type, either in creation or system-wide
+Type*
+Scriptix::ParserState::GetType(NameID name)
+{
+	for (TypeList::iterator i = types.begin(); i != types.end(); ++i)
+		if ((*i)->GetName() == name)
+			return *i;
+	return system->GetType(name);
 }
 
 // add block to state
@@ -316,8 +359,8 @@ ParserNode::ParserNode(Scriptix::ParserState* s_info,
 		ParserNode* s_node1,
 		ParserNode* s_node2,
 		ParserNode* s_node3,
-		NameID s_name0,
-		NameID s_name1,
+		NameID s_name,
+		Type* s_ttype,
 		Value* s_value,
 		int s_op)
 {
@@ -335,8 +378,8 @@ ParserNode::ParserNode(Scriptix::ParserState* s_info,
 	parts.nodes[1] = s_node1;
 	parts.nodes[2] = s_node2;
 	parts.nodes[3] = s_node3;
-	parts.names[0] = s_name0;
-	parts.names[1] = s_name1;
+	parts.name = s_name;
+	parts.type = s_ttype;
 	parts.value = s_value;
 	parts.op = s_op;
 }

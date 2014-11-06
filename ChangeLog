@@ -1,4 +1,93 @@
-2003-09-12 14:41:57  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-12-04 19:43:50  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Release 0.28.
+  * Build fixes.
+
+2003-11-21 16:49:58  Sean Middleditch <elanthis@awemud.net>
+
+  * The 'self' argument to type methods is automatic now.
+    (Don't manually put it in the argument list.)
+  * New constructs, .name=, .name, and .name() allow for easy
+    member and method usage in the 'self' variable.  I.e., .foo='hi'
+    is equivalent to self.foo='hi'.
+
+2003-11-14 18:21:11  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Recode ID<->Name code to be much, much more efficient.
+    (Names are stored in an STL set, and IDs are encoded pointers,
+    resulting in very fast lookups both ways.)
+  * Undid eval jump table lookup, compiler should optimize better
+    than that.
+  * Reorganized eval switch() statement to have numerically
+    increasing opcodes, better compiler optimizations available.
+  * Removed concat operator (deprecated it in the language),
+    use the normal addition operator.
+  * Addition will only work if the first arg is a number or string.
+    (No, I don't care about the performance implications of doing
+    this check.)  In the case of numbers, the second argument is
+    *not* converted, but it is for strings.  As before with addition
+    and as now still with other math operators, non-numbers given
+    as the second operand in numeric addition will be interpreted
+    as garbage, no conversion or checking is done.
+
+2003-11-11 04:18:39  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Small fix to SX_TYPECREATE* for proper namespace usage.
+
+2003-11-11 03:29:29  Sean Middleditch <elanthis@awemud.net>
+
+  * Rewrote Method handling system to use Functions.
+  * Threads are created with the System::CreateThread() method now.
+  * The 'new' method of a object is called when the new operator is
+    used in function form.  (i.e., new Object() or new Object(arg1,
+    arg2))
+  * Added blurb about bugs and backtrace generation to the README.
+
+2003-11-10 19:00:23  Sean Middleditch <elanthis@awemud.net>
+
+  * Type extends can now add static methods.
+  * Types have a new Construct() method.
+  * Can now create custom types in Scriptix, with or without
+    base types.
+  * Compiler handling of Types cleaned up.
+
+2003-10-16 20:16:02  Sean Middleditch <elanthis@awemud.net>
+
+  * The script loading functions have been changed a bit to be
+    more sane.
+
+2003-10-16 15:33:46  Sean Middleditch <elanthis@awemud.net>
+
+  * Cleanup to TagList (doesn't need to be GC'd).
+  * Make argv[] in main.cc be tracable/collected.
+
+2003-10-15 03:03:13  Sean Middleditch <elanthis@awemud.net>
+
+  * Enhanced GC base class to allow (simple) destructor invocation
+    on collection.
+
+2003-10-14 15:25:03  Sean Middleditch <elanthis@awemud.net>
+
+  * Removed LibSGC, use Boehm-Demer-Weiss GC now.
+
+2003-09-28 03:13:48  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix function tags to work again.
+
+2003-09-26 21:00:44  Sean Middleditch <elanthis@awemud.net>
+
+  * Deprecated the : notation for structs (use . now).
+  * Removed the big select() in the VM for a computed goto (GCC
+    extension - experimenting).
+  * Various byte code cleanups and improvements.
+  * s/Call/Frame.
+  * Thread frames and data stack are STL vector<>s now.
+
+2003-09-14 22:50:46  Sean Middleditch <elanthis@awemud.net>
+
+  * Release 0.27.
+
+2003-09-12 14:41:57  Sean Middleditch <elanthis@awemud.net>
 
   * When reading source files, text mode is explicitly set,
     for Cygwin.
@@ -7,7 +96,7 @@
 
   * Require newer libsgc.  (*gasp*)
 
-2003-08-11 19:57:46  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-08-11 19:57:46  Sean Middleditch <elanthis@awemud.net>
 
   * Int and String type casting uses automatic conversion.
 
@@ -21,28 +110,28 @@
   * Added --add-missing to automake invocation in bootstrap.
   * More C++-izing.
 
-2003-08-01 18:48:14  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-08-01 18:48:14  Sean Middleditch <elanthis@awemud.net>
 
   * Make the to_str() method on the Int type work.
 
-2003-08-01 18:19:36  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-08-01 18:19:36  Sean Middleditch <elanthis@awemud.net>
 
   * Cleanups to extend code.
   * Don't allow old methods to be over-ridden.
   * Added .trim(), .ltrim(), and .rtrim() methods to String.
 
-2003-08-01 16:44:23  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-08-01 16:44:23  Sean Middleditch <elanthis@awemud.net>
 
   * Methods may be Scriptix functions.
   * The extend syntax works now.
 
-2003-08-01 15:23:57  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-08-01 15:23:57  Sean Middleditch <elanthis@awemud.net>
 
   * More C++-ization to the compiler.
   * Added the type 'extend' grammer.  (Not yet working.)
   * Grammar fixes.
 
-2003-07-31 18:42:16  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-07-31 18:42:16  Sean Middleditch <elanthis@awemud.net>
 
   * Types are once again dynamically registered with the System
     object.
@@ -92,11 +181,11 @@
 
   * Release 0.26.
 
-2003-07-10 20:47:51  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-07-10 20:47:51  Sean Middleditch <elanthis@awemud.net>
 
   * Upgraded the cvs and autogen scripts.
 
-2003-07-10  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-07-10  Sean Middleditch <elanthis@awemud.net>
 
   * Added a string concatenation operator (@).
   * Nicer README.
@@ -172,11 +261,11 @@
 2003-05-21  Sean Middleditch <elanthis@awemud.net>
 
 
-2003-05-20  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-05-20  Sean Middleditch <elanthis@awemud.net>
 
   * Made iter.sx actually test something (it can fail).
 
-2003-05-20  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2003-05-20  Sean Middleditch <elanthis@awemud.net>
 
   * Lots more compiler cleanups.
   * Removal of the associative array syntactic sugar.

@@ -56,89 +56,27 @@ System::EndThread (Thread* thread) {
 	delete thread;
 }
 
-Thread::Thread (System* sys, Function* called, unsigned char fl, size_t argc, Value* argv[]) {
+Thread::Thread (System* sys, int fl) {
 	static size_t _free_id = 0; // ID tag for threads
 
 	system = sys;
 	flags = fl;
-	call_stack = NULL;
-	call_size = 0;
-	call = 0;
-	data_stack = NULL;
-	data_size = 0;
-	data = 0;
 	ret = NULL;
 	state = STATE_READY;
 	id = ++_free_id;
 	next = NULL;
 	prev = NULL;
-
-	PushCall(called, argc, argv, 0);
-
-	system->AddThread (this);
-}
-
-Thread::Thread (System* sys, Function* called, unsigned char flags, size_t argc, ...) {
-	Value* argv[20]; // 20 sounds a good max: FIXME: make this a define somewhere
-	size_t i;
-	va_list va;
-
-	if (argc > 20) {
-		// FIXME: SXE_BOUNDS error
-		Thread (sys, called, flags, 0, NULL);
-		state = STATE_FAILED;
-	} else if (argc > 0) {
-		va_start (va, argc);
-		for (i = 0; i <= argc; ++ i) {
-			argv[i] = va_arg (va, Value* );
-		}
-		va_end (va);
-
-		Thread (sys, called, flags, argc, argv);
-	} else {
-		Thread (sys, called, flags, 0, NULL);
-	}
-}
-
-Thread::~Thread (void) {
-	while (call > 0) {
-		PopCall();
-	}
-
-	if (data_stack != NULL) {
-		free (data_stack);
-	}
-	if (call_stack != NULL) {
-		free (call_stack);
-	}
-}
-
-void
-Thread::Mark (void)
-{
-	if (ret)
-		Value::Mark (ret);
-
-	for (size_t i = 0; i < call; ++ i) {
-		Value::Mark (call_stack[i].func);
-		Value::Mark (call_stack[i].file);
-		for (size_t ii = 0; ii < call_stack[i].func->varc; ++ ii) {
-			Value::Mark (call_stack[i].items[ii]);
-		}
-	}
-
-	for (size_t i = 0; i < data; ++ i)
-		Value::Mark (data_stack[i]);
 }
 
 int
-Thread::PushCall (Function* func, size_t argc, Value* argv[], unsigned char flags) {
+Thread::PushFrame (Function* func, size_t argc, Value* argv[], int flags) {
 	Array* var_args;
 	Value** items;
 	size_t ai; // arg index
 
+	// argc items array (ick)
 	if (func->varc != 0) {
-		items = (Value**)malloc(func->varc * sizeof(Value*));
+		items = (Value**)GC_MALLOC(func->varc * sizeof(Value*));
 		if (items == NULL) {
 			return SXE_NOMEM;
 		}
@@ -147,28 +85,18 @@ Thread::PushCall (Function* func, size_t argc, Value* argv[], unsigned char flag
 		items = NULL;
 	}
 
-	if (call == call_size) {
-		Call* sx_new_stack = (Call*)realloc (call_stack, (call_size + system->GetContextChunk()) * sizeof (Call));
-		if (sx_new_stack == NULL) {
-			return SXE_NOMEM;
-		}
-		call_stack = sx_new_stack;
-		call_size += system->GetContextChunk();
-	}
+	// push new frame
+	frames.resize(frames.size() + 1);
+	Frame& frame = frames.back();
 
-	call_stack[call].file = NULL;
-	call_stack[call].line = 1;
-	call_stack[call].op_ptr = 0;
-	call_stack[call].top = data >= argc ? data - argc : 0;
-	call_stack[call].flags = flags;
-	call_stack[call].argc = argc;
-	call_stack[call].func = func;
-	call_stack[call].items = items;
-
-	++ call;
+	frame.top = data_stack.size() >= argc ? data_stack.size() - argc : 0;
+	frame.flags = flags;
+	frame.argc = argc;
+	frame.func = func;
+	frame.items = items;
 
 	// define variables for non-cfuncs
-	if (func->cfunc == NULL) {
+	if (func->cfunc == NULL && func->cmethod == NULL) {
 		size_t ni = 0; // name index
 		ai = 0; // start of args
 
@@ -182,7 +110,7 @@ Thread::PushCall (Function* func, size_t argc, Value* argv[], unsigned char flag
 			if (argc > func->argc) {
 				var_args = new Array(system, argc - func->argc, NULL);
 				if (var_args != NULL) {
-					// remaining call params
+					// remaining frame params
 					while (ai < argc) {
 						var_args->Append(system, argv[ai++]);
 					}
@@ -193,81 +121,40 @@ Thread::PushCall (Function* func, size_t argc, Value* argv[], unsigned char flag
 				 items[ni++] = new Array (system, 0, NULL);
 			 }
 		}
+	// if this is the first frame (new thread) force data on stack - FIXME< ugly hack
+	} else {
+		for (size_t i = 0; i < argc; ++i)
+			PushValue(argv[i]);
 	}
 
 	return SXE_OK;
 }
 
 Value*
-Thread::Invoke (Function* called, size_t argc, Value* argv[]) {
+Thread::Invoke (Function* func, size_t argc, Value* argv[]) {
 	Value* retval;
 
-	if (PushCall(called, argc, argv, CFLAG_BREAK) != SXE_OK)
+	if (PushFrame(func, argc, argv, CFLAG_BREAK) != SXE_OK)
 		return NULL;
 
 	system->NestedRun(this, &retval);
-
-	return retval;
-}
-
-Value*
-Thread::Invoke (Function* called, size_t argc, ...)
-{
-	va_list va;
-	Value** argv;
-	Value* retval;
-	size_t i;
-
-	if (argc) {
-#ifdef HAVE_ALLOCA
-		argv = (Value**)alloca (argc * sizeof (Value*));
-#else
-		argv = (Value**)malloc (argc * sizeof (Value*));
-#endif
-		if (argv == NULL) {
-			// FIXME: error code
-			return NULL;
-		}
-
-		va_start (va, argc);
-		for (i = 0; i < argc; ++ i) {
-			argv[i] = va_arg (va, Value*);
-		}
-		va_end (va);
-	} else {
-		argv = NULL;
-	}
-
-	if (PushCall(called, argc, argv, CFLAG_BREAK) != SXE_OK) {
-#ifndef HAVE_ALLOCA
-		if (argv != NULL)
-			free (argv);
-#endif
-		return NULL;
-	}
-
-	system->NestedRun(this, &retval);
-
-#ifndef HAVE_ALLOCA
-	if (argv != NULL)
-		free (argv);
-#endif
 
 	return retval;
 }
 
 void
-Thread::PopCall (void) {
-	if (call > 0) {
-		-- call;
+Thread::PopFrame (void) {
+	Frame& frame = frames.back();
 
-		// free var items
-		if (call_stack[call].items)
-			free (call_stack[call].items);
+	// GC_FREE var items
+	if (frame.items != NULL)
+		GC_FREE (frame.items);
 
-		// unwind stack 
-		data = call_stack[call].top;
-	}
+	// unwind data stack 
+	data_stack.resize(frame.top);
+
+	// pop the frame
+	frames.pop_back();
 }
 
 int

@@ -40,7 +40,8 @@
 #include <list>
 #include <iostream>
 
-#include "libsgc/libsgc.h"
+#include "gc/gc_cpp.h"
+#include "gc/new_gc_alloc.h"
 
 /**
  * Scriptix namespace.
@@ -84,12 +85,19 @@ typedef int int_t;
 	static Scriptix::MethodDef _MyStaticMethods[]; \
 	public: \
 	static const Scriptix::TypeDef* GetTypeDef (void) { return &_MyType; }
-#define SX_TYPEIMPL(CPPNAME, SXNAME, CPPPARENT) \
+#define SX_TYPECREATE(CPPNAME) \
+	Scriptix::_CreateNew<CPPNAME>
+#define SX_TYPECREATEFINAL(CPPNAME) \
+	Scriptix::_CreateNewFinal<CPPNAME>
+#define SX_TYPECREATENONE(CPPNAME) \
+	Scriptix::_CreateNewNull
+#define SX_TYPEIMPL(CPPNAME, SXNAME, CPPPARENT, CREATE) \
 	Scriptix::TypeDef CPPNAME::_MyType = { \
 		SXNAME , \
 		CPPPARENT::GetTypeDef(), \
 		CPPNAME::_MyMethods, \
 		CPPNAME::_MyStaticMethods, \
+		CREATE \
 	}; 
 #define SX_NOMETHODS(CPPNAME) Scriptix::MethodDef CPPNAME::_MyMethods[] = { { NULL, 0, 0, NULL } };
 #define SX_NOSMETHODS(CPPNAME) Scriptix::MethodDef CPPNAME::_MyStaticMethods[] = { { NULL, 0, 0, NULL } };
@@ -97,10 +105,7 @@ typedef int int_t;
 #define SX_ENDMETHODS { NULL, 0, 0, NULL } };
 #define SX_BEGINSMETHODS(CPPNAME) Scriptix::MethodDef CPPNAME::_MyStaticMethods[] = {
 #define SX_ENDSMETHODS { NULL, 0, 0, NULL } };
-#define SX_DEFMETHOD(CPPNAME, SXNAME, ARGC, VARARG) { SXNAME, ARGC, VARARG, CPPNAME }, 
-
-// Declare in SMETHODS - default NEW operator
-#define SX_DEFNEW(CPPNAME) { "new", 0, 0, _CreateNew<CPPNAME> },
+#define SX_DEFMETHOD(CPPNAME, SXNAME, ARGC, VARARG) { SXNAME, ARGC, VARARG, (void*)CPPNAME }, 
 
 // Error Codes
 typedef enum {
@@ -148,12 +153,13 @@ typedef enum {
 	OP_INTCAST,
 	OP_SETINDEX,
 	OP_METHOD,
-	OP_SETFILELINE,
+	OP_SETFILE,
+	OP_SETLINE,
 	OP_NEXTLINE,
 	OP_JUMP,
 	OP_POP,
-	OP_TEST,
-	OP_TJUMP = 30,
+	OP_TEST = 30,
+	OP_TJUMP,
 	OP_FJUMP,
 	OP_STATIC_METHOD,
 	OP_YIELD,
@@ -161,7 +167,7 @@ typedef enum {
 	OP_SET_MEMBER,
 	OP_GET_MEMBER,
 	OP_ITER,
-	OP_CONCAT = 38,
+	OP_NEW = 39,
 } sx_op_type;
 
 // Thread flags
@@ -177,11 +183,11 @@ typedef enum {
 
 // Thread states
 typedef enum {
-	STATE_READY = 0,
-	STATE_RUNNING,
-	STATE_FINISHED,
-	STATE_FAILED,
-	STATE_RETURN,
+	STATE_READY = 0,	// ready to run
+	STATE_RUNNING,		// currentl running
+	STATE_FINISHED,		// execution complete
+	STATE_FAILED,		// runtime error
+	STATE_RETURN,		// in return
 } sx_state_type;
 
 // System options
@@ -196,7 +202,8 @@ typedef enum {
 } sx_option_type;
 
 // Define opcodes
-struct OpCode {
+class OpCode {
+	public:
 	const char* name;
 	unsigned char args;
 };
@@ -208,7 +215,7 @@ extern OpCode OpCodeDefs[];
 // core structures
 class Value;
 class Global;
-class Method;
+//class Method;
 class MethodDef;
 class Call;
 class System;
@@ -235,6 +242,7 @@ typedef void (*sx_error_hook)(const char *file, unsigned int line, const char *s
 
 typedef Value* (*sx_cmethod)(Thread* thread, Value* self, size_t argc, Value** argv);
 typedef Value* (*sx_cfunc)(Thread* thread, size_t argc, Value** argv);
+typedef Value* (*sx_construct)(System* system, const Type* type);
 
 // errors
 const char *StrError (sx_err_type err);
@@ -252,6 +260,48 @@ const char *Version (void);
 #define SX_TOTYPE(val) ((Scriptix::TypeValue*)(val))
 #define SX_TOITER(val) ((Scriptix::Iterator*)(val))
 
+/* Provide a base class for GC objects.  Very similar to the GC's normal
+ * Collectable class, except it uses the no_order variant of the finalizer
+ * registration; this allows us to have destructors even when we've cyclic
+ * links of objects.  Destructors should never use pointers to GC'd data,
+ * only free non-GC'd resources, like strings and file handles.
+ */
+
+class Collectable : virtual public ::gc
+{
+	public:
+	inline Collectable (void);
+	inline virtual ~Collectable (void);
+	private:
+	inline static void cleanup(void* obj, void* data);
+};
+
+Collectable::Collectable(void)
+{
+	GC_finalization_proc old_proc;
+	void* old_data;
+	void* base = GC_base((void*)this);
+
+	if (base != NULL) {
+		GC_register_finalizer_no_order(base, (GC_finalization_proc)cleanup,
+			(void*)((char*)this - (char*)base), &old_proc, &old_data);
+		if (old_proc != NULL) {
+			GC_register_finalizer_no_order(base, old_proc, old_data, 0, 0);
+		}
+	}
+}
+
+Collectable::~Collectable(void)
+{
+	GC_register_finalizer_no_order(GC_base(this), 0, 0, 0, 0);
+}
+
+void
+Collectable::cleanup(void* obj, void* displace)
+{
+	((Collectable*)((char*)obj + (ptrdiff_t)displace))->~Collectable();
+}
+
 // Name<->ID translation
 NameID NameToID(const char *name);
 const char *IDToName(NameID id);
@@ -260,29 +310,38 @@ const char *IDToName(NameID id);
  * Type definition.
  * Contains template information on a Scriptix type.
  */
-struct TypeDef {
+class TypeDef {
+	public:
 	const char* name;		///< Name of type.
 	const TypeDef* parent;		///< Parent type.
 	const MethodDef* methods;	///< Array of methods.
 	const MethodDef* smethods;	///< Array of static methods.
+	const sx_construct construct;	///< Create a new Value of our Type.
 };
 
 /**
  * Type information.
  * Contains actual information on a Scriptix type.
  */
-class Type {
+class Type : public Collectable {
 	private:
 	NameID name;			///< Name of type.
 	const Type* parent;		///< Parent type.
-	std::map<NameID,Method*> methods;	///< List of methods.
-	std::map<NameID,Method*> smethods;	///< List of static methods.
+	typedef std::map<NameID,Function*,std::less<NameID>, gc_alloc > MethodList;
+	MethodList methods;	///< List of methods.
+	MethodList smethods;	///< List of static methods.
+	sx_construct construct;	///< Make a new value of our Type.
 
 	public:
 	/**
 	 * Craft a Type from a TypeDef
 	 */
 	Type (System* system, const TypeDef* base);
+
+	/**
+	 * Craft custom Type
+	 */
+	Type (System* system, NameID name, const Type* parent, sx_construct s_construct);
 
 	/**
 	 * Return name.
@@ -302,33 +361,35 @@ class Type {
 	 * @param id The ID of the method to be found.
 	 * @return The method if it exists, or NULL otherwise.
 	 */
-	const Method* GetMethod (NameID id) const;
+	Function* GetMethod (NameID id) const;
 	/**
 	 * Lookup a static method.
 	 * Finds a static method with the given name.  Traverses ancestory.
 	 * @param id ID of the method to find.
 	 * @return A Method if exists, or NULL if not found.
 	 */
-	const Method* GetStaticMethod (NameID id) const;
+	Function* GetStaticMethod (NameID id) const;
 	/**
 	 * Register a new method.
 	 * Add a method to the method list.
 	 * @param method to add.
 	 * @return SXE_OK on success, or error code on failure.
 	 */
-	int AddMethod (Method* method);
+	int AddMethod (Function* method);
 	/**
 	 * Register a new static method.
 	 * Add a static method to the static method list.
 	 * @param method to add.
 	 * @return SXE_OK on success, or error code on failure.
 	 */
-	int AddStaticMethod (Method* method);
+	int AddStaticMethod (Function* method);
 	/**
-	 * Mark any methods.
-	 * Called by the System for marking the Scriptix methods for the GC.
+	 * Create a new value of our Type.
+	 * Creates a new value, of our Type.
+	 * @param system System the value will exist in.
+	 * @return A value of our Type on success, NULL on failure.
 	 */
-	void MarkMethods (void);
+	inline Value* Construct (System* system) const { return construct(system, this); }
 };
 
 /**
@@ -343,7 +404,7 @@ class Type {
  * for Value methods versus calling the methods directly, unless you
  * are positive you have a valid pointer.
  */
-class Value : public SGC::Collectable {
+class Value : public Collectable {
 	// our type
 	private:
 	const Type* type; //< The value's type.
@@ -373,7 +434,7 @@ class Value : public SGC::Collectable {
 	 * constructuors.
 	 * @param system A pointer to a System the Value is created in.
 	 */
-	Value (System* system, const Type* s_type) : type(s_type) {}
+	Value (System* system, const Type* s_type) : gc(), type(s_type) {}
 	/**
 	 * Destroy a Value.
 	 * This is the destructor, which should be over-ridden by children
@@ -451,12 +512,6 @@ class Value : public SGC::Collectable {
 	// Operate on values
 	public:
 	/**
-	 * Mark an instance in the GC.
-	 * Call this on an instance when it needs to be marked for the GC.
-	 * @param self Value to mark.
-	 */
-	inline static void Mark (Value* self);
-	/**
 	 * Print an instance.
 	 * Calls the Print method for the given instance.
 	 * @param system System that the instances exists in.
@@ -514,7 +569,8 @@ class Value : public SGC::Collectable {
 	 * @param self The instance to convert.
 	 * @return An int if conversion is possible, or NULL otherwise.
 	 */
-	static Value* ToInt (System* system, Value* self);
+	inline static Value* ToInt (System* system, Value* self)
+		{ return Value::IsA<Number>(system, self) ? self : DoToInt(system, self); }
 
 	// Silly type-casting struct hacks
 	private:
@@ -522,6 +578,9 @@ class Value : public SGC::Collectable {
 	struct _TypeCheck {
 		inline static bool Check(System* system, Value* value);
 	};
+
+	// In depth int casting
+	static Value* DoToInt (System* System, Value* self);
 
 	// Special operations
 	public:
@@ -673,7 +732,7 @@ class List : public Value {
 	 * @param system System that the instance will be created in.
 	 * @return The initialized list instance.
 	 */
-	List (System* system, const Type* type) : Value(system, type) {}
+	inline List (System* system, const Type* type) : Value(system, type) {}
 
 	/**
 	 * Fetch an item at a given index.
@@ -685,7 +744,7 @@ class List : public Value {
 	 * @return The value at the given index, or NULL if the index is
 	 *   invalid.
 	 */
-	static Value* GetIndex (System* system, List* list, Value* index)
+	inline static Value* GetIndex (System* system, List* list, Value* index)
 	{
 		return list->GetIndex(system, index);
 	}
@@ -698,7 +757,7 @@ class List : public Value {
 	 * @param set The value to set.
 	 * @return The value of set if successful, or NULL on failure.
 	 */
-	static Value* SetIndex (System* system, List* list, Value* index, Value* set)
+	inline static Value* SetIndex (System* system, List* list, Value* index, Value* set)
 	{
 		return list->SetIndex(system, index, set);
 	}
@@ -711,7 +770,7 @@ class List : public Value {
 	 * @param value The value to append.
 	 * @return The value appended on success, or NULL otherwise.
 	 */
-	static Value* Append (System* system, List* list, Value* value)
+	inline static Value* Append (System* system, List* list, Value* value)
 	{
 		return list->Append(system, value);
 	}
@@ -724,7 +783,7 @@ class List : public Value {
 	 * @param value The value or key to look for.
 	 * @return True if the value/key exists, or false otherwise.
 	 */
-	static bool Has (System* system, List* list, Value* value)
+	inline static bool Has (System* system, List* list, Value* value)
 	{
 		return list->Has(system, value);
 	}
@@ -734,7 +793,7 @@ class List : public Value {
 	 * @param system System iterator is in.
 	 * @return An iterator, or NULL on error.
 	 */
-	static Iterator* GetIter (System* system, List* list)
+	inline static Iterator* GetIter (System* system, List* list)
 	{
 		return list->GetIter(system);
 	}
@@ -751,7 +810,7 @@ class Struct : public Value {
 
 	// member data
 	private:
-	typedef std::map<NameID,Value*> datalist;
+	typedef std::map<NameID,Value*,std::less<NameID>, gc_alloc > datalist;
 	datalist data;
 
 	// Method implementations
@@ -774,10 +833,6 @@ class Struct : public Value {
 	 */
 	virtual Value* GetUndefMember (System* system, NameID id);
 
-	// Garbage collection
-	protected:
-	void MarkChildren (void);
-
 	// Constructor
 	public:
 	/**
@@ -785,7 +840,7 @@ class Struct : public Value {
 	 * @param system System that the structure will be created in.
 	 * @return The initialized structure instance.
 	 */
-	Struct (System* system, const Type* type) : Value(system, type), data() {}
+	inline Struct (System* system, const Type* type) : Value(system, type), data() {}
 	inline Struct (System* system);
 
 	/**
@@ -850,14 +905,14 @@ class Number : public Value {
 	 * @param i Numeric value.
 	 * @return Encoded numeric value.
 	 */
-	static Value* Create (int_t i) { return ((Value* )((i << 1) | SX_NUM_MARK)); }
+	inline static Value* Create (int_t i) { return ((Value* )((i << 1) | SX_NUM_MARK)); }
 	/**
 	 * Decode numeric value.
 	 * Given an encoded numeric value, return a normal int_t numeric value.
 	 * @param num Encoded numeric value.
 	 * @return Decoded int_t numeric value.
 	 */
-	static int_t ToInt (Value* num) { return (int_t)num >> 1; }
+	inline static int_t ToInt (Value* num) { return (int_t)num >> 1; }
 };
 
 /**
@@ -865,7 +920,7 @@ class Number : public Value {
  * Stores a string of text.
  * @note Cannot sub-class.
  */
-struct String : public Value {
+class String : public Value {
 	SX_TYPEDEF
 
 	private:
@@ -883,7 +938,7 @@ struct String : public Value {
 	static Value* MethodLtrim (Thread* thread, Value* self, size_t argc, Value** argv);
 	static Value* MethodRtrim (Thread* thread, Value* self, size_t argc, Value** argv);
 
-	static Value* SMethodConcat (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* SMethodConcat (Thread* thread, size_t argc, Value** argv);
 
 	public:
 	String (System* system, const char* src, size_t len);
@@ -896,19 +951,19 @@ struct String : public Value {
 	 * Get length of string.
 	 * @return Length of the string.
 	 */
-	size_t GetLen (void) const { return data.length(); }
+	inline size_t GetLen (void) const { return data.length(); }
 	/**
 	 * Get C string.
 	 * Returns a pointer type to be used in C/C++ code.
 	 * @return A pointer to an array of the ctypeacter type.
 	 */
-	const char* GetCStr (void) const { return data.c_str(); }
+	inline const char* GetCStr (void) const { return data.c_str(); }
 	/**
 	 * Get C++ string.
 	 * Returns a reference of the C++ string member.
 	 * @return const reference of data.
 	 */
-	const std::string& GetStr (void) const { return data; }
+	inline const std::string& GetStr (void) const { return data; }
 
 	// Operations
 	protected:
@@ -943,11 +998,9 @@ class Array : public List {
 	public:
 	Array (System* system);
 	Array (System* system, size_t n_size, Value** n_list);
-	~Array (void);
 
 	// Value Operations
 	protected:
-	virtual void MarkChildren (void);
 	virtual void Print (System* system);
 	virtual bool True (System* system);
 
@@ -1004,10 +1057,10 @@ class Array : public List {
 
 	// Custom
 	public:
-	size_t GetCount (void) const { return count; }
-	Value* GetIndex (size_t i) const { return list[i]; }
+	inline size_t GetCount (void) const { return count; }
+	inline Value* GetIndex (size_t i) const { return list[i]; }
 	// NOTE: the following should only be used on ranges 0 thru (count - 1)
-	Value* SetIndex (size_t i, Value* value) { return list[i] = value; }
+	inline Value* SetIndex (size_t i, Value* value) { return list[i] = value; }
 
 	// Iterators
 	public:
@@ -1018,17 +1071,13 @@ class Array : public List {
 		Array* array;
 		size_t index;
 
-		// mark
-		protected:
-		virtual void MarkChildren (void);
-
 		// Next iterator
 		public:
 		virtual bool Next (System* system, Value*& value);
 
 		// Constructor
 		public:
-		ArrayIterator (System* system, Array* s_arr) :
+		inline ArrayIterator (System* system, Array* s_arr) :
 			Scriptix::Iterator(system), array(s_arr), index(0) {}
 	};
 };
@@ -1038,7 +1087,7 @@ class Array : public List {
  * Maps key/value pairs.
  * @note Cannot sub-type.
  */
-struct Assoc : public List {
+class Assoc : public List {
 	SX_TYPEDEF
 
 	private:
@@ -1065,11 +1114,9 @@ struct Assoc : public List {
 	public:
 	Assoc (System* system);
 	Assoc (System* system, size_t n_size, Value** n_list); // evens are strings, odds are values
-	~Assoc (void);
 
 	// Value Operations
 	protected:
-	virtual void MarkChildren (void);
 	virtual void Print (System* system);
 	virtual bool True (System* system);
 
@@ -1082,9 +1129,9 @@ struct Assoc : public List {
 
 	// Custom
 	public:
-	size_t GetCount (void) const { return count; }
-	Value* GetIndex (size_t i) const { return list[i].value; }
-	Value* SetIndex (size_t i, Value* value) { return list[i].value = value; }
+	inline size_t GetCount (void) const { return count; }
+	inline Value* GetIndex (size_t i) const { return list[i].value; }
+	inline Value* SetIndex (size_t i, Value* value) { return list[i].value = value; }
 };
 
 /**
@@ -1099,26 +1146,22 @@ class Function : public Value {
 	Function (System* system);
 	Function (System* system, NameID id, size_t argc, bool varg); // argc is minimum arg count
 	Function (System* system, NameID id, size_t argc, bool varg, sx_cfunc func); // argc is minimum arg count
-	~Function (void);
+	Function (System* system, NameID id, size_t argc, bool varg, sx_cmethod method); // argc is minimum arg count
 
 	NameID id; // name of function
 	size_t argc; // number of arguments to function
 	size_t varc; // number of variables in function
 	int_t* nodes; // byte codes
 	size_t count; // number of valid bytecode nodes
-	size_t size; // size of nods
+	size_t size; // size of nodes
 	bool varg; // name of variable argument - FIXME: should be a flag or something
 	sx_cfunc cfunc; // c function pointer (for cfuncs)
-	Function* fnext; // for module list
-
-	// Operations
-	protected:
-	virtual void MarkChildren (void);
+	sx_cmethod cmethod; // c method pointer (for cmethods)
 
 	// Build byte-codes
 	public:
 	int AddValue (System* system, Value* value);
-	int AddOpcode (System* system, sx_op_type code) { return AddOparg(system,code); } // same thing
+	inline int AddOpcode (System* system, sx_op_type code) { return AddOparg(system,code); } // same thing
 	int AddOparg (System* system, long arg);
 };
 
@@ -1146,66 +1189,39 @@ class TypeValue : public Value
 	public:
 	inline TypeValue (System* system, const Type* our_type);
 
-	const Type* GetTypePtr (void) const { return type; } // silly name from conflict
+	inline const Type* GetTypePtr (void) const { return type; } // silly name from conflict
 };
 
 // OTHER CONSTRUCTS
-struct MethodDef {
+class MethodDef {
+	public:
 	const char* name;
 	size_t argc;
 	bool varg;
-	sx_cmethod method;
-};
-struct Method {
-	NameID name;
-	size_t argc;
-	bool varg;
-	sx_cmethod method;
-	Function *sxmethod;
+	void* method;
 };
 
-struct Global {
-	NameID id;
-	Value* value;
-};
-
-class Call {
-	private:
-	Function* func;
-	String* file;
-	Value** items;
-	size_t op_ptr;
-	size_t top;
-	size_t line;
-	size_t argc;
-	int flags;
-
-	// Thread works on us extensively
-	friend class Thread;
-};
-
-class System : public SGC::Root {
-	// pools - not used inside, useful outside
-	struct Pool {
-		size_t argc;
-		Value** argv;
-		Pool* next;
-	};
-
+class System : public Collectable {
 	private:
 	// global data
-	std::vector<Global> globals;
-	Function* funcs;
+	typedef std::map<NameID,Value*,std::less<NameID>, gc_alloc > GlobalList;
+	GlobalList globals;
+
+	// public functions
+	typedef std::map<NameID,Function*,std::less<NameID>, gc_alloc > FunctionList;
+	FunctionList funcs;
 
 	// tags feature
-	std::vector<NameID> tags;
+	typedef std::vector<NameID> TagList;
+	TagList tags;
+
+	// types
+	typedef std::map<NameID,Type*,std::less<NameID>, gc_alloc > TypeList;
+	TypeList types;
 
 	// threads/scheduler
 	Thread* threads;
 	Thread* cur_thread;
-
-	// pools
-	Pool* pools;
 
 	// options
 	size_t data_chunk;
@@ -1213,14 +1229,13 @@ class System : public SGC::Root {
 	size_t block_chunk;
 	size_t gc_thresh;
 	size_t array_chunk;
-	char* script_path;
+	std::string script_path;
 
 	// options
 	size_t valid_threads;
 	size_t run_length;
 
-	// types
-	std::map<NameID,Type*> types;
+	// built-in types
 	const Type* t_number;
 	const Type* t_string;
 	const Type* t_array;
@@ -1234,14 +1249,14 @@ class System : public SGC::Root {
 	// helper functions
 	int InitStdlib (void);
 
-	// root marker
-	protected:
-	void Mark (void);
+	// manager threads
+	void AddThread (Thread* thread);
+	void EndThread (Thread* thread);
 
 	public:
 	// Constructor/Destructor
 	System (void);
-	~System (void);
+	virtual ~System (void) {}
 
 	// Hooks
 	sx_error_hook error_hook;
@@ -1262,16 +1277,16 @@ class System : public SGC::Root {
 	inline const Type* GetTypeValueType (void) const { return t_type; }
 
 	// Query information
-	size_t GetValidThreads (void) const { return valid_threads; }
-	size_t GetRunLength (void) const { return run_length; }
-	size_t GetDataChunk (void) const { return data_chunk; }
-	size_t GetContextChunk (void) const { return context_chunk; }
-	size_t GetBlockChunk (void) const { return block_chunk; }
-	size_t GetArrayChunk (void) const { return array_chunk; }
+	inline size_t GetValidThreads (void) const { return valid_threads; }
+	inline size_t GetRunLength (void) const { return run_length; }
+	inline size_t GetDataChunk (void) const { return data_chunk; }
+	inline size_t GetContextChunk (void) const { return context_chunk; }
+	inline size_t GetBlockChunk (void) const { return block_chunk; }
+	inline size_t GetArrayChunk (void) const { return array_chunk; }
 
 	// Set options
 	int SetOption (sx_option_type op, long value);
-	int SetOption (sx_option_type op, const char* value);
+	int SetOption (sx_option_type op, const std::string& value);
 
 	// Functions
 	int AddFunction (Function* function);
@@ -1282,17 +1297,12 @@ class System : public SGC::Root {
 	Value* GetGlobal (NameID id) const;
 
 	// Threads
-	void AddThread (Thread* thread);
-	void EndThread (Thread* thread);
+	Thread* CreateThread (Function* func, size_t argc, Value* array[], int flags = 0);
 
 	// Running threads
 	int Run (void);
 	int WaitOn (ThreadID id, Value** retval);
 	int NestedRun (Thread* thread, Value** retval);
-
-	// Pools
-	int PushPool (size_t argc, Value** argv);
-	void PopPool (void);
 
 	// Function tags
 	int AddFunctionTag (NameID tag);
@@ -1300,15 +1310,36 @@ class System : public SGC::Root {
 	virtual void HandleFunctionTag (NameID tag, Function* func) {} // over-ride to handle
 
 	// Load/compile scripts
-	int LoadFile (const char *file);
-	int LoadFile (FILE* file, const char* name);
-	int LoadString (const char *buffer);
+	int LoadFile (const std::string& filepath);
+	int LoadString (const std::string& buffer, const std::string& name, size_t lineno = 1);
 
 	// FIXME: hacks
 	friend Value::Value (System* system, const Type* type);
 };
 
-class Thread {
+class Frame {
+	private:
+	Function* func;
+	String* file;
+	Value** items;
+	size_t op_ptr;
+	size_t top;
+	size_t line;
+	size_t argc;
+	int flags;
+
+	public:
+	Frame(void) : func(NULL), file(NULL), items(NULL), op_ptr(0), top(0), line(1), argc(0), flags(0) {}
+
+	// Thread works on us extensively
+	friend class Thread;
+};
+
+/**
+ * Thread.
+ * A thread contains a current execution context.
+ */
+class Thread : public gc {
 	private:
 	// various stuffs
 	System* system;
@@ -1317,15 +1348,13 @@ class Thread {
 	unsigned char flags;
 	ThreadID id;
 
-	// function call stack
-	Call* call_stack;
-	size_t call;
-	size_t call_size;
+	// function frame stack
+	typedef std::vector<Frame, gc_alloc > FrameStack;
+	FrameStack frames;
 
 	// data stack
-	Value* *data_stack;
-	size_t data;
-	size_t data_size;
+	typedef std::vector<Value*, gc_alloc > DataStack;
+	DataStack data_stack;
 
 	// list pointers
 	Thread* prev;
@@ -1337,62 +1366,51 @@ class Thread {
 
 	// Evaluation helpers
 	inline Value* InvokeCFunc (Function* cfunc, size_t argc);
-	inline Value* InvokeMethod (Value* self, const Method* method, size_t argc);
 
 	// Manipulate data stack - INLINE for speed
-	int
-	Thread::PushValue (Value* value) {
-		if (data == data_size) {
-			Value** sx_new_stack = (Value**)realloc (data_stack, (data_size + system->GetDataChunk()) * sizeof (Value* ));
-			if (sx_new_stack == NULL)
-				return SXE_NOMEM;
-			data_stack = sx_new_stack;
-			data_size += system->GetDataChunk();
-		}
-
-		data_stack[data ++] = value;
-
+	inline int
+	PushValue (Value* value) {
+		data_stack.push_back(value);
 		return SXE_OK;
 	}
-	void Thread::PopValue (size_t len) { data -= len; }
+	inline void PopValue (size_t len) { data_stack.resize(data_stack.size() - len); }
+	// Same as PopValue(1):
+	inline void PopValue (void) { data_stack.pop_back(); }
 
 	// Manipulate data stack
-	int PushCall (Function* called, size_t argc, Value* argv[], unsigned char flags);
-	int PushCall (Function* called, size_t argc) { return PushCall (called, argc, &data_stack[data - argc], 0); }
-	void PopCall (void);
-	Call* GetCall (void) { return &call_stack[call - 1]; }
-
-	// GC mark
-	void Mark (void);
+	int PushFrame (Function* func, size_t argc, Value* argv[], int flags);
+	int PushFrame (Value* object, NameID method, size_t argc, Value* argv[], int flags);
+	void PopFrame (void);
+	inline int PushFrame (Function* func, size_t argc) { return PushFrame (func, argc, &data_stack[data_stack.size() - argc], 0); }
+	inline Frame& GetFrame (void) { return frames.back(); }
 
 	public:
 	// Contructor/destructor
-	Thread (System* system, Function* called, unsigned char flags, size_t argc, Value* argv[]);
-	Thread (System* system, Function* called, unsigned char flags, size_t argc, ...);
-	~Thread (void);
+	Thread (System* system, int flags);
 
 	// Misc
-	ThreadID GetID(void) const { return id; }
+	inline ThreadID GetID(void) const { return id; }
 
 	// Get system
-	System* GetSystem(void) const { return system; }
+	inline System* GetSystem(void) const { return system; }
 
 	// Raise an error condition
 	int RaiseError (int err, const char *format, ...);
-	int RaiseArgError (const char* func, const char* arg, const char* type)
-	{
-		return RaiseError(SXE_BADARGS, "Argument '%s' to '%s' is not a '%s'", arg, func, type);
-	}
+	int RaiseArgError (const char* func, const char* arg, const char* type);
 
 	// exit thread
 	int Exit (Value* retval);
 
 	// Fetch stack item from end (args) - INLINE for speed
-	Value* Thread::GetValue (size_t index) { return data_stack[data - index]; }
+	inline Value* GetValue (size_t index) { return data_stack[data_stack.size() - index]; }
+	// Same as GetValue(1):
+	inline Value* GetValue (void) { return data_stack.back(); }
 
-	// Invoke a callable
-	Value* Invoke (Function* called, size_t argc, Value* array[]);
-	Value* Invoke (Function* called, size_t argc, ...);
+	// Fetch item from frame stack for op atrgs; "eats" arg
+	inline int_t GetOpArg (void) { return GetFrame().func->nodes[GetFrame().op_ptr++]; }
+
+	// Invoke a frameable
+	Value* Invoke (Function* func, size_t argc, Value* array[]);
 
 	// System can control me
 	friend class System;
@@ -1462,14 +1480,6 @@ Value::_TypeCheck<Number>::Check(System* system, Value* value)
 // --- Value --- 
 inline
 void
-Value::Mark (Value* self)
-{
-	if (self != NULL && !((int_t)self & 0x01))
-		if (!self->IsMarked())
-			self->SGC::Collectable::Mark();
-}
-inline
-void
 Value::Print (System* system, Value* self)
 {
 	if (self != NULL && !IsA<Number>(system, self))
@@ -1529,9 +1539,22 @@ inline TypeValue::TypeValue(System* system, const Type* s_type) : Value(system, 
 template <typename CTYPE>
 inline
 Value*
-_CreateNew (Thread* thread, Value*, size_t, Value**)
+_CreateNew (System* system, const Type* type)
 {
-	return new CTYPE(thread->GetSystem());
+	return new CTYPE(system, type);
+}
+inline
+Value*
+_CreateNewNull (System* system, const Type* type)
+{
+	return NULL;
+}
+template <typename CTYPE>
+inline
+Value*
+_CreateNewFinal (System* system, const Type* type)
+{
+	return new CTYPE(system);
 }
 
 }

@@ -40,24 +40,38 @@ Type::Type (System* system, const TypeDef* base)
 		parent = NULL;
 	}
 
+	if (base->construct == NULL && parent)
+		construct = parent->construct;
+	else
+		construct = base->construct;
+
 	for (size_t i = 0; base->methods[i].name != NULL; ++i) {
-		Method* method = new Method();
-		method->name = NameToID(base->methods[i].name);
-		method->argc = base->methods[i].argc;
-		method->varg = base->methods[i].varg;
-		method->method = base->methods[i].method;
-		method->sxmethod = NULL;
-		methods[method->name] = method;
+		Function* method = new Function(system,
+			NameToID(base->methods[i].name),
+			base->methods[i].argc,
+			base->methods[i].varg,
+			(sx_cmethod)base->methods[i].method);
+		methods[method->id] = method;
 	}
 	for (size_t i = 0; base->smethods[i].name != NULL; ++i) {
-		Method* method = new Method();
-		method->name = NameToID(base->smethods[i].name);
-		method->argc = base->smethods[i].argc;
-		method->varg = base->smethods[i].varg;
-		method->method = base->smethods[i].method;
-		method->sxmethod = NULL;
-		smethods[method->name] = method;
+		Function* method = new Function(system,
+			NameToID(base->smethods[i].name),
+			base->smethods[i].argc,
+			base->smethods[i].varg,
+			(sx_cfunc)base->smethods[i].method);
+		smethods[method->id] = method;
 	}
+}
+
+Type::Type (System* system, NameID s_name, const Type* s_parent, sx_construct s_construct)
+{
+	name = s_name;
+	parent = s_parent;
+
+	if (s_construct == NULL && parent)
+		construct = parent->construct;
+	else
+		construct = s_construct;
 }
 
 Type*
@@ -87,7 +101,7 @@ const Type*
 System::GetType (NameID id) const
 {
 	// search
-	std::map<NameID,Type*>::const_iterator i = types.find(id);
+	TypeList::const_iterator i = types.find(id);
 	if (i != types.end())
 		return i->second;
 
@@ -99,7 +113,7 @@ Type*
 System::GetType (NameID id)
 {
 	// search
-	std::map<NameID,Type*>::iterator i = types.find(id);
+	TypeList::iterator i = types.find(id);
 	if (i != types.end())
 		return i->second;
 
@@ -107,13 +121,13 @@ System::GetType (NameID id)
 	return NULL;
 }
 
-const Method*
+Function*
 Type::GetStaticMethod (NameID id) const
 {
 	const Type* type = this;
 	while (type != NULL) {
 		// search
-		std::map<NameID,Method*>::const_iterator i = type->smethods.find(id);
+		MethodList::const_iterator i = type->smethods.find(id);
 		if (i != type->smethods.end())
 			return i->second;
 		type = type->parent;
@@ -122,13 +136,13 @@ Type::GetStaticMethod (NameID id) const
 	return NULL;
 }
 
-const Method*
+Function*
 Type::GetMethod (NameID id) const
 {
 	const Type* type = this;
 	while (type != NULL) {
 		// search
-		std::map<NameID,Method*>::const_iterator i = type->methods.find(id);
+		MethodList::const_iterator i = type->methods.find(id);
 		if (i != type->methods.end())
 			return i->second;
 		type = type->parent;
@@ -138,30 +152,28 @@ Type::GetMethod (NameID id) const
 }
 
 int
-Type::AddMethod (Method* method)
+Type::AddMethod (Function* method)
 {
 	if (method == NULL)
 		return SXE_INVALID;
 	
-	methods[method->name] = method;
-	if (method->sxmethod)
-		Value::Mark(method->sxmethod);
+	methods[method->id] = method;
 
 	return SXE_OK;
 }
 
-void
-Type::MarkMethods (void)
+int
+Type::AddStaticMethod (Function* method)
 {
-	for (std::map<NameID,Method*>::iterator i = methods.begin(); i != methods.end(); ++i)
-		if (i->second->sxmethod)
-			Value::Mark(i->second->sxmethod);
-	for (std::map<NameID,Method*>::iterator i = smethods.begin(); i != smethods.end(); ++i)
-		if (i->second->sxmethod)
-			Value::Mark(i->second->sxmethod);
+	if (method == NULL)
+		return SXE_INVALID;
+	
+	smethods[method->id] = method;
+
+	return SXE_OK;
 }
 
-SX_TYPEIMPL(TypeValue, "Type", Value)
+SX_TYPEIMPL(TypeValue, "Type", Value, SX_TYPECREATENONE(TypeValue))
 
 SX_BEGINMETHODS(TypeValue)
 	SX_DEFMETHOD(MethodName, "name", 0, 0)

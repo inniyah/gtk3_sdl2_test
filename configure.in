@@ -1,7 +1,7 @@
-BASE_VERSION=0.27
-VERSION=0.27
+BASE_VERSION=0.28
+VERSION=0.28
 
-AC_INIT([Scriptix], 0.27, [http://www.awemud.net/bugs/submit.php])
+AC_INIT([Scriptix], 0.28, [http://www.awemud.net/bugs/submit.php])
 AC_CONFIG_SRCDIR(bin/scriptix.cc)
 AM_INIT_AUTOMAKE(scriptix, "$PACKAGE_VERSION")
 AM_CONFIG_HEADER(include/config.h)
@@ -41,17 +41,50 @@ AC_CHECK_FUNC(snprintf)
 AC_CHECK_FUNC(strcasecmp)
 AC_CHECK_FUNC(strdup)
 
-NEED_LIBSGC=0.20030829
-AC_SUBST(NEED_LIBSGC)
-PKG_CHECK_MODULES(SGC, libsgc = $NEED_LIBSGC)
+AC_ARG_WITH(gc,[  --with-gc=<path>        Prefix of your GC library installation],[LDFLAGS="$LDFLAGS -L$withval/lib";GC_CFLAGS="-I$withval/include"])
+AC_CHECK_LIB(gc,GC_malloc,,[AC_MSG_ERROR([Could not find suitable libgc])],-ldl)
+LIBS="$LIBS -ldl"
 
-LIBSOVER="0:1:0"
+LIBSOVER="0:3:0"
 AC_SUBST(LIBSOVER)
 
-if test "$CXX" = "g++" ; then 
-	CXXFLAGS="$CXXFLAGS -Wall"
-	AC_SUBST(CXXFLAGS)
+AC_SUBST(LDFLAGS)
+AC_SUBST(GC_CFLAGS)
+
+# Docbook tools
+AC_ARG_ENABLE(docs,[  --disable-docs          Disable building of documentation],BUILD_DOCS="$enableval",BUILD_DOCS=yes)
+AC_ARG_ENABLE(docs,[  --enable-pdf            Enable building of PDF documentation],BUILD_PDFDOCS="$enableval",BUILD_PDFDOCS=no)
+if test "x$BUILD_DOCS" = "xyes" ; then
+	AC_PATH_PROG(PATH_DOCBOOK2HTML,docbook2html)
+	AC_PATH_PROG(PATH_DOCBOOK2PDF,docbook2pdf)
+	AC_PATH_PROG(PATH_DOCBOOK2TXT,docbook2txt)
+	AC_PATH_PROG(PATH_LYNX,lynx)
+
+	if test -n "$PATH_DOCBOOK2HTML" ; then
+		DOCS="html $DOCS"
+		DOCBOOK_HTML="yes"
+	fi
+	if test -n "$PATH_DOCBOOK2TXT" && test -n "$PATH_LYNX" ; then
+		DOCS="txt $DOCS"
+		DOCBOOK_TXT="yes"
+	fi
+	if test "x$BUILD_PDFDOCS" = "xyes" ; then
+		if test -n "$PATH_DOCBOOK2PDF" ; then
+			DOCS="pdf $DOCS"
+			DOCBOOK_PDF="yes"
+		fi
+	fi
+
+	AC_SUBST(DOCBOOK_HTML)
+	AC_SUBST(DOCBOOK_TXT)
+	AC_SUBST(DOCBOOK_PDF)
 fi
+if test "x$DOCS" = "x" ; then
+	DOCS=none
+fi
+AM_CONDITIONAL(DOCBOOK_HTML, test "x$DOCBOOK_HTML" = "xyes")
+AM_CONDITIONAL(DOCBOOK_TXT, test "x$DOCBOOK_TXT" = "xyes")
+AM_CONDITIONAL(DOCBOOK_PDF, test "x$DOCBOOK_PDF" = "xyes")
 
 AC_OUTPUT(
 	Makefile

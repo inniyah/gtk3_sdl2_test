@@ -89,7 +89,7 @@ else
   rm -f .cvs.commit.new
 fi
 
-cvs -q -z3 commit -F .cvs.commit.msg || (
+cvs -q -z3 commit -l -F .cvs.commit.msg || (
   # failed - revert changes
   mv -f .ChangeLog~ ChangeLog
   mv -f .cvs.commit.log~ .cvs.commit.log

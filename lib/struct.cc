@@ -30,21 +30,18 @@
 
 using namespace Scriptix;
 
-SX_TYPEIMPL(Struct, "Struct", Value);
+SX_TYPEIMPL(Struct, "Struct", Value, SX_TYPECREATE(Struct));
 
 SX_NOMETHODS(Struct);
 
 // Our static methods
-SX_BEGINSMETHODS(Struct)
-	SX_DEFNEW(Struct)
-SX_ENDMETHODS
+SX_NOSMETHODS(Struct)
 
 // Default undefined member operations
 void
 Struct::SetUndefMember (System* system, NameID id, Value* value)
 {
 	data[id] = value;
-	Value::Mark(value);
 }
 
 Value*
@@ -52,14 +49,6 @@ Struct::GetUndefMember (System*, NameID)
 {
 	// no-op
 	return NULL;
-}
-
-// Garbage collection
-void
-Struct::MarkChildren (void)
-{
-	for (datalist::iterator i = data.begin(); i != data.end(); i ++)
-		Value::Mark(i->second);
 }
 
 // Member operations
@@ -70,7 +59,6 @@ Struct::SetMember (System* system, NameID id, Value* value)
 	datalist::iterator i = data.find(id);
 	if (i != data.end()) {
 		i->second = value;
-		Value::Mark (value);
 		return;
 	}
 

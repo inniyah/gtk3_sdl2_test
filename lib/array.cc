@@ -68,7 +68,7 @@ Array::MethodIter (Thread* thread, Value* self, size_t argc, Value** argv)
 }
 
 // Define type parameters
-SX_TYPEIMPL(Array, "Array", List)
+SX_TYPEIMPL(Array, "Array", List, SX_TYPECREATEFINAL(Array))
 
 // Our methods
 SX_BEGINMETHODS(Array)
@@ -77,11 +77,7 @@ SX_BEGINMETHODS(Array)
 	SX_DEFMETHOD(MethodRemove, "remove", 1, 0)
 	SX_DEFMETHOD(MethodIter, "iter", 0, 0)
 SX_ENDMETHODS
-
-// Our static methods
-SX_BEGINSMETHODS(Array)
-	SX_DEFNEW(Array)
-SX_ENDMETHODS
+SX_NOSMETHODS(Array)
 
 Array::Array (System* system) : List(system, system->GetArrayType()), size(0), count(0), list(NULL) { }
 
@@ -92,27 +88,13 @@ Array::Array (System* system, size_t n_size, Value** n_list) : List(system, syst
 	count = 0;
 
 	if (n_list != NULL) {
-		list = (Value**)malloc (size * sizeof(Value**));
+		list = (Value**)GC_MALLOC (size * sizeof(Value*));
 		memcpy (list, n_list, size * sizeof (Value*));
 		count = n_size;
 	} else if (size != 0) {
-		list = (Value**)malloc (size * sizeof(Value**));
+		list = (Value**)GC_MALLOC (size * sizeof(Value*));
 	}
 };
-
-Array::~Array (void)
-{
-	if (list != NULL)
-		free (list);
-}
-
-void
-Array::MarkChildren (void)
-{
-	size_t i;
-	for (i = 0; i < count; ++i)
-		Value::Mark(list[i]);
-}
 
 void
 Array::Print (System* system)
@@ -200,7 +182,7 @@ Array::Append (System* system, Value* value)
 	Value** nlist;
 
 	if (count == size) {
-		nlist = (Value* *)realloc (list, (size + system->GetArrayChunk()) * sizeof (Value* ));
+		nlist = (Value* *)GC_REALLOC (list, (size + system->GetArrayChunk()) * sizeof (Value* ));
 		if (nlist == NULL) {
 			return NULL;
 		}
@@ -227,12 +209,6 @@ Iterator*
 Array::GetIter (System* system)
 {
 	return new ArrayIterator(system, this);
-}
-
-void
-Array::ArrayIterator::MarkChildren (void)
-{
-	Value::Mark(array);
 }
 
 bool

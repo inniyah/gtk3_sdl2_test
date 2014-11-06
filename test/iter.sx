@@ -8,12 +8,14 @@ main () {
 
 	str = '';
 	foreach(i in a)
-		str = String.concat(str, i);
+		str = str + i;
+	printl(str);
+
 	num = 0;
 	foreach(i in b)
 		num += i;
+	printl(num);
 
-	printl (str, num);
 	if (str != 'abcdefghi' || num != 6) {
 		printl ('Failure');
 		return;
@@ -22,14 +24,15 @@ main () {
 	str = '';
 	iter = a.iter();
 	while (i = iter.next())
-		str = String.concat(str, i);
+		str = str + i;
+	printl (str);
 
 	num = 0;
 	iter = b.iter();
 	while (i = iter.next())
 		num += i;
+	printl(num);
 
-	printl (str, num);
 	if (str != 'abcdefghi' || num != 6) {
 		printl ('Failure');
 		return;

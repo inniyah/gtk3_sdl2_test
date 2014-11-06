@@ -30,7 +30,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include <vector>
+#include <set>
 #include <string>
 
 #include "scriptix.h"
@@ -38,29 +38,32 @@
 
 using namespace Scriptix;
 
-#include "parser.h"
+namespace {
+	typedef std::set<std::string> NameMap;
+	NameMap names;
+}
 
-static std::vector<std::string> ScriptixNameMap;
+#define NAME_TO_ID(name) ((int_t)&(name) >> 2)
+#define ID_TO_NAME(id) (*((std::string*)(id << 2)))
 
 NameID
 Scriptix::NameToID(const char *name) {
-	NameID id;
-
 	// have it already?
-	for (id = 0; id < ScriptixNameMap.size(); ++id)
-		if (ScriptixNameMap[id] == name)
-			return id + 1;
+	NameMap::iterator i = names.find(name);
+	if (i != names.end()) {
+		// construct ID: address w/ lower 2 bits shifted out
+		return NAME_TO_ID(*i);
+	}
 
-	// add it!
-	ScriptixNameMap.push_back(name);
-	return id + 1;
+	// add it
+	i = names.insert(names.begin(), name);
+	return NAME_TO_ID(*i);
 }
 
 const char *
 Scriptix::IDToName (NameID id) {
-	if (!id || id > ScriptixNameMap.size()) {
+	if (!id)
 		return NULL;
-	}
 
-	return ScriptixNameMap[id - 1].c_str();
+	return ID_TO_NAME(id).c_str();
 }

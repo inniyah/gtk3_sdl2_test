@@ -57,7 +57,6 @@ const char *sx_error_names[] =
 
 int
 Thread::RaiseError (int err, const char *format, ...) {
-	Call* call;
 	char buf[256]; /* big enough */
 	va_list va;
 
@@ -65,9 +64,8 @@ Thread::RaiseError (int err, const char *format, ...) {
 	vsnprintf (buf, sizeof(buf), format, va);
 	va_end (va);
 	if (system->error_hook != NULL) {
-		call = GetCall();
-		if (call) {
-			system->error_hook (call->file ? call->file->GetCStr(): "n/a", call->line, buf);
+		if (!frames.empty()) {
+			system->error_hook (GetFrame().file ? GetFrame().file->GetCStr(): "n/a", GetFrame().line, buf);
 		} else {
 			system->error_hook ("n/a", 0, buf);
 		}
@@ -76,6 +74,12 @@ Thread::RaiseError (int err, const char *format, ...) {
 	PushValue(Number::Create(err));
 	state = STATE_FAILED;
 	return state;
+}
+
+int
+Thread::RaiseArgError (const char* func, const char* arg, const char* type)
+{
+	return RaiseError(SXE_BADARGS, "Argument '%s' to '%s' is not a '%s'", arg, func, type);
 }
 
 const char *

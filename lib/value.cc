@@ -80,12 +80,10 @@ Value::ToString(System* system, Value* self)
 }
 
 Value*
-Value::ToInt(System* system, Value* self)
+Value::DoToInt(System* system, Value* self)
 {
 	if (self == NULL) {
 		return NULL;
-	} else if (IsA<Number>(system, self)) {
-		return self;
 	} else if (IsA<String>(system, self)) {
 		return Number::Create(atoi(((String*)self)->GetCStr()));
 	} else {

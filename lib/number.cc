@@ -44,7 +44,7 @@ Number::MethodTostr (Thread* thread, Value* self, size_t argc, Value** argv)
 	return new String(thread->GetSystem(), buf);
 }
 
-SX_TYPEIMPL(Number, "Int", Value)
+SX_TYPEIMPL(Number, "Int", Value, SX_TYPECREATENONE(Number))
 SX_BEGINMETHODS(Number)
 	SX_DEFMETHOD(MethodTostr, "to_str", 0, 0)
 SX_ENDMETHODS

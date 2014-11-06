@@ -78,7 +78,7 @@ Assoc::MethodIter (Thread* thread, Value* self, size_t argc, Value** argv)
 }
 
 // Define type parameters
-SX_TYPEIMPL(Assoc, "Assoc", List)
+SX_TYPEIMPL(Assoc, "Assoc", List, SX_TYPECREATEFINAL(Assoc))
 
 // Our methods
 SX_BEGINMETHODS(Assoc)
@@ -89,11 +89,7 @@ SX_BEGINMETHODS(Assoc)
 	SX_DEFMETHOD(MethodRemove, "remove", 1, 0)
 	SX_DEFMETHOD(MethodIter, "iter", 0, 0)
 SX_ENDMETHODS
-
-// Our static methods
-SX_BEGINSMETHODS(Assoc)
-	SX_DEFNEW(Assoc)
-SX_ENDMETHODS
+SX_NOSMETHODS(Assoc)
 
 Assoc::Assoc (System* system) : List(system, system->GetAssocType())
 {
@@ -109,18 +105,13 @@ Assoc::Assoc (System* system, size_t n_size, Value** n_list) : List(system, syst
 	count = 0;
 
 	if (size > 0) {
-		list = (_scriptix_assoc_node*)malloc(size * sizeof (_scriptix_assoc_node));
+		list = (_scriptix_assoc_node*)GC_MALLOC(size * sizeof (_scriptix_assoc_node));
 		for (size_t i = 0; i < size * 2; i += 2) {
 			SetIndex(system, n_list[i], n_list[i + 1]);
 		}
 		count = size;
 	}
 };
-
-Assoc::~Assoc (void) {
-	if (list)
-		free (list);
-}
 
 void
 Assoc::Print (System* system)
@@ -141,15 +132,6 @@ Assoc::Print (System* system)
 		std::cout << "]";
 	} else {
 		std::cout << "[]";
-	}
-}
-
-void
-Assoc::MarkChildren (void) {
-	size_t i;
-	for (i = 0; i < count; ++ i) {
-		Value::Mark (list[i].name);
-		Value::Mark (list[i].value);
 	}
 }
 
@@ -219,7 +201,7 @@ Assoc::SetIndex (System* system, Value* vindex, Value* value) {
 		}
 
 		if (count == size) {
-			_scriptix_assoc_node* nlist = (_scriptix_assoc_node*)realloc (list, (count + system->GetArrayChunk()) * sizeof (_scriptix_assoc_node));
+			_scriptix_assoc_node* nlist = (_scriptix_assoc_node*)GC_REALLOC (list, (count + system->GetArrayChunk()) * sizeof (_scriptix_assoc_node));
 			if (nlist == NULL) {
 				return NULL;
 			}
@@ -240,7 +222,7 @@ Assoc::SetIndex (System* system, Value* vindex, Value* value) {
 Value* 
 Assoc::Append (System* system, Value* add) {
 	if (count == size) {
-		_scriptix_assoc_node* nlist = (_scriptix_assoc_node*)realloc (list, (count + system->GetArrayChunk()) * sizeof (_scriptix_assoc_node));
+		_scriptix_assoc_node* nlist = (_scriptix_assoc_node*)GC_REALLOC (list, (count + system->GetArrayChunk()) * sizeof (_scriptix_assoc_node));
 		if (nlist == NULL) {
 			return NULL;
 		}

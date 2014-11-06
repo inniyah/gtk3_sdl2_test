@@ -35,7 +35,7 @@ public main()
 	string2 = 'is ';
 	string3 = 'a ';
 	string4 = 'test';
-	if (String.concat(string1 @ string2, string3 @ string4) != 'This is a test') {
+	if (String.concat(string1 + string2, string3 + string4) != 'This is a test') {
 		printl('Failure: concatenation');
 		return 1;
 	}

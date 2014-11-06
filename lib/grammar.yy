@@ -30,6 +30,7 @@
 	#include <stdio.h>
 	#include <string.h>
 	#include <errno.h>
+	#include <gc/gc.h>
 
 	#include "scriptix.h"
 	#include "system.h"
@@ -52,21 +53,26 @@
 
 	/* stupid BISON fix */
 	#define __attribute__(x)
+
+	#define malloc GC_MALLOC
+	#define free GC_FREE
 %}
 
 %union {
 	ParserNode* node;
 	Value* value;
+	Type* type;
 	NameID id;
 	NameList* names;
 	struct ParserArgList args;
 }
 
 %token<value> NUMBER STRING
-%token<id> IDENTIFIER TYPE
+%token<id> IDENTIFIER
+%token<type> TYPE
 %token<tag> TAG
 %token IF ELSE WHILE DO AND OR TGTE TLTE TNE TFOREACH TEXTEND
-%token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT  TNEW
+%token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT TNEW TSTATIC
 %token TUNTIL TNIL TRESCUE TIN TFOR TCONTINUE TYIELD TPUBLIC
 
 %nonassoc TBREAK TRETURN 
@@ -88,7 +94,8 @@
 %type<node> node args block stmts stmt expr func_args
 %type<names> arg_names_list
 %type<value> data
-%type<id> name type
+%type<id> name
+%type<type> type
 %type<args> arg_names
 
 %%
@@ -97,30 +104,41 @@ program:
 	| program global
 	| program error
 	| program extend
+	| program new
 	;
 
 function: name '(' arg_names ')' '{' block '}' { parser->AddFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, 0, false); delete $3.args; }
 	| TPUBLIC name '(' arg_names ')' '{' block '}' { parser->AddFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, 0, true); delete $4.args; }
-	| name { 
+	| name name { 
 		if (!parser->GetSystem()->ValidFunctionTag($1)) {
-			yyerror ("Unregistered tag");
+			yyerror ("Error: Unrecognized function tag");
 			YYERROR;
 		}
-		$<id>$ = $1;
-	} name '(' arg_names ')' '{' block '}' { parser->AddFunc($3, ($5.args ? *$5.args : NameList()), $5.varg, $8, $<id>2, false); delete $5.args; }
+		$<id>1 = $1;
+		$<id>2 = $2;
+	} '(' arg_names ')' '{' block '}' { parser->AddFunc($<id>2, ($5.args ? *$5.args : NameList()), $5.varg, $8, $<id>1, false); delete $5.args; }
 	;
 
 global: name '=' data ';' { parser->SetGlobal($1, $3); }
 	;
 
-extend: TEXTEND type { parser->AddExtend (parser->system->GetType($2)); } '{' extend_functions '}'
+extend: TEXTEND type { if (!parser->AddExtend ($2)) YYERROR; } '{' extend_methods '}'
 	;
 
-extend_function: name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6); delete $3.args; }
+extend_method: name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, false); delete $3.args; }
+	| TSTATIC name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, true); delete $4.args; }
 	;
 
-extend_functions: extend_function
-	| extend_functions extend_function
+extend_methods: extend_method
+	| extend_methods extend_method
+	;
+
+construct_method:
+	| TNEW '(' arg_names ')' '{' block '}' { parser->AddExtendFunc(NameToID("new"), ($3.args ? *$3.args : NameList()), $3.varg, $6, false); delete $3.args; }
+	;
+
+new: TNEW name { if (!parser->AddType ($2, parser->GetSystem()->GetStructType())) YYERROR; } '{' construct_method extend_methods '}'
+	| TNEW name ':' type { if (!parser->AddType ($2, $4)) YYERROR; } '{' construct_method extend_methods '}'
 	;
 
 block: { $$ = NULL; }
@@ -150,6 +168,8 @@ stmt:	node ';' { $$ = $1; }
 	| TFOREACH '(' name TIN expr ')' stmt { $$ = sxp_new_foreach (parser, $3, $5, $7); }
 
 	| '{' block '}' { $$ = $2; }
+
+	| error { $$ = NULL; }
 	;
 
 node:	{ $$ = NULL; }
@@ -178,7 +198,7 @@ expr: expr '+' expr { $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
 	| expr '-' expr { $$ = sxp_new_math (parser, OP_SUBTRACT, $1, $3); }
 	| expr '*' expr { $$ = sxp_new_math (parser, OP_MULTIPLY, $1, $3); }
 	| expr '/' expr { $$ = sxp_new_math (parser, OP_DIVIDE, $1, $3); }
-	| expr '@' expr { $$ = sxp_new_concat (parser, $1, $3); }
+	| expr '@' expr { yyerror("Warning: use of '@' concatenation operator is deprecrated; please use '+'"); $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
 	| '(' expr ')' { $$ = $2; }
 
 	| expr TIN expr { $$ = sxp_new_in (parser, $1, $3); }
@@ -211,25 +231,31 @@ expr: expr '+' expr { $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
 	| name TDECREMENT { $$ = sxp_new_postinc (parser, $1, sxp_new_data (parser, Number::Create (-1))); }
 	| TDECREMENT name { $$ = sxp_new_preinc (parser, $2, sxp_new_data (parser, Number::Create (-1))); }
 	
-	| '(' type ')' expr %prec TCAST { $$ = sxp_new_cast (parser, $2, $4); }
+	| '(' type ')' expr %prec TCAST { yyerror("Warning: use of '(type)expr' casting is deprecrated; please use 'type(expr)'"); $$ = sxp_new_cast (parser, $2, $4); }
 	| type '(' expr ')' %prec TCAST { $$ = sxp_new_cast (parser, $1, $3); }
 
-	| expr func_args { $$ = sxp_new_invoke (parser, $1, $2); }
+	| name func_args { $$ = sxp_new_invoke (parser, sxp_new_lookup(parser, $1), $2); }
+	| '(' expr ')' func_args { $$ = sxp_new_invoke (parser, $2, $4); }
 
-	| TNEW type { $$ = sxp_new_new (parser, $2); }
+	| TNEW type { $$ = sxp_new_new (parser, $2, NULL, false); }
+	| TNEW type func_args { $$ = sxp_new_new (parser, $2, $3, true); }
 	| expr '.' name func_args { $$ = sxp_new_method (parser, $1, $3, $4); }
+	| '.' name func_args { $$ = sxp_new_method (parser, sxp_new_lookup(parser, NameToID("self")), $2, $3); }
 	| type '.' name func_args { $$ = sxp_new_smethod (parser, $1, $3, $4); }
-	| expr ':' name '=' expr { $$ = sxp_new_set_member(parser, $1, $3, $5); }
-	| expr ':' name { $$ = sxp_new_get_member (parser, $1, $3); }
+	| expr ':' name '=' expr { yyerror("Warning: use of ':' operator is deprecated"); $$ = sxp_new_set_member(parser, $1, $3, $5); }
+	| expr '.' name '=' expr { $$ = sxp_new_set_member(parser, $1, $3, $5); }
+	| '.' name '=' expr { $$ = sxp_new_set_member(parser, sxp_new_lookup(parser, NameToID("self")), $2, $4); }
+	| expr ':' name { yyerror("Warning: use of ':' operator is deprecated"); $$ = sxp_new_get_member (parser, $1, $3); }
+	| expr '.' name { $$ = sxp_new_get_member (parser, $1, $3); }
+	| '.' name { $$ = sxp_new_get_member(parser, sxp_new_lookup(parser, NameToID("self")), $2); }
 
 	| expr '[' expr ']' { $$ = sxp_new_getindex (parser, $1, $3); }
 	| '[' args ']' { $$ = sxp_new_array (parser, $2); }
+	| '[' ']' { $$ = sxp_new_array (parser, NULL); }
 
 	| data { $$ = sxp_new_data (parser, $1); }
 
 	| name { $$ = sxp_new_lookup (parser, $1); }
-
-	| error { $$ = sxp_new_data (parser, NULL); }
 	;
 
 	
@@ -259,42 +285,40 @@ yywrap (void) {
 }
 
 int
-Scriptix::System::LoadFile(const char *file) {
+Scriptix::System::LoadFile(const std::string& file) {
 	int ret;
 
-	if (file == NULL) {
+	if (file.empty()) {
 		yyin = stdin;
 	} else {
-		yyin = fopen (file, "rt");
+		yyin = fopen (file.c_str(), "rt");
 		if (yyin == NULL) {
 			std::cerr << "Could not open '" << file << "'" << std::endl;
-			return 1;
+			return SXE_INVALID;
 		}
 	}
 
 	parser = new ParserState(this);
 	if (parser == NULL) {
-		if (file != NULL)
+		if (!file.empty())
 			fclose (yyin);
 		std::cerr << "Failed to create Compiler context" << std::endl;
-		return 1;
+		return SXE_INTERNAL;
 	}
-	if (file != NULL)
+	if (!file.empty())
 		parser->SetFile(file);
 
 	sxp_parser_inbuf = NULL;
 
 	ret = yyparse ();
 	if (yynerrs > 0)
-		ret = -1;
+		ret = SXE_INVALID;
 
-	if (file != NULL) {
+	if (!file.empty())
 		fclose (yyin);
-	}
 
-	if (!ret) {
+	if (!ret)
 		ret = parser->Compile();
-	}
 
 	delete parser;
 
@@ -302,58 +326,29 @@ Scriptix::System::LoadFile(const char *file) {
 }
 
 int
-Scriptix::System::LoadFile(FILE* file, const char* name) {
+Scriptix::System::LoadString(const std::string& buf, const std::string& name, size_t lineno) {
 	int ret;
 
-	yyin = file;
+	if (buf.empty())
+		return SXE_INVALID;
 
 	parser = new ParserState(this);
 	if (parser == NULL) {
 		std::cerr << "Failed to create Compiler context" << std::endl;
-		return 1;
+		return SXE_INTERNAL;
 	}
-	if (file != NULL)
-		parser->SetFile(name);
-
-	sxp_parser_inbuf = NULL;
-
-	ret = yyparse ();
-	if (yynerrs > 0)
-		ret = -1;
-
-	if (!ret) {
-		ret = parser->Compile();
-	}
-
-	delete parser;
-
-	return ret;
-}
-
-int
-Scriptix::System::LoadString(const char *buf) {
-	int ret;
-
-	if (buf == NULL) {
-		return 1;
-	}
-
-	parser = new ParserState(this);
-	if (parser == NULL) {
-		std::cerr << "Failed to create Compiler context" << std::endl;
-		return 1;
-	}
+	parser->SetFile(name);
+	parser->SetLine(lineno);
 
 	yyin = NULL;
-	sxp_parser_inbuf = buf;
+	sxp_parser_inbuf = buf.c_str();
 
 	ret = yyparse ();
 	if (yynerrs > 0)
-		ret = -1;
+		ret = SXE_INVALID;
 
-	if (!ret) {
+	if (!ret)
 		ret = parser->Compile();
-	}
 
 	delete parser;
 

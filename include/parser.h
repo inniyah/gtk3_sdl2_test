@@ -64,7 +64,6 @@ enum {
 	SXP_SETMEMBER,
 	SXP_GETMEMBER,
 	SXP_FOREACH,
-	SXP_CONCAT,
 	SXP_STRINGCAST,
 	SXP_INTCAST,
 };
@@ -81,14 +80,14 @@ namespace Scriptix {
 
 typedef std::vector<NameID> NameList;
 
-struct ParserBlock {
+struct ParserBlock : public gc {
 	Function* func;
 	unsigned long start;
 	std::vector<unsigned long> breaks;
 	std::vector<unsigned long> continues;
 };
 
-struct ParserFunction {
+struct ParserFunction : public gc {
 	NameID name;
 	NameID varg;
 	NameList vars;
@@ -96,26 +95,33 @@ struct ParserFunction {
 	Function* func;
 	NameID tag;
 	bool pub;
+	bool staticm; // for extend methods only
 };
 
-struct ParserExtend {
+struct ParserExtend : public gc {
 	Type* type;
-	std::vector<ParserFunction*> methods;
+	typedef std::vector<ParserFunction*, gc_alloc > MethodList;
+	MethodList methods;
 };
 
-class ParserState
+class ParserState : public gc
 {
 	public: // FIXME
 	System* system;
 	ParserNode* nodes;
-	std::list<ParserFunction*> funcs;
-	std::vector<ParserExtend*> extends;
+	typedef std::list<ParserFunction*, gc_alloc > FunctionList;
+	FunctionList funcs;
+	typedef std::vector<ParserExtend*, gc_alloc > ExtendList;
+	ExtendList extends;
+	typedef std::vector<Type*, gc_alloc > TypeList;
+	TypeList types;
 	std::vector<unsigned long> returns;
 	String* last_file;
 	size_t last_line;
 	String* file;
 	size_t line;
-	std::vector<ParserBlock*> blocks;
+	typedef std::list<ParserBlock*, gc_alloc > BlockList;
+	BlockList blocks;
 	Array* globals;
 	NameList gnames;
 
@@ -135,13 +141,14 @@ class ParserState
 	~ParserState (void);
 
 	// basics
-	System* GetSystem(void) const { return system; }
+	inline System* GetSystem(void) const { return system; }
 
 	// building trees/input
-	void SetFile(const std::string& path) { file = new String(system, path); line = 1; }
-	void LineIncr(void) { ++line; }
-	String* GetFile(void) const { return file; }
-	size_t GetLine(void) const { return line; }
+	inline void SetFile(const std::string& path) { file = new String(system, path); line = 1; }
+	inline void SetLine(size_t lineno) { line = lineno; }
+	inline void LineIncr(void) { ++line; }
+	inline String* GetFile(void) const { return file; }
+	inline size_t GetLine(void) const { return line; }
 
 	// compile
 	int Compile(void);
@@ -162,10 +169,15 @@ class ParserState
 
 	// type extends
 	ParserExtend* AddExtend(Type* type);
-	ParserFunction* AddExtendFunc(NameID name, const NameList& args, NameID varg, ParserNode* body);
+	ParserFunction* AddExtendFunc(NameID name, const NameList& args, NameID varg, ParserNode* body, bool staticm);
+
+	// new types
+	Type* AddType(NameID name, const Type* parent);
+	ParserFunction* AddTypeFunc(NameID name, const NameList& args, NameID varg, ParserNode* body);
+	Type* GetType(NameID name);
 };
 
-struct ParserNode {
+struct ParserNode : public gc {
 	int type;
 	Scriptix::ParserState* info;
 	ParserNode* next;
@@ -174,7 +186,8 @@ struct ParserNode {
 	unsigned int line;
 	struct {
 		ParserNode* nodes[4];
-		NameID names[2];
+		NameID name;
+		Type* type;
 		Value* value;
 		int op;
 	} parts;
@@ -186,8 +199,8 @@ struct ParserNode {
 		ParserNode* node2,
 		ParserNode* node3,
 		ParserNode* node4,
-		NameID name1,
-		NameID name2,
+		NameID name,
+		Type* type,
 		Value* value,
 		int op);
 	// append a new node to the list
@@ -202,7 +215,7 @@ struct ParserNode {
 #define sxp_new_yield(info) (new ParserNode((info), SXP_YIELD, NULL, NULL, NULL, NULL, 0, 0, NULL, 0))
 #define sxp_new_return(info,value) (new ParserNode((info), SXP_RETURN, (value), NULL, NULL, NULL, 0, 0, NULL, 0))
 #define sxp_new_lookup(info,name) (new ParserNode((info), SXP_LOOKUP, NULL, NULL, NULL, NULL, (name), 0, NULL, 0))
-#define sxp_new_new(info,name) (new ParserNode((info), SXP_NEW, NULL, NULL, NULL, NULL, (name), 0, NULL, 0))
+#define sxp_new_new(info,type,args,call) (new ParserNode((info), SXP_NEW, (args), NULL, NULL, NULL, 0, (type), NULL, (call)))
 #define sxp_new_math(info,op,left,right) (new ParserNode((info), SXP_MATH, (left), (right), NULL, NULL, 0, 0, NULL, (op)))
 #define sxp_new_data(info,data) (new ParserNode((info), SXP_DATA, NULL, NULL, NULL, NULL, 0, 0, (data), 0))
 #define sxp_new_loop(info,type,test,body) (new ParserNode((info), SXP_LOOP, (test), (body), NULL, NULL, 0, 0, NULL, (type)))
@@ -213,7 +226,7 @@ struct ParserNode {
 #define sxp_new_not(info,node) (new ParserNode((info), SXP_NOT, (node), NULL, NULL, NULL, 0, 0, NULL, 0))
 #define sxp_new_array(info,node) (new ParserNode((info), SXP_ARRAY, (node), NULL, NULL, NULL, 0, 0, NULL, 0))
 #define sxp_new_method(info,obj,name,args) (new ParserNode((info), SXP_METHOD, (obj), (args), NULL, NULL, (name), 0, NULL, 0))
-#define sxp_new_smethod(info,type,name,args) (new ParserNode((info), SXP_SMETHOD, (args), NULL, NULL, NULL, (type), (name), NULL, 0))
+#define sxp_new_smethod(info,type,name,args) (new ParserNode((info), SXP_SMETHOD, (args), NULL, NULL, NULL, (name), (type), NULL, 0))
 #define sxp_new_and(info,left,right) (new ParserNode((info), SXP_AND, (left), (right), NULL, NULL, 0, 0, NULL, 0))
 #define sxp_new_or(info,left,right) (new ParserNode((info), SXP_OR, (left), (right), NULL, NULL, 0, 0, NULL, 0))
 #define sxp_new_in(info,node,list) (new ParserNode((info), SXP_IN, (node), (list), NULL, NULL, 0, 0, NULL, 0))
@@ -221,11 +234,10 @@ struct ParserNode {
 #define sxp_new_setindex(info,list,index,value) (new ParserNode((info), SXP_SETINDEX, (list), (index), (value), NULL, 0, 0, NULL, 0))
 #define sxp_new_getindex(info,list,index) (new ParserNode((info), SXP_GETINDEX, (list), (index), NULL, NULL, 0, 0, NULL, 0))
 #define sxp_new_assign(info,name,value) (new ParserNode((info), SXP_ASSIGN, (value), NULL, NULL, NULL, (name), 0, NULL, 0))
-#define sxp_new_cast(info,type,node) (new ParserNode((info), SXP_CAST, (node), NULL, NULL, NULL, (type), 0, NULL, 0))
+#define sxp_new_cast(info,type,node) (new ParserNode((info), SXP_CAST, (node), NULL, NULL, NULL, 0, (type), NULL, 0))
 #define sxp_new_preinc(info,name,amount) (new ParserNode((info), SXP_PREINC, (amount), NULL, NULL, NULL, (name), 0, NULL, 0))
 #define sxp_new_postinc(info,name,amount) (new ParserNode((info), SXP_POSTINC, (amount), NULL, NULL, NULL, (name), 0, NULL, 0))
 #define sxp_new_negate(info,node) (new ParserNode((info), SXP_NEGATE, (node), NULL, NULL, NULL, 0, 0, NULL, 0))
-#define sxp_new_concat(info,left,right) (new ParserNode((info), SXP_CONCAT, (left), (right), NULL, NULL, 0, 0, NULL, 0))
 
 // compilation helpers
 extern ParserNode* sxp_transform (ParserNode* node); // optimizer

@@ -1,3 +1,13 @@
+Version 0.28
+============
+
+  * Use Boehm-Demer-Weiss GC instead of LibSGC.
+  * Use . instead of : for struct member access.
+  * Can create new types in scripts.
+  * Extend and new type methods have an automatic self argument.
+  * Added .foo, .foo=, and .foo() convenience syntax for self access.
+  * Removed string concat operator, + now works for strings and ints.
+
 Version 0.27
 ============
 

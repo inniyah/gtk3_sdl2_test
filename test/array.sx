@@ -11,6 +11,7 @@ test (a) {
 public
 main () {
 	a = ['abc','def','ghi'];
+	a.append('jkl');
 
 	printl(a);
 

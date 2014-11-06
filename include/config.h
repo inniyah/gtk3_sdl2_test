@@ -7,6 +7,9 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
 
+/* Define to 1 if you have the `gc' library (-lgc). */
+#define HAVE_LIBGC 1
+
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
 
@@ -41,13 +44,13 @@
 #define PACKAGE_NAME "Scriptix"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Scriptix 0.27"
+#define PACKAGE_STRING "Scriptix 0.28"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "scriptix"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.27"
+#define PACKAGE_VERSION "0.28"
 
 /* The size of a `int', as computed by sizeof. */
 #define SIZEOF_INT 4
@@ -65,7 +68,7 @@
 #define STDC_HEADERS 1
 
 /* Our version */
-#define SX_VERSION "0.27"
+#define SX_VERSION "0.28"
 
 /* Version number of package */
-#define VERSION "0.27"
+#define VERSION "0.28"

@@ -1,0 +1,23 @@
+new BaseType {
+	base(self) {
+		return self.value;
+	}
+}
+new SubClass : BaseType {
+	new(self) {
+		printl('New!');
+		return self;
+	}
+	sub(self) {
+		return 'Sub-' + self.base();
+	}
+}
+
+public main() {
+	test = new SubClass();
+	test.value = 'Success';
+	if (test.sub() != 'Sub-Success')
+		printl('Failure');
+	else
+		printl('Success');
+}

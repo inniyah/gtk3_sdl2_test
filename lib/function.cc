@@ -35,32 +35,29 @@ using namespace Scriptix;
 int
 System::AddFunction (Function* function)
 {
-	function->fnext = funcs;
-	funcs = function;
-	Value::Mark(function);
+	funcs[function->id] = function;
 	return SXE_OK;
 }
 
 Function*
 System::GetFunction (NameID id)
 {
-	Function* function = funcs;
-	while (function != NULL) {
-		if (function->id == id)
-			return function;
-		function = function->fnext;
-	}
-	return NULL;
+	FunctionList::iterator i = funcs.find(id);
+	if (i != funcs.end())
+		return i->second;
+	else
+		return NULL;
 }
 
 // FUNCTION IMPLEMENTATION
-SX_TYPEIMPL(Function, "Function", Value)
+SX_TYPEIMPL(Function, "Function", Value, SX_TYPECREATENONE(Function))
 SX_NOMETHODS(Function)
 SX_NOSMETHODS(Function)
 
 Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg) : Value(system, system->GetFunctionType())
 {
 	cfunc = NULL;
+	cmethod = NULL;
 	varg = s_varg;
 	varc = 0;
 	nodes = NULL;
@@ -68,12 +65,12 @@ Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg) : V
 	size = 0;
 	argc = s_argc;
 	id = s_id;
-	fnext = NULL;
 }
 
 Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_cfunc s_cfunc) : Value(system, system->GetFunctionType())
 {
 	cfunc = s_cfunc;
+	cmethod = NULL;
 	varg = s_varg;
 	varc = 0;
 	nodes = NULL;
@@ -81,24 +78,21 @@ Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_
 	size = 0;
 	argc = s_argc;
 	id = s_id;
-	fnext = NULL;
 }
 
-Function::~Function (void)
+Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_cmethod s_cmethod) : Value(system, system->GetFunctionType())
 {
-	if (nodes != NULL)
-		free (nodes);
+	cfunc = NULL;
+	cmethod = s_cmethod;
+	varg = s_varg;
+	varc = 0;
+	nodes = NULL;
+	count = 0;
+	size = 0;
+	argc = s_argc;
+	id = s_id;
 }
 
-void
-Function::MarkChildren (void)
-{
-	for (size_t i = 0; i < count; ++ i) {
-		if (nodes[i] == OP_PUSH)  // data
-			Value::Mark ((Value*)nodes[i + 1]);
-		i += OpCodeDefs[nodes[i]].args; // skip args
-	}
-}
 
 int
 Function::AddValue (System* system, Value* value) {
@@ -106,7 +100,7 @@ Function::AddValue (System* system, Value* value) {
 
 	/* need at least two open places */
 	if (size == 0 || count >= size - 1) {
-		sx_new_nodes = (long*)realloc (nodes, sizeof (long) * (size + system->GetBlockChunk()));
+		sx_new_nodes = (long*)GC_REALLOC (nodes, sizeof (long) * (size + system->GetBlockChunk()));
 		if (sx_new_nodes == NULL)
 			return SXE_NOMEM;
 		nodes = sx_new_nodes;
@@ -124,7 +118,7 @@ Function::AddOparg (System* system, long value) {
 
 	/* need at least two open places */
 	if (size == 0 || count >= size - 1) {
-		sx_new_nodes = (long*)realloc (nodes, sizeof (long) * (size + system->GetBlockChunk()));
+		sx_new_nodes = (long*)GC_REALLOC (nodes, sizeof (long) * (size + system->GetBlockChunk()));
 		if (sx_new_nodes == NULL)
 			return SXE_NOMEM;
 		nodes = sx_new_nodes;

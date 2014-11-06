@@ -25,9 +25,11 @@
  * DAMAGE.
  */
 
+#include <sys/time.h>
+#include <gc/gc.h>
+
 #include <iostream>
 
-#include "libsgc/libsgc.h"
 #include "scriptix.h"
 
 using namespace std;
@@ -39,9 +41,11 @@ main (int argc, const char **argv) {
 	System* system;
 	Function* func;
 	Value** sargv;
+	struct timeval start, end;
 
-	// initialize gc
-	SGC::System::Initialize();
+	// initialize GC
+	GC_INIT();
+	GC_enable_incremental();
 
 	// create a system context
 	system = new System();
@@ -59,12 +63,12 @@ main (int argc, const char **argv) {
 				return 1;
 		} else {
 			// read from stdin
-			if (system->LoadFile(NULL))
+			if (system->LoadFile(""))
 				return 1;
 		}
 	} else {
 		// no args - use stdin
-		if (system->LoadFile(NULL))
+		if (system->LoadFile(""))
 			return 1;
 	}
 
@@ -76,7 +80,7 @@ main (int argc, const char **argv) {
 		// have we more than one arg, to pass to our function?
 		if (argc > 2) {
 			// allocate array for values
-			sargv = new (Value*)[argc - 2];
+			sargv = new (UseGC) (Value*)[argc - 2];
 			// copy in values
 			for (int i = 2; i < argc; ++i) {
 				// crate String for each arguments
@@ -87,16 +91,25 @@ main (int argc, const char **argv) {
 			sargv = NULL;
 		}
 
-		// create new thread
-		Thread* thread = new Thread (system, func, 0, argc > 2 ? argc - 2 : 0, sargv);
+		// get time
+		gettimeofday(&start, NULL);
 
-		// delete our temporary array
-		if (sargv)
-			delete[] sargv;
+		// create new thread
+		Thread* thread = system->CreateThread (func, argc > 2 ? argc - 2 : 0, sargv);
 
 		// run 
 		Value* retval = NULL;
 		if (system->WaitOn(thread->GetID(), &retval) == SXE_OK) {
+			// calc run time
+			gettimeofday(&end, NULL);
+			cout << "Runtime: ";
+			if (start.tv_sec == end.tv_sec)
+				cout << (double)(end.tv_usec - start.tv_usec) / 1000000.0F;
+			else
+				cout << (double)(end.tv_usec - start.tv_usec) / 1000000.0F + (double)(end.tv_sec - start.tv_sec);
+			cout << "s" << endl;
+
+			// return value
 			cout << "Return: ";
 			Value::Print(system, retval);
 			cout << endl;
@@ -105,7 +118,6 @@ main (int argc, const char **argv) {
 
 	// free system context
 	delete system;
-	SGC::System::Shutdown();
 
 	return 0;
 }

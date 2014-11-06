@@ -30,6 +30,7 @@
 	#include <string.h>
 	#include <ctype.h>
 	#include <errno.h>
+	#include <gc/gc.h>
 
 	#include "scriptix.h"
 	using namespace Scriptix;
@@ -49,6 +50,9 @@
 
 	const char *sxp_parser_inbuf = NULL;
 	static void sxp_parser_input (char *buf, int *result, int max);
+
+	#define malloc GC_MALLOC_ATOMIC
+	#define free GC_FREE
 %}
 
 %x BCOMMENT
@@ -95,9 +99,12 @@
 		LEX_NAME("new", TNEW)
 		LEX_NAME("public", TPUBLIC)
 		LEX_NAME("extend", TEXTEND)
+		LEX_NAME("static", TSTATIC)
 		{
+			Type* type;
 			yylval.id = NameToID (yytext);
-			if (parser->GetSystem()->GetType(yylval.id) != NULL) {
+			if ((type = parser->GetType(yylval.id)) != NULL) {
+				yylval.type = type;
 				return TYPE;
 			} else {
 				return IDENTIFIER;

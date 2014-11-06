@@ -35,15 +35,11 @@ using namespace Scriptix;
 static
 void
 _sx_default_error_hook (const char *file, unsigned int line, const char *str) {
-	std::cerr << "Unhandled error: " << file << ':' << line << ": " << str << std::endl;
+	std::cerr << "Scriptix: " << file << ':' << line << ": " << str << std::endl;
 }
 
-System::System (void) : globals(), tags(), types()
+System::System (void) : globals(), funcs(), tags(), types(), script_path()
 {
-	funcs = NULL;
-
-	pools = NULL;
-
 	threads = NULL;
 	cur_thread = NULL;
 
@@ -51,7 +47,6 @@ System::System (void) : globals(), tags(), types()
 	context_chunk = SX_DEF_CONTEXT_CHUNK;
 	block_chunk = SX_DEF_BLOCK_CHUNK;
 	array_chunk = SX_DEF_ARRAY_CHUNK;
-	script_path = NULL;
 
 	error_hook = _sx_default_error_hook;
 
@@ -70,32 +65,6 @@ System::System (void) : globals(), tags(), types()
 
 	// FIXME: error checking
 	InitStdlib();
-
-	// Add root to GC
-	SGC::System::AddRoot (this);
-}
-
-
-System::~System (void)
-{
-	Thread* tnext;
-
-	globals.resize(0);
-
-	while (threads != NULL) {
-		tnext = threads->next;
-		delete threads;
-		threads = tnext;
-	}
-
-	while (pools != NULL)
-		PopPool ();
-
-	tags.clear();
-	types.clear();
-
-	// remove root
-	SGC::System::RemoveRoot(this);
 }
 
 int
@@ -123,76 +92,14 @@ System::SetOption (sx_option_type opt, long value) {
 }
 
 int
-System::SetOption (sx_option_type opt, const char* value) {
+System::SetOption (sx_option_type opt, const std::string& value) {
 	switch (opt) {
 		case SX_OPT_PATH:
-			if (script_path) {
-				free (script_path);
-				script_path = NULL;
-			}
-			if (value) {
-				script_path = strdup(value);
-				if (script_path == NULL)
-					return SXE_NOMEM;
-			}
+			script_path = value;
 			return SXE_OK;
 		default:
 			/* unknown option */
 			return SXE_INVALID;
-	}
-}
-
-void
-System::Mark (void)
-{
-	for (std::vector<Global>::iterator i = globals.begin(); i != globals.end(); ++i)
-		Value::Mark(i->value);
-
-	for (Thread* thread = threads; thread != NULL; thread = thread->next)
-		thread->Mark();
-
-	for (Function* func = funcs; func != NULL; func = func->fnext)
-		Value::Mark (func);
-
-	for(std::map<NameID,Type*>::iterator i = types.begin(); i != types.end(); ++i)
-		i->second->MarkMethods();
-
-	for (Pool* pool = pools; pool != NULL; pool = pool->next)
-		for (size_t i = 0; i < pool->argc; ++i)
-			Value::Mark(pool->argv[i]);
-}
-
-int
-System::PushPool (size_t argc, Value** argv)
-{
-	if (argc > 0 && argv == NULL)
-		return SXE_INVALID;
-
-	Pool* pool = new Pool();
-	if (pool == NULL)
-		return SXE_NOMEM;
-
-	pool->next = pools;
-	pools = pool;
-	pool->argc = argc;
-	pool->argv = argv;
-
-	// mark everything in pool - for safety
-	while (argc > 0) {
-		Value::Mark(argv[argc - 1]);
-		-- argc;
-	}
-
-	return SXE_OK;
-}
-
-void
-System::PopPool (void)
-{
-	if (pools) {
-		Pool* pool = pools;
-		pools = pools->next;
-		delete pool;
 	}
 }
 
@@ -201,4 +108,22 @@ const char*
 Scriptix::Version (void)
 {
 	return SX_VERSION;
+}
+
+Thread*
+System::CreateThread (Function* function, size_t argc, Value* argv[], int flags)
+{
+	Thread* thread = new Thread(this, flags);
+	if (thread == NULL) {
+		// SXE_NOMEM
+		return NULL;
+	}
+
+	if (thread->PushFrame(function, argc, argv, 0) != SXE_OK) {
+		delete thread;
+		return NULL;
+	}
+
+	AddThread(thread);
+	return thread;
 }

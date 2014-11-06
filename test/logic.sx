@@ -1,6 +1,6 @@
 attempt (a,b) {
 	# cheat - do add to make num
-	return a.to_num() > 0 + b.to_num();
+	return Int(a) > Int(b);
 }
 fail () {
 	printl ('Failure');

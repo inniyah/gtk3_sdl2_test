@@ -1,11 +1,11 @@
 TARGET_TESTS=\
 	test-fact test-comments test-inc test-logic test-array \
 	test-assoc test-thread test-global test-struct test-iter \
-	test-string test-extend
+	test-string test-extend test-types
 SCRIPT_TESTS=\
 	fact.sx comments.sx inc.sx logic.sx array.sx \
 	assoc.sx thread.sx global.sx struct.sx iter.sx \
-	string.sx extend.sx
+	string.sx extend.sx types.sx
 
 EXTRA_DIST=$(SCRIPT_TESTS)
 	
@@ -71,6 +71,11 @@ test-string: string.sx $(SX)
 
 test-extend: extend.sx $(SX)
 	echo '>> extend.sx:' >> test.log
+	$(SX) $< 2>&1 | tee -a test.log | grep -q Success
+	touch $@ || /bin/true
+
+test-types: types.sx $(SX)
+	echo '>> types.sx:' >> test.log
 	$(SX) $< 2>&1 | tee -a test.log | grep -q Success
 	touch $@ || /bin/true
 

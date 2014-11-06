@@ -33,7 +33,7 @@
 
 using namespace Scriptix;
 
-SX_TYPEIMPL(String, "String", Value)
+SX_TYPEIMPL(String, "String", Value, SX_TYPECREATENONE(String))
 
 SX_BEGINMETHODS(String)
 	SX_DEFMETHOD(MethodLength, "length", 0, 0)
@@ -152,7 +152,7 @@ String::MethodToint (Thread* thread, Value* self, size_t argc, Value** argv)
 
 // methods
 Value*
-String::SMethodConcat (Thread* thread, Value* self, size_t argc, Value** argv)
+String::SMethodConcat (Thread* thread, size_t argc, Value** argv)
 {
 	std::string ret;
 

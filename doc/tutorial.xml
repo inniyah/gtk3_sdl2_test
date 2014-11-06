@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN" "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
+<book>
+	<bookinfo>
+		<title>Scriptix Tutorial</title>
+		<author><firstname>Sean</firstname><surname>Middleditch</surname></author>
+		<copyright><year>2003</year><holder>AwesomePlay Productions, Inc.</holder></copyright>
+	</bookinfo>
+	<chapter>
+		<title>Introduction</title>
+		<para>Scriptix is an embedded scripting language, designed to allow easy extension of applications.  You very rarely will be writing scripts using only the data types and functions described in this document; you'll more often be relying on customized data types and functions exported by the application using Scriptix.</para>
+		<para>This tutorial covers the built in Scriptix data types, functions, and the core syntax.  The tutorial also covers generalized concepts you'll run into when using Scriptix in other applications.</para>
+		<para>Any of the examples may be run using the standalone Scriptix interpreter, <command>scriptix</command>.</para>
+	</chapter>
+	<chapter>
+		<title>Basic Syntax</title>
+		<para>Scriptix was designed to resemble the C family of languages, including C++, Java, and C#.  This means Scriptix makes use of the semi-colon (;) to end statements, and uses the curly brackets ({ and }) for beginning and ending blocks.</para>
+		<section>
+			<title>Data Types</title>
+			<para>Scriptix has several built-in data types.  The most important three are <type>Number</type>s, <type>String</type>s, and <type>Array</type>s.</para>
+			<para>A Number is any integral value, between -2^31 and 2^31.  (For those familiar with C/C++, a Scriptix number is a 31-bit signed int.)  When entering numbers, you <emphasis>may not</emphasis> enter in any grouping characters (like a comma), and you <emphasis>may not</emphasis> add any decimal components.</para>
+			<example>
+				<title>Numbers</title>
+				<programlisting>123
+-45
+789135</programlisting>
+			</example>
+			<para>A String is a computer term for text.  Text can be anything you wish: a single letter, a word, a sentence, an entire book, and so on.  Scriptix is limited to ASCII, unfortunately.</para>
+			<para>When entering a literal string in Scriptix, you may use two methods.  The first method uses a pair of a single quotes (') to surround the text, or using double quotes (").  Currently, there is no different between the two, tho double quotes may gain special abilities in the future.</para>
+			<para>When you enter a literal string, you cannot reuse the quote inside the string.  If you use single quotes to surround your text, you cannot put a single quote inside the text.  You can get around this limitation by either using a different kind of surrounded quote, or use backslash escaping.</para>
+			<para>Backslash escaping is a way to enter special characters in a string.  A backslash escape is named because it uses a backslash (\) to tell Scriptix that you are entering a special character.  If you want to enter a normal backslash in your string, you must use two backslashes (\\).  You may also use a backslash escape to enter a literal quote inside of a string, such as \' or \".  The other common backslash escape is \n, which means "insert a new line here."</para>
+			<example>
+				<title>Strings</title>
+				<programlisting>'some text'
+"other text"
+'my name\'s Sean'
+"She said, \"Hello!\""
+'Line 1\nLine 2\nLine 3'</programlisting>
+			</example>
+			<para>ARRAY: TBD</para>
+		</section>
+		<section>
+			<title>The 'public main' Function</title>
+			<para>All Scriptix code must be inside a <type>function</type>.  A function is a block of code with a given name, that can be used by other code elsewhere.  For now, we'll always use the function <varname>public main</varname>.  A function is defined by typing the name of the function, followed by <userinput>()</userinput>, and the code, surrounded by curly brackets.  Don't worry if that doesn't make much sense, it will be explained in later chapters.</para>
+			<example>
+				<title>public main() example</title>
+				<programlisting>public main() {
+	printl('This is public main');
+}</programlisting>
+			</example>
+		</section>
+		<section>
+			<title>Statements</title>
+			<para>A function is broken into <type>statement</type>s.  A statement is command you tell Scriptix to execute.  A statement may be a variable assignment, some mathematical operations, or a function call.</para>
+			<para>Each statement must be ended with a semi-colon (;).  The semi-colon tells Scriptix where one statement ends, and another begins.  The semi-colon is needed because a statement may span multiple lines, or you may have multiple statements on a single line.</para>
+			<example>
+				<title>Statements</title>
+				<programlisting>variable = "some text";
+my_function();
+result = (1 + my_numer) * 4;
+name = first_name + ' ' + last_name;</programlisting>
+			</example>
+		</section>
+		<section>
+			<title>Variables</title>
+			<para>A variable in Scriptix is similar to a variable in algebra.  A variable holds some arbitrary value that you may use later.  The value of a variable may be a literal you assigned to it (such as a Number, String, or Array), the result of some operation (such as the result of some addition), or the result from a function call.</para>
+			<para>Variables are <type>scope</type>d.  This means that a variable only exists in certain contexts; namely, the function they were defined in.  If you have two functions, <function>a()</function> and <function>b()</function>, and both have a variable named <varname>result</varname>, then <function>b()</function> can only access its own <varname>result</varname>, and not the <varname>result</varname> in function <function>a()</function>.</para>
+			<note><para>Unlike some other languages, such as C or Java, Scriptix variables are <emphasis>not</emphasis> scoped by block.</para></note>
+			<para>A variable in Scriptix may hold any kind of data.  You can set a variable to be a Number, a String, or anything else.  You may also change the type of a variable at any time; i.e., if you had a variable holding a Number, you may then assign it to a String.</para>
+			<para>Variable names must be comprised of letters, numbers, and underscores(_).  The name <emphasis>may not</emphasis> start with a number.</para>
+			<para>To make a new variable, simply assign a value to the name.  You may not use a variable until after you have "created" it; doing so will result in an error.</para>
+			<example>
+				<title>Creating Variables</title>
+				<programlisting>num = 123;
+str = "A string";
+result_1 = num * 6;
+result_2 = result_2 * 2;
+my_value = -45 + my_func();</programlisting>
+			</example>
+		</section>
+		<section>
+			<title>Comments</title>
+			<para>Comments are an extremely important part of programming.  A comment is a note you place in code that is ignored by the language itself.  Comments are used to describe what some code does, the algorithm the code uses, how the code/function should be used, or notes on future improvements that should be done.</para>
+			<para>Comments are very important for two reasons.  First, they make it much easier for other programmers to understand your code.  If you ever have someone else working on your project with you, or if you release your code to the Open Source community, it is vital that your code be well commented so it can be understood.  Additionally, the comments can help you understand your own code; when you come back to old code after not having looked at it for several months or years, you may not remember what the code was supposed to be doing if you didn't comment it well.</para>
+			<para>The second important reason to use comments is that they can help catch errors.  If you only have some code for a particular algorithm, all you know is what the code does.  However, the code may have an error or bug, causing it do to something other than intended.  By placing a comment by code explaining what it should be doing, which algorithms it uses, and how the code should be used, it can be easier to spot and fix code that isn't doing what it should be doing.</para>
+			<para>Scriptix supports three different kinds of comments.  The first one is the C comment style.  C comments begin with a <userinput>/*</userinput>, and end with <userinput>*/</userinput>.  These comments may not be nested.  C-style comments may span one or more lines.</para>
+			<example>
+				<title>Scriptix C-style Comments</title>
+				<programlisting>/* one line comment */
+
+/* this is a
+multiline
+comment*/
+
+/* MyFunction()
+ *  Call MyFunction to calculate the frobbiness
+ *  of a sprocket factor.
+ */</programlisting>
+ 			</example>
+			<para>The other two comment styles are the C++ style and the shell-script style.  A C++ comment begins with a double slash (//), and continues until the end of the current line.  If you want a C++ style comment to span multiple lines, you must put // at the beginning of each line.</para>
+			<para>The shell style comment behaves the exact same as a C++ style comment, except a hash symbol (#) is used instead of the double slash.</para>
+			<example>
+				<title>Scriptix C++ and Shell Comments</title>
+				<programlisting>// This is a comment
+# This is also a comment
+
+num = 123; // set 'num' to one hundred twenty three
+
+# this comment
+# spans multiple
+# code lines</programlisting>
+			</example>
+		</section>
+	</chapter>
+</book>

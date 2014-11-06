@@ -32,7 +32,7 @@
 
 using namespace Scriptix;
 
-SX_TYPEIMPL(List, "List", Value);
+SX_TYPEIMPL(List, "List", Value, SX_TYPECREATENONE(List));
 SX_NOMETHODS(List);
 SX_NOSMETHODS(List);
 

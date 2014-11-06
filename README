@@ -41,13 +41,48 @@ Basic Scriptix Information
    give up control explicitly, while pre-emptive threads have control taken
    away after a set number of instructions have been executed.
 
+3. Install
+   =======
 
-3. Documentation
+   You will need the GC from http://www.hpl.hp.com/personal/Hans_Boehm/gc/ in
+   order to build Scriptix.
+
+
+4. Bugs
+   ====
+   A bug tracking system is available at http://bugs.awemud.net for logging
+   bugs and feature requests for Scriptix.
+
+   If you happen to be experiencing a crash, it is important that you provide
+   several pieces of information.  First, we need a backtrace; a log of what
+   was going on inside Scriptix when the crash occured.  Second, we need a
+   sample script that reproduces the crash.
+
+   Before making a backtrace, you must make sure Scriptix is compiled with
+   debugging on, and optimization turned off.  You can do this using the
+   -g and -O0 compile flags to GCC.  To enable these flags, set the CXXFLAGS
+   environment variable accordingly:
+     export CXXFLAGS="-O0 -g"
+
+   To generate a backtrace, you must run Scriptix in a debugger, such as GDB.
+   Doing this can be slightly tricky.  I recommend using the following
+   command:
+     LD_LIBRARY_PATH=lib/.libs gdb bin/.libs/scriptix
+
+   The run Scriptix, using the 'r' command in GDB.  Append an command line
+   options (such as the filename of your script) to this command.  I.e.,
+     r test/fact.sx 5000
+
+   When the crash occurs, use the 'bt' command to generate a backtrace.  Copy
+   and paste all of the GDB output to your bug report.
+
+
+5. Documentation
    =============
    Yes, we're seriously lacking it.
    
 
-5. Legal
+6. Legal
    =====
    Scriptix comes with no warranty.  If something bad happens to you because of
    your use of Scriptix, we (the authors, distributors, builders, and testers)
@@ -69,7 +104,7 @@ Basic Scriptix Information
    not legally required.
 
 
-6. Disclaimer
+7. Disclaimer
    ==========
    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
    AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
