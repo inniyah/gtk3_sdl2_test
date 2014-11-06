@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+
+Name: Scriptix
+Version: @VERSION@
+Description: Scriptix scripting engine for C++
+Requires: libsgc = @NEED_LIBSGC@
+Libs: -L${libdir} -lscriptix -lsxparse
+Cflags: -I${includedir}/

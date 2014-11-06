@@ -1,41 +1,73 @@
-AC_INIT(bin/scriptix.c)
-AC_CONFIG_HEADER(include/config.h)
+BASE_VERSION=0.23
+VERSION=0.23
 
-BASE_VERSION=0.22
-VERSION=0.22
+AC_INIT([Scriptix], 0.23, [http://www.awemud.net/bugs/submit.php])
+AC_CONFIG_SRCDIR(bin/scriptix.cc)
+AM_INIT_AUTOMAKE(scriptix, "$PACKAGE_VERSION")
+AM_CONFIG_HEADER(include/config.h)
+
+AC_PREREQ(2.52)
+
 AC_SUBST(VERSION)
 AC_SUBST(BASE_VERSION)
-AC_DEFINE_UNQUOTED(SX_VERSION,"$VERSION")
+AC_DEFINE_UNQUOTED(SX_VERSION,"$VERSION",[Our version])
 
 AC_PROG_CC
-AC_PROG_RANLIB
+AC_PROG_CXX
+AM_PROG_LIBTOOL
+
+AC_PATH_PROG(PATH_CCDOC,ccdoc)
+AC_SUBST(PATH_CCDOC)
+
+# don't use automake's yacc/lex support - it's totally broken for our needs
+AC_PATH_PROG(PATH_BISON,bison)
+if test -z "$PATH_BISON" ; then
+	AC_MSG_ERROR([can't find bison])
+fi
+AC_PATH_PROG(PATH_FLEX,flex)
+if test -z "$PATH_FLEX" ; then
+	AC_MSG_ERROR([can't find flex])
+fi
+AC_SUBST(PATH_BISON)
+AC_SUBST(PATH_FLEX)
+
+# long == void*
+AC_MSG_CHECKING([whether sizeof(long) == sizeof(void*)])
+AC_TRY_RUN([
+	int main (void) { return sizeof(void*) != sizeof(long); }
+],LONGVOID=yes,LONGVOID=no)
+AC_MSG_RESULT($LONGVOID)
+if test "x$LONGVOID" = 'xno' ; then
+	AC_MSG_ERROR([Scriptix only runs on platforms where sizeof(void*) == sizeof(long)])
+fi
 
 AC_CHECK_FUNC(snprintf)
 AC_CHECK_FUNC(strcasecmp)
 AC_CHECK_FUNC(strdup)
 
-# Allow disabling of shared libraries, since they don't work on some systems.
-AC_ARG_ENABLE(shared,[  --enable-shared        Enable shared libraries],SHARED="$enableval",SHARED=yes)
-if test "$SHARED" = 'yes' ; then
-	SHARED_LIBS="libscriptix.so.$BASE_VERSION libsxparse.so.$BASE_VERSION"
-	AC_SUBST(SHARED_LIBS)
-	SHARED_BIN="scriptix-shared"
-	AC_SUBST(SHARED_BIN)
-fi
+NEED_LIBSGC=0.20030407
+AC_SUBST(NEED_LIBSGC)
+PKG_CHECK_MODULES(SGC, libsgc = $NEED_LIBSGC)
 
-if test "$CC" = "gcc" ; then 
-	CFLAGS="$CFLAGS -Wall"
-	AC_SUBST(CFLAGS)
+LIBSOVER="0:1:0"
+AC_SUBST(LIBSOVER)
+
+if test "$CXX" = "g++" ; then 
+	CXXFLAGS="$CXXFLAGS -Wall"
+	AC_SUBST(CXXFLAGS)
 fi
 
 AC_OUTPUT(
 	Makefile
 	lib/Makefile
+	include/Makefile
 	bin/Makefile
-	deb/Makefile
-	deb/control
 	bin/scriptix-conf
+	doc/Makefile
+	test/Makefile
+	tools/Makefile
 	scriptix.spec
+	scriptix.pc
 )
 
 chmod +x bin/scriptix-conf

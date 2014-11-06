@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -25,46 +25,89 @@
  * DAMAGE.
  */
 
+/**
+ * Scriptix script engine.
+ * C++ based high-performance scripting engine for games.
+ * @author AwesomePlay Produtions, Inc.
+ * @pkgdoc Scriptix http://www.awemud.net/scriptix/
+ */
+
 #ifndef __SCRIPTIX_H__
 #define __SCRIPTIX_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <vector>
+#include <list>
+#include <iostream>
 
+#include "libsgc/libsgc.h"
+
+/**
+ * Scriptix namespace.
+ * All Scriptix methods, types, classes, and functions exist
+ * in this namespace.
+ */
+namespace Scriptix {
+
+// various stack sizes
 #define SX_DEF_DATA_CHUNK 50
 #define SX_DEF_CONTEXT_CHUNK 10
 #define SX_DEF_BLOCK_CHUNK 10
-#define SX_DEF_GC_THRESH 200
+#define SX_DEF_ARRAY_CHUNK 5
+
+// base options
 #define SX_DEF_RUN_LENGTH 1000
 
-#ifndef __INLINE__
-#ifdef __GNUC__
-	#define __INLINE__ inline
-#else
-	#define __INLINE__
-#endif /* __GNUC__ */
-#endif /* __INLINE__ */
-
+// max length of an identifier
 #define SX_MAX_NAME 128
 
-/* Error Codes */
-#define SXE_OK 0	/* no error */
-#define SXE_NOMEM 1	/* out of memory */
-#define SXE_BADTYPE 2	/* invalid type for operation */
-#define SXE_UNDEFINED 3	/* undefined/nonexistant */
-#define SXE_NILCALL 4	/* method call on nil value */
-#define SXE_BADOP 5	/* invalid operator - internal error */
-#define SXE_BOUNDS 6	/* value out of bounds */
-#define SXE_NOTREADY 7	/* not ready to handle request */
-#define SXE_INVALID 8	/* generic invalid request */
-#define SXE_DISABLED 9 	/* operation disabled */
-#define SXE_BUSY 10	/* busy, cannot complete request */
-#define SXE_INTERNAL 11 /* internal, unknown error */
-#define SXE_BADARGS 12	/* bad set or arguments; count or type */
+// Creating new types
+#define SX_TYPEDEF \
+	protected: \
+	static Scriptix::Type _MyType; \
+	static Scriptix::Method _MyMethods[]; \
+	static Scriptix::Method _MyStaticMethods[]; \
+	public: \
+	static const Scriptix::Type* GetType (void) { return &_MyType; } \
+	virtual const Scriptix::Type* GetMyType (void) const { return &_MyType; }
+#define SX_TYPEIMPL(CPPNAME, SXNAME, CPPPARENT) \
+	Scriptix::Type CPPNAME::_MyType = { \
+		SXNAME , \
+		CPPPARENT::GetType(), \
+		CPPNAME::_MyMethods, \
+		CPPNAME::_MyStaticMethods, \
+	}; 
+#define SX_NOMETHODS(CPPNAME) Scriptix::Method CPPNAME::_MyMethods[] = { { NULL, 0, 0, NULL } };
+#define SX_NOSMETHODS(CPPNAME) Scriptix::Method CPPNAME::_MyStaticMethods[] = { { NULL, 0, 0, NULL } };
+#define SX_BEGINMETHODS(CPPNAME) Scriptix::Method CPPNAME::_MyMethods[] = {
+#define SX_ENDMETHODS { NULL, 0, 0, NULL } };
+#define SX_BEGINSMETHODS(CPPNAME) Scriptix::Method CPPNAME::_MyStaticMethods[] = {
+#define SX_ENDSMETHODS { NULL, 0, 0, NULL } };
+#define SX_DEFMETHOD(CPPNAME, SXNAME, ARGC, VARARG) { SXNAME, ARGC, VARARG, CPPNAME }, 
 
-typedef enum sx_op_type {
-	SX_OP_NIL = 0,
+// Declare in SMETHODS - default NEW operator
+#define SX_DEFNEW(CPPNAME) { "new", 0, 0, _CreateNew<CPPNAME> },
+
+// Error Codes
+typedef enum {
+	SXE_OK = 0,	// no error
+	SXE_NOMEM,	// out of memory
+	SXE_BADTYPE,	// invalid type for operation
+	SXE_UNDEFINED,	// undefined/nonexistant
+	SXE_NILCALL,	// method call on nil value
+	SXE_BADOP,	// invalid operator - internal error
+	SXE_BOUNDS,	// value out of bounds
+	SXE_NOTREADY,	// not ready to handle request
+	SXE_INVALID,	// generic invalid request
+	SXE_DISABLED, 	// operation disabled
+	SXE_BUSY,	// busy, cannot complete request
+	SXE_INTERNAL, // internal, unknown error
+	SXE_BADARGS,	// bad set or arguments; count or type
+	SXE_EXISTS,	// already exists (duplicate)
+} sx_err_type;
+
+// Byte-code ops
+typedef enum {
+	SX_OP_PUSH = 0,
 	SX_OP_ADD,
 	SX_OP_SUBTRACT,
 	SX_OP_NEGATE,
@@ -84,9 +127,9 @@ typedef enum sx_op_type {
 	SX_OP_PREINCREMENT,
 	SX_OP_POSTINCREMENT,
 	SX_OP_NEWARRAY,
+	SX_OP_NEWASSOC,
 	SX_OP_TYPECAST,
 	SX_OP_SETINDEX,
-	SX_OP_SIZEOF,
 	SX_OP_METHOD,
 	SX_OP_SETFILELINE,
 	SX_OP_NEXTLINE,
@@ -98,18 +141,24 @@ typedef enum sx_op_type {
 	SX_OP_STATIC_METHOD,
 	SX_OP_YIELD,
 	SX_OP_IN,
-	SX_OP_NEW,
 	SX_OP_CLOSURE,
+	SX_OP_SET_MEMBER,
+	SX_OP_GET_MEMBER,
 } sx_op_type;
 
-	/* system flags */
-#define SX_SFLAG_GCOFF (1 << 0)
+// Thread flags
+typedef enum {
+	SX_TFLAG_PREEMPT = (1 << 0), // pre-emptable threading
+} sx_thread_flags;
 
-	/* call flags */
-#define SX_CFLAG_TTRUE (1 << 0)
-#define SX_CFLAG_BREAK (1 << 1)
+// Call-stack flags
+typedef enum {
+	SX_CFLAG_TTRUE = (1 << 0),
+	SX_CFLAG_BREAK = (1 << 1),
+} sx_call_flags;
 
-typedef enum sx_state_type {
+// Thread states
+typedef enum {
 	SX_STATE_READY = 0,
 	SX_STATE_RUNNING,
 	SX_STATE_FINISHED,
@@ -117,386 +166,1143 @@ typedef enum sx_state_type {
 	SX_STATE_RETURN,
 } sx_state_type;
 
+// System options
 typedef enum {
 	SX_OPT_NONE = 0,
-	SX_OPT_GCTHRESH,
 	SX_OPT_DATACHUNK,
 	SX_OPT_BLOCKCHUNK,
 	SX_OPT_CONTEXTCHUNK,
 	SX_OPT_RUNLENGTH,
+	SX_OPT_ARRAYCHUNK,
+	SX_OPT_PATH,
 } sx_option_type;
 
 #define SX_NUM_MARK 0x01
 
-typedef struct scriptix_value* SX_VALUE;
-typedef struct scriptix_var* SX_VAR;
-typedef struct scriptix_method* SX_METHOD;
-typedef struct scriptix_call* SX_CALL;
-typedef struct scriptix_system* SX_SYSTEM;
-typedef struct scriptix_thread* SX_THREAD;
-typedef struct scriptix_type* SX_TYPE;
+// core structures
+class Value;
+class Global;
+class Method;
+class Call;
+class System;
+class Thread;
+class Type;
 
-typedef struct scriptix_string* SX_STRING;
-typedef struct scriptix_array* SX_ARRAY;
-typedef struct scriptix_func* SX_FUNC;
-typedef struct scriptix_block* SX_BLOCK;
-typedef struct scriptix_object* SX_OBJECT;
-typedef struct scriptix_closure* SX_CLOSURE;
+// core types
+class Number;
+class String;
+class Array;
+class Assoc;
+class Invocable;
+class Function;
+class Closure;
+class TypeValue;
+#define SX_NIL (NULL)
 
-typedef unsigned long sx_name_id;
-typedef unsigned long sx_thread_id;
+// id types
+typedef size_t sx_name_id;
+typedef size_t sx_thread_id;
 
-typedef void (*sx_gc_hook)(SX_SYSTEM system);
-typedef int (*sx_print_hook)(const char *str, ...);
+typedef void (*sx_gc_hook)(System* system);
 typedef void (*sx_error_hook)(const char *file, unsigned int line, const char *str);
 
-typedef void (*sxp_tag_func)(SX_SYSTEM system, const char *name, SX_FUNC func);
+typedef Value* (*sx_cmethod)(Thread* thread, Value* self, size_t argc, Value** argv);
+typedef Value* (*sx_cfunc)(Thread* thread, size_t argc, Value** argv);
 
-typedef void (*sx_type_mark)(SX_SYSTEM system, SX_VALUE obj);
-typedef void (*sx_type_del)(SX_SYSTEM system, SX_VALUE obj);
-typedef void (*sx_type_print)(SX_SYSTEM system, SX_VALUE value);
-typedef SX_VALUE (*sx_type_to_num)(SX_SYSTEM system, SX_VALUE value);
-typedef SX_STRING (*sx_type_to_str)(SX_SYSTEM system, SX_VALUE value);
-typedef int (*sx_type_equal)(SX_SYSTEM system, SX_VALUE one, SX_VALUE two);
-typedef int (*sx_type_compare)(SX_SYSTEM system, SX_VALUE one, SX_VALUE two);
-typedef int (*sx_type_true)(SX_SYSTEM system, SX_VALUE value);
-typedef SX_VALUE (*sx_type_get_index)(SX_SYSTEM system, SX_VALUE value, long index);
-typedef SX_VALUE (*sx_type_set_index)(SX_SYSTEM system, SX_VALUE value, long index, SX_VALUE set);
-typedef SX_VALUE (*sx_type_append)(SX_SYSTEM system, SX_VALUE value, SX_VALUE add);
-typedef int (*sx_type_is_in)(SX_SYSTEM system, SX_VALUE value, SX_VALUE sub);
-typedef SX_VALUE (*sx_type_new)(SX_SYSTEM system, SX_TYPE);
+// errors
+const char *StrError (sx_err_type err);
 
-typedef void (*sx_cfunc)(SX_THREAD thread, SX_VALUE self, unsigned long args, SX_VALUE *argv, SX_VALUE *ret);
-#define SX_DEFINE_CFUNC(name) void name (SX_THREAD sx_thread, SX_VALUE sx_self, unsigned long sx_argc, SX_VALUE *sx_argv, SX_VALUE *sx_ret)
+// version
+const char *Version (void);
 
-#define sx_malloc(size) malloc(size)
-#define sx_free(ptr) free(ptr);
-extern __INLINE__ void *sx_dupmem (const void *mem, unsigned long size);
+// easy convert
+#define SX_TOVALUE(val) ((Scriptix::Value*)(val))
+#define SX_TOINVOCABLE(val) ((Scriptix::Invocable*)(val))
+#define SX_TOFUNC(val) ((Scriptix::Function*)(val))
+#define SX_TOCLOSURE(val) ((Scriptix::Closure*)(val))
+#define SX_TOSTRING(val) ((Scriptix::String*)(val))
+#define SX_TOARRAY(val) ((Scriptix::Array*)(val))
+#define SX_TOASSOC(val) ((Scriptix::Assoc*)(val))
+#define SX_TONUM(val) ((long)(val))
+#define SX_TOTYPE(val) ((Scriptix::TypeValue*)(val))
 
-#define sx_new_nil() ((SX_VALUE )(NULL))
-#define sx_new_num(i) ((SX_VALUE )(((i) << 1) | SX_NUM_MARK))
-#define sx_toint(n) ((long)(n) >> 1)
+// Name<->ID translation
+sx_name_id NameToID(const char *name);
+const char *IDToName(sx_name_id id);
 
-extern void sx_clear_value (SX_SYSTEM system, SX_VALUE value, SX_TYPE type);
-extern SX_STRING sx_new_str (SX_SYSTEM system, const char *str);
-extern SX_STRING sx_new_str_len (SX_SYSTEM system, const char *str, unsigned long len);
-extern SX_BLOCK sx_new_block (SX_SYSTEM system);
-extern SX_ARRAY sx_new_array (SX_SYSTEM system, unsigned long argc, SX_VALUE *argv);
-extern SX_ARRAY sx_new_stack_array (SX_THREAD thread, unsigned long argc, long top);
+/**
+ * Type information.
+ * Contains information on a Scriptix type.
+ */
+struct Type {
+	const char* name;		///< Name of type.
+	const Type* parent;		///< Parent type.
+	const Method* methods;		///< Array of methods.
+	const Method* smethods;		///< Array of static methods.
 
-extern SX_BLOCK sx_add_to_block (SX_SYSTEM system, SX_BLOCK block, SX_VALUE value, sx_op_type op);
-#define sx_add_value(s,b,v) (sx_add_to_block ((s), (b), (v), 0))
-#define sx_add_stmt(s,b,o) (sx_add_to_block ((s), (b), NULL, (o)))
+	/**
+	 * Lookup a static method.
+	 * Finds a static method with the given name.  Traverses ancestory.
+	 * @param id ID of the method to find.
+	 * @return A Method if exists, or NULL if not found.
+	 */
+	const Method* GetStaticMethod (sx_name_id id) const;
+};
 
-extern SX_VALUE sx_copy_value (SX_SYSTEM system, SX_VALUE value);
-extern __INLINE__ void sx_mark_value (SX_SYSTEM system, SX_VALUE value);
-extern int sx_is_true (SX_SYSTEM system, SX_VALUE value);
-extern int sx_are_equal (SX_SYSTEM system, SX_VALUE one, SX_VALUE two);
-extern int sx_compare (SX_SYSTEM system, SX_VALUE one, SX_VALUE two);
-extern int sx_is_in (SX_SYSTEM system, SX_VALUE container, SX_VALUE value);
-extern void sx_print_value (SX_SYSTEM system, SX_VALUE value);
-extern SX_VALUE sx_get_index (SX_SYSTEM system, SX_VALUE cont, long index);
-extern SX_VALUE sx_set_index (SX_SYSTEM system, SX_VALUE cont, long index, SX_VALUE value);
-extern SX_VALUE sx_append (SX_SYSTEM system, SX_VALUE base, SX_VALUE value);
-extern __INLINE__ SX_VALUE sx_to_num (SX_SYSTEM system, SX_VALUE value);
-extern __INLINE__ SX_STRING sx_to_str (SX_SYSTEM system, SX_VALUE value);
-extern void sx_free_value (SX_SYSTEM system, SX_VALUE value);
+/**
+ * Base type for all values.
+ * Every data type in Scriptix must derive from the Value class.  This
+ * class also contains static methods for the manipulation of Value-
+ * based instances.
+ *
+ * Numeric data is stored inside a Value pointer.  For this reason,
+ * you should never treat a Value pointer as an actual pointer, but
+ * instead as an opaque data type.  Always use the static wrappers
+ * for Value methods versus calling the methods directly, unless you
+ * are positive you have a valid pointer.
+ */
+class Value : public SGC::Collectable {
+	// Stubs for data type
+	protected:
+	static Method _MyMethods[];
+	static Method _MyStaticMethods[];
 
-/* common names */
-extern sx_name_id sx_parent_id;
-extern sx_name_id sx_self_id;
-extern sx_name_id sx_init_id;
+	public:
+	/**
+	 * Fetch the type information for the class.
+	 * @return The type information
+	 */
+	static const Type* GetType (void) { return NULL; }
+	/**
+	 * Fetch the type information for the instance.
+	 * @return The type information
+	 */
+	virtual const Type* GetMyType (void) const = 0;
 
-/* errors */
-extern const char *sx_str_error (int err);
-extern int sx_raise_error (SX_THREAD thread, int err, const char *format, ...);
-extern int sx_raise_sys_error (SX_THREAD thread, int err, const char *format, ...);
+	// Constructor/destructor
+	public:
+	/**
+	 * Construct a new Value.
+	 * This is the base constructor, which must be invoked by children
+	 * constructuors.
+	 * @param system A pointer to a System instance the Value is created in.
+	 */
+	Value (System* system) {}
+	/**
+	 * Destroy a Value.
+	 * This is the destructor, which should be over-ridden by children
+	 * classes that allocate non-managed data or resources.
+	 */
+	virtual ~Value (void) {}
 
-/* check types */
-#define sx_type_of(s,v) ((v) == (NULL) ? NULL : ((long)(v) & SX_NUM_MARK) ? (s)->cint : (SX_TYPE)((long)(v)->type & ~0x01))
-#define SX_ISNIL(s,v) ((v) == NULL)
-#define SX_ISNUM(s,v) ((long)(v) & SX_NUM_MARK)
-#define SX_ISOBJECT(s,v) ((sx_type_of ((s), (v))) == (s)->cobject)
-#define SX_ISSTRING(s,v) ((sx_type_of ((s),(v))) == (s)->cstring)
-#define SX_ISBLOCK(s,v) ((sx_type_of ((s),(v))) == (s)->cblock)
-#define SX_ISARRAY(s,v) ((sx_type_of ((s),(v))) == (s)->carray)
-#define SX_ISFUNC(s,v) ((sx_type_of ((s),(v))) == (s)->cfunction)
-#define SX_ISCLOSURE(s,v) ((sx_type_of ((s),(v))) == (s)->cclosure)
+	// Operations
+	protected:
+	/**
+	 * Print out a Value.
+	 * Over-ride this to provide custom behaviour for printing an instance.
+	 * @param system System instance that the instance exists in.
+	 */
+	virtual void Print (System* system);
+	/**
+	 * Check equality.
+	 * Test whether two instances are equal to each other.  The more
+	 * in-depth and accurate, the better.  For example, comparing a
+	 * string with a number would be a good idea to implement here.
+	 * @note Over-ride in your derived class to customize behaviour.
+	 * @see Compare
+	 * @see True
+	 * @param system System instance that the instance exists in.
+	 * @param other The instance to compare against.
+	 * @return Return true if equal, false otherwise.
+	 */
+	virtual bool Equal (System* system, Value* other);
+	/**
+	 * Compare relationship.
+	 * Compare the relationship between two instance; which one
+	 * is ordered before the other.  Using in less-than comparisons
+	 * and friends.
+	 * @note Over-ride in your derived class to customize behaviour.
+	 * @see Equal
+	 * @see True
+	 * @param system System instance that the instance exists in.
+	 * @param other The instance to compare against.
+	 * @return -1 when the current instance comes before the other
+	 *   instance, 0 when the instances are equal (or no comparison can
+	 *   be made), and 1 when the other instance comes before the
+	 *   current instance.
+	 */
+	virtual int Compare (System* system, Value* other);
+	/**
+	 * Test truth.
+	 * Test if the instance is a "true" instance or not.  Used in if and
+	 * other boolean test.  For example, on an array type, return true
+	 * if the array has more than 0 items, or false otherwise.
+	 * @note Over-ride in your derived class to customize behaviour.
+	 * @see Equal
+	 * @see Compare
+	 * @param system System instance that the instance exists in.
+	 */
+	virtual bool True (System* system);
 
-/* special type checks for functions/closures */
-#define SX_ISINVOCABLE(s,v) ((SX_ISFUNC((s),(v))) || (SX_ISCLOSURE((s),(v))))
-#define SX_ISCFUNC(s,v) ( \
-		SX_ISFUNC((s),(v)) ? \
-		((SX_FUNC)(v))->cfunc != NULL : \
-		( \
-			SX_ISCLOSURE((s),(v)) ? \
-			((SX_CLOSURE)(v))->func->cfunc != NULL : \
-			0 \
-		) \
-	)
+	// Operate on values
+	public:
+	/**
+	 * Mark an instance in the GC.
+	 * Call this on an instance when it needs to be marked for the GC.
+	 * @param self Value to mark.
+	 */
+	inline static void Mark (Value* self);
+	/**
+	 * Print an instance.
+	 * Calls the Print method for the given instance.
+	 * @param system System instance that the instances exists in.
+	 * @param self The instance to be printed.
+	 */
+	inline static void Print (System* system, Value* self);
+	/**
+	 * Check equality.
+	 * Compare equality of two instances, using the Equal method of the
+	 * self instance.
+	 * @param system System instance that the instance exists in.
+	 * @param self First instance to check, used as basis for comparison.
+	 * @param other Second instance to check.
+	 * @return True if the instances are equal, false otherwise.
+	 */
+	inline static bool Equal (System* system, Value* self, Value* other);
+	/**
+	 * Compare relationship.
+	 * Compare the ordered relationship between two instances, using the
+	 * Compare method of the self instance.
+	 * @param system System instance that the instances exists in.
+	 * @param self First instance to check, used as basis for comparison.
+	 * @param other Second instance to check.
+	 * @return -1 when the self instance comes before the other
+	 *   instance, 0 when the instances are equal (or no comparison can
+	 *   be made), and 1 when the other instance comes before the
+	 *   self instance.
+	 */
+	inline static int Compare (System* system, Value* self, Value* other);
+	/**
+	 * Check truth.
+	 * Determine if an instance is a true value or not, for boolean checks.
+	 * Calls the Truth method on the given instance.
+	 * @param system System instance that the instances exists in.
+	 * @param self The instance to check.
+	 * @return True if the instance is true, false otherwise.
+	 */
+	inline static bool True (System* system, Value* self);
 
-extern int sx_eval (SX_THREAD thread, unsigned long max);
+	// Silly type-casting struct hacks
+	private:
+	template <typename TTYPE>
+	struct _TypeCheck {
+		inline static bool Check(Value* value);
+	};
 
-/* variables */
-extern SX_VALUE sx_define_var (SX_THREAD thread, sx_name_id id, SX_VALUE value);
-extern SX_VALUE sx_define_global (SX_SYSTEM system, sx_name_id id, SX_VALUE value);
-extern SX_VAR sx_get_var (SX_THREAD thread, sx_name_id id);
-extern SX_VALUE sx_get_global (SX_SYSTEM system, sx_name_id id);
-extern void sx_free_var (SX_VAR var);
+	// Special operations
+	public:
+	/**
+	 * Determine the Type of an instance.
+	 * Dynamically determines the type of a Value instance.  Handles both
+	 * NULL pointers and the specially encoded numeric values, and return
+	 * appropriate values.
+	 * @param value The value whose type will be found.
+	 * @return The type of the value, or NULL on a NULL value.
+	 */
+	inline static const Type* TypeOf (Value* value);
+	/**
+	 * Determine if an instance is of a given Type.
+	 * Dynamically checks the type of an instance, and return true if the
+	 * instance is of the given type, or the instance is derived from the 
+	 * given type.
+	 * @param value The value to type check.
+	 * @param type The type used in the comparison.
+	 * @return True if the value is of the given type, or derived from the
+	 *   type, and false otherwise.
+	 */
+	inline static bool IsA (Value* value, const Type* type);
+	/**
+	 * Determine if an instance is of a given Type.
+	 * Dynamically checks the type of an instance, and return true if the
+	 * instance is of the given type, or the instance is derived from the 
+	 * given type.
+	 * @param value The value to type check.
+	 * @return True if the value is of the given type, or derived from the
+	 *   type, and false otherwise.
+	 */
+	template<typename TTYPE> inline static bool IsA(Value* value) { return _TypeCheck<TTYPE>::Check(value); }
+	/**
+	 * Cast an instance to a given type.
+	 * Dynamically checks the type of an instance, and return a cast
+	 * pointer if the instance is of the given type, or the instance is
+	 * derived from the given type.
+	 * @param value The value to type check.
+	 * @return A cast pointer if the value is of the given type, or
+	 *   derived from the type, and NULL otherwise.
+	 */
+	template<typename TTYPE> inline static TTYPE* Cast(Value* value) { return _TypeCheck<TTYPE>::Check(value) ? (TTYPE*)value : NULL; }
 
-/* system */
-extern SX_SYSTEM sx_create_system (void);
-extern int sx_set_option (SX_SYSTEM system, sx_option_type op, long value);
-extern int sx_run_gc (SX_SYSTEM system);
-extern int sx_run (SX_SYSTEM system);
-extern int sx_nested_run (SX_THREAD thread, SX_VALUE* retval);
-extern int sx_wait (SX_SYSTEM system, sx_thread_id id, int *retval);
-extern int sx_runable (SX_SYSTEM system);
-extern void sx_free_system (SX_SYSTEM system);
+	/**
+	 * Locate a method.
+	 * Searches the instance's class ancestory for a method.
+	 * @param value The instance to search.
+	 * @param id The ID of the method to be found.
+	 * @return The method if it exists, or NULL otherwise.
+	 */
+	static const Method* GetMethod (Value* value, sx_name_id id);
 
-/* functions */
-extern SX_FUNC sx_new_func (SX_SYSTEM system, sx_name_id id, sx_name_id* args, sx_name_id varg, SX_BLOCK body);
-extern SX_FUNC sx_new_cfunc (SX_SYSTEM system, sx_name_id id, unsigned long argc, int varg_flag, sx_cfunc func);
-extern SX_FUNC sx_add_func (SX_SYSTEM system, SX_FUNC func);
-extern SX_FUNC sx_get_func (SX_SYSTEM system, sx_name_id id);
-extern SX_FUNC sx_define_cfunc (SX_SYSTEM system, const char* name, unsigned long argc, int varg_flag, sx_cfunc func);
+	// System has to access this for the GC
+	friend class System;
+};
 
-/* closures */
-extern SX_CLOSURE sx_new_closure (SX_SYSTEM system, SX_FUNC func, unsigned long argc, SX_VALUE args[]);
+/**
+ * List base type.
+ * This is the base type for list types (such as arrays).  It provides
+ * functionality for setting, getting, appending, checking a list.
+ */
+class List : public Value {
+	SX_TYPEDEF // Implemented in value.cc
 
-/* init basic types */
-extern SX_TYPE sx_init_string (SX_SYSTEM system);
-extern SX_TYPE sx_init_int (SX_SYSTEM system);
-extern SX_TYPE sx_init_block (SX_SYSTEM system);
-extern SX_TYPE sx_init_array (SX_SYSTEM system);
-extern SX_TYPE sx_init_object (SX_SYSTEM system);
-extern SX_TYPE sx_init_function (SX_SYSTEM system);
-extern SX_TYPE sx_init_closure (SX_SYSTEM system);
+	// operations
+	public:
+	/**
+	 * Fetch an item at a given index.
+	 * Given an index, return the item at that index.  Used to implement
+	 * any kind of multi-value property, such as arrays or data members.
+	 * @note Over-ride in your derived class to customize behaviour.
+	 * @param system System instance that the instance exists in.
+	 * @param index The index to look at.
+	 * @return The value at the given index, or NULL if the index is
+	 *   invalid.
+	 */
+	virtual Value* GetIndex (System* system, Value* index);
+	/**
+	 * Set an item at a given index.
+	 * Set the value of an item at a given index.
+	 * @note Over-ride in your derived class to customize behaviour.
+	 * @param system System instance that the instance exists in.
+	 * @param index The index value to use.
+	 * @param set The value to set.
+	 * @return The value of set if successful, or NULL on failure.
+	 */
+	virtual Value* SetIndex (System* system, Value* index, Value* set);
+	/**
+	 * Append an item.
+	 * Used mainly in array types, it should append an item to the
+	 * instance's internal list.
+	 * @note Over-ride in your derived class to customize behaviour.
+	 * @param system System instance that the instance exists in.
+	 * @param value The value to append.
+	 * @return The value appended on success, or NULL otherwise.
+	 */
+	virtual Value* Append (System* system, Value* value);
+	/**
+	 * Check if a list has a value or key.
+	 * Use this to check if a certain value exists in a list, or if a
+	 * particular key is set.
+	 * @note Over-ride in your derived class to customize behaviour.
+	 * @param system System instance that the instance exists in.
+	 * @param value The value or key to look for.
+	 * @return True if the value/key exists, or false otherwise.
+	 */
+	virtual bool Has (System* system, Value* value);
 
-/* types */
-extern SX_TYPE sx_new_type (SX_SYSTEM system, const char *name);
-extern SX_TYPE sx_new_object_type (SX_SYSTEM system, const char *name, SX_TYPE parent);
-extern SX_METHOD sx_add_method (SX_SYSTEM system, SX_TYPE type, const char *name, unsigned long argc, int varg_flag, sx_cfunc method);
-extern SX_METHOD sx_get_method (SX_SYSTEM system, SX_TYPE type, sx_name_id id);
-extern SX_METHOD sx_add_static_method (SX_SYSTEM system, SX_TYPE type, const char *name, unsigned long argc, int varg_flag, sx_cfunc method);
-extern SX_METHOD sx_get_static_method (SX_SYSTEM system, SX_TYPE type, sx_name_id id);
-extern __INLINE__ unsigned long sx_ref_type (SX_TYPE type);
-extern __INLINE__ unsigned long sx_unref_type (SX_TYPE type);
-extern SX_TYPE sx_type_is_a (SX_SYSTEM system, SX_TYPE base, SX_TYPE par);
-extern SX_VALUE sx_value_is_a (SX_SYSTEM system, SX_VALUE base, SX_TYPE par);
-extern SX_TYPE sx_get_type (SX_SYSTEM system, sx_name_id id);
-extern SX_VALUE sx_type_create_new (SX_SYSTEM system, SX_TYPE type);
+	public:
+	/**
+	 * Initialize list.
+	 * @param system System instance that the instance will be created in.
+	 * @return The initialized list instance.
+	 */
+	List (System* system) : Value(system) {}
 
-extern SX_OBJECT sx_new_object (SX_SYSTEM system, SX_TYPE par, void *data);
-#define sx_object_data(obj) ((obj)->data)
+	/**
+	 * Fetch an item at a given index.
+	 * Given an index, return the item at that index.  Used to implement
+	 * any kind of multi-value property, such as arrays or data members.
+	 * @param system System instance that the instance exists in.
+	 * @param list List to operate on.
+	 * @param index The index to look at.
+	 * @return The value at the given index, or NULL if the index is
+	 *   invalid.
+	 */
+	static Value* GetIndex (System* system, List* list, Value* index)
+	{
+		return list->GetIndex(system, index);
+	}
+	/**
+	 * Set an item at a given index.
+	 * Set the value of an item at a given index.
+	 * @param system System instance that the instance exists in.
+	 * @param list List to operate on.
+	 * @param index The index value to use.
+	 * @param set The value to set.
+	 * @return The value of set if successful, or NULL on failure.
+	 */
+	static Value* SetIndex (System* system, List* list, Value* index, Value* set)
+	{
+		return list->SetIndex(system, index, set);
+	}
+	/**
+	 * Append an item.
+	 * Used mainly in array types, it should append an item to the
+	 * instance's internal list.
+	 * @param system System instance that the instance exists in.
+	 * @param list List to operate on.
+	 * @param value The value to append.
+	 * @return The value appended on success, or NULL otherwise.
+	 */
+	static Value* Append (System* system, List* list, Value* value)
+	{
+		return list->Append(system, value);
+	}
+	/**
+	 * Check if a list has a value or key.
+	 * Use this to check if a certain value exists in a list, or if a
+	 * particular key is set.
+	 * @param system System instance that the instance exists in.
+	 * @param list List to operate on.
+	 * @param value The value or key to look for.
+	 * @return True if the value/key exists, or false otherwise.
+	 */
+	static bool Has (System* system, List* list, Value* value)
+	{
+		return list->Has(system, value);
+	}
+};
 
-/* returns the block of the script */
-extern int sxp_add_tag (SX_SYSTEM system, const char *tag, sxp_tag_func func);
-extern int sxp_load_file (SX_SYSTEM system, const char *file);
-extern int sxp_load_string (SX_SYSTEM system, const char *buffer);
+/**
+ * Struct value.
+ * An structure is similar to a C structure.  Structs contain member values,
+ * which can be read or modified.  Unlike C, Structs' member lists are
+ * dynamic, like an associate array type.
+ */
+class Struct : public Value {
+	SX_TYPEDEF
 
-/* threads */
-extern SX_THREAD sx_create_thread (SX_SYSTEM system, SX_VALUE call, unsigned long argc, SX_VALUE argv[]);
-extern SX_THREAD sx_create_thread_v (SX_SYSTEM system, SX_VALUE call, unsigned long argc, ...);
-extern int sx_run_thread (SX_THREAD thread, unsigned long max);
-extern __INLINE__ void sx_mark_thread (SX_THREAD thread);
-extern void sx_end_thread (SX_THREAD thread);
-extern void sx_free_thread (SX_THREAD thread);
-extern SX_THREAD sx_push_call (SX_THREAD thread, SX_VALUE call, unsigned long argc);
-extern SX_THREAD sx_pop_call (SX_THREAD thread);
-extern SX_VALUE sx_invoke (SX_THREAD thread, SX_VALUE call, unsigned long argc, SX_VALUE array[]); 
-extern __INLINE__ SX_VALUE sx_invoke_v (SX_THREAD thread, SX_VALUE call, unsigned long argc, ...);
-extern __INLINE__ SX_CALL sx_get_call (SX_THREAD thread);
-extern SX_VALUE sx_push_value (SX_THREAD thread, SX_VALUE value);
-extern __INLINE__ SX_VALUE sx_get_value (SX_THREAD thread, long index);
-extern __INLINE__ void sx_pop_value (SX_THREAD thread, long start, unsigned long len);
+	// member data
+	private:
+	struct Data {
+		sx_name_id id;
+		Value* value;
+	};
+	std::list<Data> data;
 
-/* names */
-extern __INLINE__ sx_name_id sx_name_to_id (const char *name);
-extern __INLINE__ const char *sx_name_id_to_name (sx_name_id id);
-extern void sx_init_ids (void);
+	// Method implementations
+	protected:
+	/**
+	 * Set an unset member.
+	 * If an attempt is made to set a member value that does not
+	 * exist in the member list, this method is called.
+	 * @param system The system the structure exists in.
+	 * @param id The ID of the member to be set.
+	 * @param value The value to set the member to.
+	 */
+	virtual void SetUndefMember (System* system, sx_name_id id, Value* value);
+	/**
+	 * Get an undefined member.
+	 * If an attempt is made to lookup the value of an undefined
+	 * member, this method is called to return a value.
+	 * @param system The system the structure exists in.
+	 * @param id The ID of the member to be retrieved.
+	 */
+	virtual Value* GetUndefMember (System* system, sx_name_id id);
 
-extern sx_name_id* sx_new_namelist (SX_SYSTEM system, unsigned long argc, ...);
-extern sx_name_id* sx_new_namelist_from_array (SX_SYSTEM system, SX_ARRAY array);
-extern sx_name_id* sx_namelist_append (SX_SYSTEM system, sx_name_id* list, sx_name_id id);
-extern sx_name_id* sx_namelist_concat (SX_SYSTEM system, sx_name_id* list, sx_name_id* list2);
-extern __INLINE__ unsigned long sx_sizeof_namelist (sx_name_id* list);
-extern __INLINE__ void sx_free_namelist (sx_name_id* list);
+	// Garbage collection
+	protected:
+	void MarkChildren (void);
 
-/* standard library calls */
-extern int sx_init_stdlib (SX_SYSTEM system);
+	// Constructor
+	public:
+	/**
+	 * Initialize structure.
+	 * @param system System instance that the structure will be created in.
+	 * @return The initialized structure instance.
+	 */
+	Struct (System* system) : Value(system), data() {}
 
-struct scriptix_type {
+	/**
+	 * Set member value.
+	 * Will set the given member to the given value.
+	 * @param System System structure exists in.
+	 * @param id The ID of the member to be set.
+	 * @param value The value to set the member to.
+	 */
+	void SetMember (System* system, sx_name_id id, Value* value);
+
+	/**
+	 * Get member value.
+	 * Get the value of the given member.
+	 * @param System System structure exists in.
+	 * @param id The ID of the member to be retrieved.
+	 * @return The value of the member, or NULL on error.
+	 */
+	Value* GetMember (System* system, sx_name_id id);
+};
+
+/**
+ * Numeric value.
+ * This is the class of a numeric value.  Note that there will *never* be an
+ * instance of this class, as numerics are encoded into pointers.  However, we
+ * still need the class for member functions and type specification.
+ */
+class Number : public Value {
+	SX_TYPEDEF
+
+	private:
+	// Methods
+	/**
+	 * Method: Convert to a string.
+	 * A method to convert a number to a String.
+	 * @param thread Current thread.
+	 * @param self Numeric value.
+	 * @param argc Argument count, unused.
+	 * @param argv Argument list, unused.
+	 * @return A String.
+	 */
+	static Value* MethodTostr (Thread* thread, Value* self, size_t argc, Value** argv);
+
+	public:
+	/**
+	 * Phony constructor.
+	 * We need a constructor for this class to satisfy libsgc.
+	 */
+	Number (System* system) : Value (system) {}
+	/**
+	 * Phony destructor.
+	 * We need a destructor for this class to satisfy libsgc.  Abstract
+	 * declaration to guarantee we don't instantiate this class.
+	 */
+	~Number (void) = 0; // disallow creation of Number
+
+	/**
+	 * Create new numeric value.
+	 * Given a long value, create an encoded pointer usable in the rest
+	 * of the Scriptix system.
+	 * @param i Numeric value.
+	 * @return Encoded numeric value.
+	 */
+	static Value* Create (long i) { return ((Value* )((i << 1) | SX_NUM_MARK)); }
+	/**
+	 * Decode numeric value.
+	 * Given an encoded numeric value, return a normal long numeric value.
+	 * @param num Encoded numeric value.
+	 * @return Decoded long numeric value.
+	 */
+	static long ToInt (Value* num) { return (long)num >> 1; }
+};
+
+/**
+ * String value.
+ * Stores a string of text.  This class is special in that its size is
+ * variable; the data of the string is appended to the memory of the
+ * class.
+ *
+ * Thanks to C++ memory management, this requires a few hacks.  An
+ * important note is that the memory is allocated using new[], but will
+ * eventually be deleted with delete.  (note lack of [])  This can cause
+ * certain memory debuggers to complain.  It might also cause crashes
+ * on weird architectures that have different memory pools for the variable
+ * new/delete operators.
+ */
+struct String : public Value {
+	SX_TYPEDEF
+
+	private:
+	typedef char ctype;	///< Type of each character in the string.
+	size_t len;		///< Length of the string.
+	ctype str[0];		///< Fake array, data of string.
+
+	// Methods
+	private:
+	static Value* MethodLength (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodTonum (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodUpper (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodLower (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodSplit (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodSubstr (Thread* thread, Value* self, size_t argc, Value** argv);
+
+	static Value* SMethodConcat (Thread* thread, Value* self, size_t argc, Value** argv);
+
+	private:
+	String (System* system, const ctype* src, size_t len);
+	// Our specialized new operator
+	void* operator new (size_t size, size_t slen) { return new ctype[size + ((slen + 1) * sizeof(ctype))]; }
+
+	/**
+	 * Alloc space for a string.
+	 * This is an internally used method to create an empty string of a
+	 * given length.  This is needed in methods that must construct a
+	 * string piece by piece: they need the space allocated, but don't
+	 * have the character data actually ready.
+	 * @param system The system the string is to be created in.
+	 * @param length Length in ctypeacters of the new string.
+	 * @return A new string instance, or NULL on error.
+	 */
+	static String* Alloc (System* system, size_t length)
+	{
+		return new(length) String(system, NULL, length);
+	}
+
+	// Convenience allocators
+	public:
+	/**
+	 * Create a new string instance.
+	 * This method must be used versus the new operator due to the memory
+	 * allocation needs of the string class.  This method copies the
+	 * input string.
+	 * @param system The system the string is to be created in.
+	 * @param src A C string that the new instance will contain.
+	 * @return A new string instance, or NULL on error.
+	 */
+	static String* Create (System* system, const ctype* src)
+	{
+		size_t len = src ? strlen(src) : 0;
+		return new(len) String(system, src, len);
+	}
+	/**
+	 * Create a new string instance.
+	 * This method must be used versus the new operator due to the memory
+	 * allocation needs of the string class.  This method copies the
+	 * input string.  If the input string is longer than the maximum
+	 * specified, the resulting string instance will contain a truncated
+	 * copy.
+	 * @param system The system the string is to be created in.
+	 * @param src A C string that the new instance will contain.
+	 * @param max Maximum length in ctypeacters of the new string.
+	 * @return A new string instance, or NULL on error.
+	 */
+	static String* Create (System* system, const ctype* src, size_t max)
+	{
+		size_t len = src ? strlen(src) : 0;
+		if (len < max)
+			return new(len) String(system, src, len);
+		else
+			return new(max) String(system, src, max);
+	}
+
+	// Query data
+	public:
+	/**
+	 * Get length of string.
+	 * @return Length of the string.
+	 */
+	size_t GetLen (void) const { return len; }
+	/**
+	 * Get C string.
+	 * Returns a pointer type to be used in C/C++ code.
+	 * @return A pointer to an array of the ctypeacter type.
+	 */
+	const ctype* GetStr (void) const { return str; }
+
+	// Operations
+	protected:
+	virtual void Print (System* system);
+	virtual bool Equal (System* system, Value* other);
+	virtual int Compare (System* system, Value* other);
+	virtual bool True (System* system);
+	virtual Value* GetIndex (System* system, Value* index);
+	virtual bool Has (System* system, Value* value);
+};
+
+class Array : public List {
+	SX_TYPEDEF
+
+	// Methods
+	protected:
+	static Value* MethodLength (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodAppend (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodRemove (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodForeach (Thread* thread, Value* self, size_t argc, Value** argv);
+
+	protected:
+	size_t size;
+	size_t count;
+	Value** list;
+
+	public:
+	Array (System* system);
+	Array (System* system, size_t n_size, Value** n_list);
+	~Array (void);
+
+	// Value Operations
+	protected:
+	virtual void MarkChildren (void);
+	virtual void Print (System* system);
+	virtual bool True (System* system);
+
+	// List Operations
+	public:
+	virtual Value* GetIndex (System* system, Value* index);
+	virtual Value* SetIndex (System* system, Value* index, Value* set);
+	virtual Value* Append (System* system, Value* value);
+	virtual bool Has (System* system, Value* value);
+
+	// Custom
+	public:
+	size_t GetCount (void) const { return count; }
+	Value* GetIndex (size_t i) const { return list[i]; }
+	// NOTE: the following should only be used on ranges 0 thru (count - 1)
+	Value* SetIndex (size_t i, Value* value) { return list[i] = value; }
+};
+
+struct Assoc : public List {
+	SX_TYPEDEF
+
+	private:
+	// assoc array node
+	struct _scriptix_assoc_node {
+		String* name;
+		Value* value;
+	};
+
+	protected:
+	struct _scriptix_assoc_node* list;
+	size_t count;
+	size_t size;
+
+	protected:
+	// Methods
+	static Value* MethodLength (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodGet (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodSet (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodAppend (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodRemove (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodForeach (Thread* thread, Value* self, size_t argc, Value** argv);
+
+	public:
+	Assoc (System* system);
+	Assoc (System* system, size_t n_size, Value** n_list); // evens are strings, odds are values
+	~Assoc (void);
+
+	// Value Operations
+	protected:
+	virtual void MarkChildren (void);
+	virtual void Print (System* system);
+	virtual bool True (System* system);
+
+	// List Operations
+	public:
+	virtual Value* GetIndex (System* system, Value* index);
+	virtual Value* SetIndex (System* system, Value* index, Value* set);
+	virtual Value* Append (System* system, Value* value);
+	virtual bool Has (System* system, Value* value);
+
+	// Custom
+	public:
+	size_t GetCount (void) const { return count; }
+	Value* GetIndex (size_t i) const { return list[i].value; }
+	Value* SetIndex (size_t i, Value* value) { return list[i].value = value; }
+};
+
+// "proxy" class
+class Invocable : public Value {
+	SX_TYPEDEF // implemented in function.cc
+
+	public:
+	Invocable (System* system) : Value(system) {}
+};
+
+class Function : public Invocable {
+	SX_TYPEDEF
+
+	public:
+	Function (System* system);
+	Function (System* system, sx_name_id id, size_t argc, bool varg); // argc is minimum arg count
+	Function (System* system, sx_name_id id, size_t argc, bool varg, sx_cfunc func); // argc is minimum arg count
+	~Function (void);
+
+	sx_name_id id; // name of function
+	size_t argc; // number of arguments to function
+	size_t varc; // number of variables in function
+	long* nodes; // byte codes
+	size_t count; // number of valid bytecode nodes
+	size_t size; // size of nods
+	bool varg; // name of variable argument - FIXME: should be a flag or something
+	sx_cfunc cfunc; // c function pointer (for cfuncs)
+	Function* fnext; // for module list
+
+	// Operations
+	protected:
+	virtual void MarkChildren (void);
+
+	// Build byte-codes
+	public:
+	int AddValue (System* system, Value* value);
+	int AddCode (System* system, sx_op_type code);
+};
+
+class Closure : public Invocable {
+	SX_TYPEDEF
+
+	protected:
+	Array* args;
+	Function* func;
+
+	public:
+	Closure (System* system, Function* s_func, Array* s_args) : Invocable(system), args(s_args), func(s_func) {}
+
+	// Operator
+	protected:
+	virtual void MarkChildren (void);
+
+	// Query
+	public:
+	Array* GetArgs (void) const { return args; }
+	Function* GetFunc (void) const { return func; }
+};
+
+// "wrap" an Type - in type.cc
+class TypeValue : public Value
+{
+	SX_TYPEDEF
+
+	// Data
+	private:
+	const Type* type;
+
+	// Methods
+	private:
+	static Value* MethodName (Thread* thread, Value* self, size_t argc, Value** argv);
+
+	// Operators
+	protected:
+	bool Equal (System* system, Value* other);
+
+	public:
+	TypeValue (System* system, const Type* s_type) : Value(system), type(s_type) {}
+
+	const Type* GetTypePtr (void) const { return type; } // silly name from conflict
+};
+
+// OTHER CONSTRUCTS
+struct Method {
+	const char* name;
+	size_t argc;
+	bool varg;
+	sx_cmethod method;
+};
+
+struct Global {
 	sx_name_id id;
-	SX_TYPE parent;
-	SX_METHOD methods;
-	SX_METHOD static_methods;
-	unsigned long refs;
-
-	sx_type_del fdel;
-	sx_type_mark fmark;
-	sx_type_print fprint;
-	sx_type_to_num ftonum;
-	sx_type_to_str ftostr;
-	sx_type_equal fequal;
-	sx_type_compare fcompare;
-	sx_type_true ftrue;
-	sx_type_get_index fgetindex;
-	sx_type_set_index fsetindex;
-	sx_type_append fappend;
-	sx_type_is_in fisin;
-	sx_type_new fnew;
-
-	SX_TYPE next;
+	Value* value;
 };
 
-struct scriptix_value {
-	/* for the GC - mark 0x01 in the type pointer */
-	SX_TYPE type;
-
-	SX_VALUE next;
-};
-
-struct scriptix_object {
-	struct scriptix_value header;
-
-	void *data;
-};
-
-struct scriptix_string {
-	struct scriptix_value header;
-	unsigned long len;
-	char str[0];
-};
-
-struct scriptix_array {
-	struct scriptix_value header;
-	SX_VALUE *list;
-	unsigned long count;
-	unsigned long size;
-};
-
-struct scriptix_func {
-	struct scriptix_value header;
-	sx_name_id id;
-	unsigned long argc;
-	sx_name_id* arg_names;
-	sx_name_id var_arg_name;
-	SX_BLOCK body;
-	sx_cfunc cfunc;
-	SX_FUNC next; /* for module list */
-};
-
-struct scriptix_closure {
-	struct scriptix_value header;
-	SX_ARRAY args;
-	SX_FUNC func;
-};
-
-struct scriptix_method {
-	sx_name_id id;
-	unsigned long argc;
-	int varg;
-	sx_cfunc method;
-	SX_METHOD next;
-};
-
-/* special struct for nodes */
-struct _scriptix_node {
-	int op;
-	SX_VALUE value;
-};
-
-struct scriptix_block {
-	struct scriptix_value header;
-	struct _scriptix_node *nodes;
-	unsigned long count;
-	unsigned long size;
-};
-
-struct scriptix_var {
-	unsigned long id;
-	SX_TYPE type;
-	SX_VALUE value;
-	SX_VAR next;
-};
-
-struct scriptix_call {
-	SX_FUNC func;
-	SX_VALUE file;
-	SX_VAR vars;
-	unsigned long op_ptr;
-	unsigned long top;
-	unsigned long line;
-	unsigned long argc;
+class Call {
+	private:
+	Function* func;
+	String* file;
+	Value** items;
+	size_t op_ptr;
+	size_t top;
+	size_t line;
+	size_t argc;
 	int flags;
+
+	// Thread works on us extensively
+	friend class Thread;
 };
 
-/* special struct for function tags */
-struct _scriptix_tag {
-	char* tag;
-	sxp_tag_func func;
-	struct _scriptix_tag* next;
-};
+class System : public SGC::Root {
+	// special struct for function tags
+	struct Tag {
+		char* name;
+		Tag* next;
+	};
+	// pools - not used inside, useful outside
+	struct Pool {
+		size_t argc;
+		Value** argv;
+		Pool* next;
+	};
 
-struct scriptix_system {
-	/* global data */
-	SX_THREAD threads;
-	SX_FUNC funcs;
-	SX_TYPE types;
-	SX_VAR globals;
+	private:
+	// global data
+	std::vector<const Type*> types;
+	std::vector<Global> globals;
+	Function* funcs;
 
-	/* tags feature */
-	struct _scriptix_tag* tags;
+	// tags feature
+	Tag* tags;
 
-	/* options */
-	unsigned long data_chunk;
-	unsigned long context_chunk;
-	unsigned long block_chunk;
-	unsigned long gc_thresh;
+	// threads/scheduler
+	Thread* threads;
+	Thread* cur_thread;
 
-	/* for gc */
-	SX_VALUE gc_list;
+	// pools
+	Pool* pools;
 
-	SX_TYPE cstring;
-	SX_TYPE cint;
-	SX_TYPE cblock;
-	SX_TYPE carray;
-	SX_TYPE cobject;
-	SX_TYPE cfunction;
-	SX_TYPE cclosure;
+	// options
+	size_t data_chunk;
+	size_t context_chunk;
+	size_t block_chunk;
+	size_t gc_thresh;
+	size_t array_chunk;
+	char* script_path;
 
-	sx_gc_hook gc_hook;
-	sx_print_hook print_hook;
+	// options
+	size_t valid_threads;
+	size_t run_length;
+
+	// helper functions
+	int InitStdlib (void);
+
+	// root marker
+	protected:
+	void Mark (void);
+
+	public:
+	// Constructor/Destructor
+	System (void);
+	~System (void);
+
+	// Hooks
 	sx_error_hook error_hook;
 
-	unsigned char flags;
-	unsigned long gc_count;
-	unsigned long cur_gc_thresh;
-	unsigned long valid_threads;
-	unsigned long run_length;
+	// Add/check types
+	int AddType (const Type* type);
+	const Type* GetType (sx_name_id id) const;
+
+	// Query information
+	size_t GetValidThreads (void) const { return valid_threads; }
+	size_t GetRunLength (void) const { return run_length; }
+	size_t GetDataChunk (void) const { return data_chunk; }
+	size_t GetContextChunk (void) const { return context_chunk; }
+	size_t GetBlockChunk (void) const { return block_chunk; }
+	size_t GetArrayChunk (void) const { return array_chunk; }
+
+	// Set options
+	int SetOption (sx_option_type op, long value);
+	int SetOption (sx_option_type op, const char* value);
+
+	// Functions
+	int AddFunction (Function* function);
+	Function* GetFunction (sx_name_id id);
+
+	// Globals
+	int AddGlobal (sx_name_id id, Value* value);
+	Value* GetGlobal (sx_name_id id) const;
+
+	// Threads
+	void AddThread (Thread* thread);
+	void EndThread (Thread* thread);
+
+	// Running threads
+	int Run (void);
+	int WaitOn (sx_thread_id id, int *retval);
+	int NestedRun (Thread* thread, Value** retval);
+
+	// Pools
+	int PushPool (size_t argc, Value** argv);
+	void PopPool (void);
+
+	// Function tags
+	int AddFunctionTag (const char *tag);
+	bool ValidFunctionTag (const char* tag);
+	virtual void HandleFunctionTag (const char* tag, Function* func) {} // over-ride to handle
+
+	// Load/compile scripts
+	int LoadFile (const char *file);
+	int LoadString (const char *buffer);
+
+	// FIXME: hacks
+	friend Value::Value (System* system);
 };
 
-struct scriptix_thread {
-	SX_SYSTEM system;
-	SX_VALUE ret;
+class Thread {
+	private:
+	// various stuffs
+	System* system;
+	Value* ret;
 	int state;
+	unsigned char flags;
 	sx_thread_id id;
 
-	SX_CALL call_stack;
-	unsigned long call;
-	unsigned long call_size;
+	// function call stack
+	Call* call_stack;
+	size_t call;
+	size_t call_size;
 
-	SX_VALUE *data_stack;
-	unsigned long data;
-	unsigned long data_size;
+	// data stack
+	Value* *data_stack;
+	size_t data;
+	size_t data_size;
 
-	SX_THREAD prev;
-	SX_THREAD next;
+	// list pointers
+	Thread* prev;
+	Thread* next;
+
+	// Evaluate the thread - run it
+	int Eval (void);
+	int Run (void);
+
+	// Evaluation helpers
+	inline Value* InvokeCFunc (Function* cfunc, size_t argc);
+	inline Value* InvokeMethod (Value* self, const Method* method, size_t argc);
+
+	// Manipulate data stack - INLINE for speed
+	int
+	Thread::PushValue (Value* value) {
+		if (data == data_size) {
+			Value** sx_new_stack = (Value**)realloc (data_stack, (data_size + system->GetDataChunk()) * sizeof (Value* ));
+			if (sx_new_stack == NULL)
+				return SXE_NOMEM;
+			data_stack = sx_new_stack;
+			data_size += system->GetDataChunk();
+		}
+
+		data_stack[data ++] = value;
+
+		return SXE_OK;
+	}
+	void Thread::PopValue (size_t len) { data -= len; }
+
+	// Manipulate data stack
+	int PushCall (Invocable* called, size_t argc, Value* argv[], unsigned char flags);
+	int PushCall (Invocable* called, size_t argc) { return PushCall (called, argc, &data_stack[data - argc], 0); }
+	void PopCall (void);
+	Call* GetCall (void) { return &call_stack[call - 1]; }
+
+	// GC mark
+	void Mark (void);
+
+	public:
+	// Contructor/destructor
+	Thread (System* system, Invocable* called, unsigned char flags, size_t argc, Value* argv[]);
+	Thread (System* system, Invocable* called, unsigned char flags, size_t argc, ...);
+	~Thread (void);
+
+	// Misc
+	sx_thread_id GetID(void) const { return id; }
+
+	// Get system
+	System* GetSystem(void) const { return system; }
+
+	// Raise an error condition
+	int RaiseError (int err, const char *format, ...);
+	int RaiseArgError (const char* func, const char* arg, const char* type)
+	{
+		return RaiseError(SXE_BADARGS, "Argument '%s' to '%s' is not a '%s'", arg, func, type);
+	}
+
+	// Fetch stack item from end (args) - INLINE for speed
+	Value* Thread::GetValue (size_t index) { return data_stack[data - index]; }
+
+	// Invoke a callable
+	Value* Invoke (Invocable* called, size_t argc, Value* array[]);
+	Value* Invoke (Invocable* called, size_t argc, ...);
+
+	// System can control me
+	friend class System;
 };
 
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
+// INLINE METHODS
+//  These have to be down here, in the header, thanks to stupid C++ and it's inline linking
+
+// --- Type Checking/Casting ---
+const Type*
+Value::TypeOf (Value* value)
+{
+	if (value == NULL)
+		return NULL;
+
+	if ((long)value & 0x01)
+		return Number::GetType();
+
+	return value->GetMyType();
+}
+
+bool
+Value::IsA (Value* value, const Type* type)
+{
+	const Type* my_type = Value::TypeOf (value);
+
+	while (my_type != NULL) {
+		if (my_type == type)
+			return true;
+		my_type = my_type->parent;
+	}
+
+	return false;
+}
+
+template <typename TTYPE>
+bool
+Value::_TypeCheck<TTYPE>::Check(Value* value)
+{
+	return Value::IsA(value, TTYPE::GetType());
+}
+
+template <>
+bool
+Value::_TypeCheck<Number>::Check(Value* value)
+{
+	return ((long)value) & 0x01;
+}
+
+// --- Value --- 
+void
+Value::Mark (Value* self)
+{
+	if (self != NULL && !IsA<Number>(self))
+		if (!self->IsMarked())
+			self->SGC::Collectable::Mark();
+}
+void
+Value::Print (System* system, Value* self)
+{
+	if (self != NULL && !IsA<Number>(self))
+		self->Print(system);
+	else if (IsA<Number>(self))
+		std::cout << Number::ToInt(self);
+	else
+		std::cout << "(nil)";
+}
+bool
+Value::Equal (System* system, Value* self, Value* other)
+{
+	if (self == other)
+		return true;
+
+	if (self != NULL && !IsA<Number>(self))
+		return self->Equal(system, other);
+	else
+		return false;
+}
+int
+Value::Compare (System* system, Value* self, Value* other)
+{
+	if (self == other)
+		return 0;
+
+	if (self != NULL && !IsA<Number>(self))
+		return self->Compare(system, other);
+	else if (IsA<Number>(self)) {
+		if (Number::ToInt(self) < Number::ToInt(other))
+			return -1;
+		else
+			return 1;
+	} else
+		return 1; // default
+}
+bool
+Value::True (System* system, Value* self)
+{
+	if (self == NULL)
+		return false;
+	else if (IsA<Number>(self))
+		return Number::ToInt(self);
+	else
+		return self->True(system);
+}
+
+// ---- Magic NEW operator constructor ----
+template <class CTYPE>
+Value*
+_CreateNew (Thread* thread, Value*, size_t, Value**)
+{
+	return new CTYPE(thread->GetSystem());
+}
+
+}
 
 #endif

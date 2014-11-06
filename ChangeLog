@@ -1,0 +1,126 @@
+2003-04-06  Sean Middleditch <elanthis@awemud.net>
+
+  * Release 0.23.
+
+2003-04-02  Sean Middleditch <elanthis@awemud.net>
+
+  * Removed silly automake lex/yacc rules, used own bison/flex
+    rules.
+
+2003-03-23  elanthis <elanthis@awemud.net>
+
+  * FreeBSD fixes.
+
+2003-03-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Fixed make dist.
+
+2003-03-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Switched to using Automake/Libtool for building.  Ouch.
+
+2003-03-14  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix globals, so you can have more than 1.
+  * Globals test script tests the above.
+
+2003-03-14  Sean Middleditch <elanthis@awemud.net>
+
+  * Lots of bug fixes to String class.
+  * New test for String class.
+  * List type has static methods for its operations, for similarity
+    with Value operations.
+  * Reimplemented String.concat(), String.substr(), String.split(),
+    String.upper(), String.lower().
+
+2003-03-13  Sean Middleditch <elanthis@awemud.net>
+
+  * Objects are now called Struct's (mostly for AweMUD
+    compatibility, secondly because Object is confusing).
+
+2003-03-10  Sean Middleditch <elanthis@awemud.net>
+
+  * Broke list functionality (in array and assoc) into a separate
+    List class.
+  * Created a new Object class which has attributes.
+  * Added syntax for setting/getting attribute.  (object:attr =
+    value, value = object:attr)
+  * Updated VIM syntax file to handle attributes correctly.
+  * Added new operators to Array and Assoc.
+
+2003-03-07  Sean Middleditch <elanthis@awemud.net>
+
+  * Began documenting API.
+
+2003-03-07  Sean Middleditch <elanthis@awemud.net>
+
+  * Re-added "pools" for garbage collection - some things are a
+    pain without it (outside the core engine).
+  * Added bin/scriptix.cc, removed bin/scriptix.c.
+
+2003-03-06  Sean Middleditch <elanthis@awemud.net>
+
+  * Reworked function tag interface.
+  * Renamed Number to Int (on Scriptix side).
+
+2003-03-06  Sean Middleditch <elanthis@awemud.net>
+
+  * Use libsgc's pkg-config setup.
+  * Provide a pkg-config .pc file.
+
+2003-03-05  Sean Middleditch <elanthis@awemud.net>
+
+  * More interface cleanups, class renamings, etc.
+  * Updates to libsgc usage.
+  * Bug fixes.
+
+2003-02-23  Sean Middleditch <elanthis@awemud.net>
+
+  * More API cleanups and other fixes.
+  * Still not usable with AweMUD.
+
+2003-02-18  Sean Middleditch <elanthis@awemud.net>
+
+  * Hmm, actually have the .cc files in the repository.
+
+2003-02-18  Sean Middleditch <elanthis@awemud.net>
+
+  * Rewrote in C++.
+  * Still in need of some fixes and further API cleanups.
+  * WARNING: This will *NOT* work with AweMUD in any way, the
+    whole API has changed.
+
+2003-02-06  Sean Middleditch <elanthis@awemud.net>
+
+  * Compressed byte-code space.
+
+2003-01-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Added a String.subtr() method.
+
+2003-01-16  Sean Middleditch <elanthis@awemud.net>
+
+  * New iterator/closure syntax; old one is there for compat.
+
+2003-01-14  Sean Middleditch <elanthis@awemud.net>
+
+  * Minor schedular improvements.
+
+2003-01-11  Sean Middleditch <elanthis@awemud.net>
+
+  * Added thread flags.
+  * Added thread flag SX_TFLAG_PREEMPT; threads without this flag
+    will run cooperatively, not pre-emptively.
+
+2003-01-11  Sean Middleditch <elanthis@awemud.net>
+
+  * Improved parse error handling.
+  * Renamed some symbol types in compiler for error output (yay
+    Bison and ugly output).
+
+2003-01-03  Sean Middleditch <elanthis@awemud.net>
+
+  * Began using a ChangeLog.
+  * Added useful scripts in tools/
+  * Moved check-api.sh to tools/
+

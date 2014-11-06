@@ -11,8 +11,7 @@ main()
 {
 	inc = 2;
 
-	total = snowball(10)
-		do (value) : (inc) {
+	total = snowball(10) do (value ; inc) {
 			return value + inc;
 		};
 

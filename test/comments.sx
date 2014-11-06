@@ -9,7 +9,7 @@ main () {
 	# hmm, weird
 	/* something */ b = /* else */ 2; /* to think about */
 
-	printl ('all good');
+	printl ('Success');
 
 	return 0; # oh ya
 }

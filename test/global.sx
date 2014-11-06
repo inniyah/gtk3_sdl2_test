@@ -1,0 +1,36 @@
+// global1 variable
+global1 = 10;
+global2 = 10;
+
+// math function
+math ()
+{
+	return global1 * global2;
+}
+
+// main
+public main ()
+{
+	// total result of calls to global1
+	total = 0;
+
+	// first call -> global1 = 10, global2 = 10, math() = 100 : 0 + 100 = 100
+	total += math();
+
+	// second call -> global1 = 20, global2 = 15, math() = 300 : 100 + 300 = 400
+	global1 = 20;
+	global2 = 15;
+	total += math();
+
+	// third call -> global1 = -5, global2 = 5, math() = -25 : 400 + -25 = 375
+	global1 = -5;
+	global2 = 5;
+	total += math();
+
+	// total should be 375
+	if (total == 375) {
+		printl ('Success: total == 375');
+	} else {
+		printl ('Faulure: total == ', total);
+	}
+}

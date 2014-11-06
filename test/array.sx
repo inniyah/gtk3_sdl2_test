@@ -1,9 +1,9 @@
 test (a) {
-	a.foreach()
-		do (i) {
+	msg = 'In - ';
+	a.foreach() do (i ; msg) {
 			printl ('--', i);
 			for (n = 3; n <= 9; n += 3) {
-				printl ('In - ', n, ':', i);
+				printl (msg, n, ':', i);
 			}
 		};
 }
@@ -20,11 +20,15 @@ main () {
 		printl ('Correct - def in array');
 	} else {
 		printl ('Incorrect - def !in array');
+		return 1;
 	}
 
 	if ('foo' in a) {
 		printl ('Incorrect - foo in array');
+		return 1;
 	} else {
 		printl ('Correct - foo !in array');
 	}
+
+	print ('Success');
 }

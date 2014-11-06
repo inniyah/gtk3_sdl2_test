@@ -17,5 +17,7 @@ main () {
 		return 1;
 	}
 
+	printl ('Success');
+
 	return 0;
 }

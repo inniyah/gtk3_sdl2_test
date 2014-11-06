@@ -9,62 +9,55 @@ and powerful scripting support for any application.
 The list of current Scriptix features include:
 
 	C/C++/Java -like syntax
-	Number and string data types
-	Variables
-	User and C functions
+	Basic integer and string data types
+	Local/global Variables
+	User and C++ functions
 	Lists/arrays
 	Garbage collection
-	Fully class based
-	Exceptions
+	Fully OO
 	While/until/do/for loops and blocks
+	Extensible class/type system thru C++
 
 Planned/future features (i.e. Todo list):
 
 	Documentation
 	Advanced thread control
 	A moderate standard library, useful for simple embedding purposes
-	Optimization system
-	Security model
-	Constants
 	Regular expressions
 	Floating-point and bignum support
-	Better error system for C functions
 
 Features you won't likely see, ever, as they are unnecessary overkill:
 
 	Script-defined operator overloading
-	In-script module loading/including/requiring
 	Virtual variables
 	Weird/unusual built-in datatypes
 	OS/System interfaces
-	Massively large standard library/class system
+	Massively large standard library/type system
 
 Model:
 Scriptix is based on a byte-code interpreter.  The compiler parses the input
 into a parse tree.  This is then run thru an optimization system.  Then the
 trimmed/pruned/optimized tree is run thru a code generator.
 
-Classes:
-Classes are fairly simple.  A class is nothing more than an name, a collection
-of methods, and a parent class.  The very top parent class can also be a
-"core" class, which handles special properties (operator overloading, for the
-most part).
+Types:
+Types are fairly simple.  A type is nothing more than a name, a collection
+of methods, and a parent type.
 
-An object can be created.  Each object inherits from a class.  An object is
-generally just a collection of members.  Methods, or class functions, are part
-of the classes themselves, and can be defined on a per-class basis only.
+An object can be created.  Each object inherits from a type.  An object is
+generally just a collection of members.  Methods, or type functions, are part
+of the types themselves, and can be defined on a per-type basis only.
 
-In addition, each core class can define additional parameters/members of an
-instance.  For example, you could create a special core class for containing
-references to a custom C datatype, and then add methods to the class for
+In addition, each core type can define additional parameters/members of an
+instance.  For example, you could create a special core type for containing
+references to a custom C datatype, and then add methods to the type for
 interacting with the data type.
 
-Scriptix code can derive classes from core class, or make custom "bare"
-classes.  A bare class would be nothing more than a collection of methods -
+Scriptix code can derive types from core type, or make custom "bare"
+types.  A bare type would be nothing more than a collection of methods -
 no operator overloading or other special functionality.
 
-A derived class based on a core class can be made to do a number of
-interesting things, depending on the core class.  A derived class cannot
-overload a core class's operator overloading code, however, the total
+A derived type based on a core type can be made to do a number of
+interesting things, depending on the core type.  A derived type cannot
+overload a core type's operator overloading code, however, the total
 usefulness *is* limited.  This shouldn't be too much of an issue given
 Scriptix' problem domain, however.

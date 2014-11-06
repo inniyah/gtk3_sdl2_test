@@ -1,0 +1,43 @@
+public main()
+{
+	// length check
+	string = '1234567890';
+	if (string.length() != 10) {
+		printl ('Failure: length check');
+		return 1;
+	}
+
+	// compare check
+	if ('blah' == 'foo') {
+		printl ('Failure: compare (==) check');
+		return 1;
+	}
+	if ('abc' > 'def') {
+		printl ('Failure: compare (>) check');
+		return 1;
+	}
+
+	// to upper
+	if ('blah'.upper() != 'BLAH') {
+		printl ('Failure: upper() method');
+		return 1;
+	}
+
+	// concat and substr check
+	string = 'Sean Middleditch';
+	if (String.concat(string.substr(5, 16), ', ', string.substr(0,4)) != 'Middleditch, Sean') {
+		printl ('Failure: concat() and/or substr() methods');
+		return 1;
+	}
+
+	// split method
+	string = 'Happy fishy thoughts';
+	array = string.split(' ');
+	if (array.length() != 3 || array[1] != 'fishy') {
+		printl ('Failure: split() method');
+		return 1;
+	}
+
+	printl ('Success');
+	return 0;
+}

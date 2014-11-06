@@ -1,0 +1,14 @@
+public
+main () {
+	test = ['one':'My ', 'two':'name '];
+	test['three'] = 'is ';
+	test['four'] = 'Assoc!';
+
+	if (test['bazooka']) {
+		printl ('fail');
+		return 1;
+	}
+
+	printl (test[0], test['two'], test[2], test['four']);
+	return 0;
+}	

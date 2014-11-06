@@ -1,0 +1,15 @@
+public main() {
+	fork() do() {
+		for (x = 0; x < 10; ++ x) {
+			printl ('X');
+			yield;
+		}
+	};
+	O = 'O'; // test a closure variable
+	fork() do (;O) {
+		for (x = 0; x < 10; ++ x) {
+			printl (O);
+			yield;
+		}
+	};
+}
