@@ -77,7 +77,7 @@
 
 	__INLINE__ void parser_add_line (void);
 
-	int sxerror (char *);
+	int sxerror (const char *);
 	int sxlex (void);
 
 	SX_SYSTEM *parse_system = NULL;
@@ -89,7 +89,7 @@
 
 	SX_VALUE *temp_val;
 
-	extern char *sx_parser_inbuf;
+	extern const char *sx_parser_inbuf;
 
 	#define pushv(v) (sx_add_value (parse_system, parser_top (), (v)))
 	#define pushn(o) (sx_add_stmt (parse_system, parser_top (), (o)))
@@ -1862,30 +1862,30 @@ append_to_array (SX_VALUE *array, SX_VALUE *value) {
 		return sx_new_nil ();
 	}
 
-	if (array->data.array.count > 0) {
-		nlist = (SX_VALUE **)sx_malloc (parse_system, (array->data.array.count + 1) * sizeof (SX_VALUE *));
+	if (SX_TOARRAY(array)->count > 0) {
+		nlist = (SX_VALUE **)sx_malloc (parse_system, (SX_TOARRAY(array)->count + 1) * sizeof (SX_VALUE *));
 		if (nlist == NULL) {
 			return sx_new_nil ();
 		}
-		memcpy (nlist, array->data.array.list, array->data.array.count * sizeof (SX_VALUE *));
-		sx_free (array->data.array.list);
-		array->data.array.list = nlist;
-		array->data.array.list[array->data.array.count] = value;
-		array->data.array.count += 1;
+		memcpy (nlist, SX_TOARRAY(array)->list, SX_TOARRAY(array)->count * sizeof (SX_VALUE *));
+		sx_free (SX_TOARRAY(array)->list);
+		SX_TOARRAY(array)->list = nlist;
+		SX_TOARRAY(array)->list[SX_TOARRAY(array)->count] = value;
+		SX_TOARRAY(array)->count += 1;
 	} else {
-		array->data.array.list = (SX_VALUE **)sx_malloc (parse_system, sizeof (SX_VALUE *));
-		if (array->data.array.list == NULL) {
+		SX_TOARRAY(array)->list = (SX_VALUE **)sx_malloc (parse_system, sizeof (SX_VALUE *));
+		if (SX_TOARRAY(array)->list == NULL) {
 			return sx_new_nil ();
 		}
-		array->data.array.list[0] = value;
-		array->data.array.count = 1;
+		SX_TOARRAY(array)->list[0] = value;
+		SX_TOARRAY(array)->count = 1;
 	}
 
 	return array;
 }
 
 int
-sxerror (char *str) {
+sxerror (const char *str) {
 	if (parse_system->error_hook != NULL) {
 		char buffer[512];
 		snprintf (buffer, 512, "Parse Error: line %d: %s", parse_lineno, str);
@@ -1910,7 +1910,7 @@ cleanup_parser (void) {
 }
 
 SX_VALUE *
-sx_load_file (SX_SYSTEM *system, char *file) {
+sx_load_file (SX_SYSTEM *system, const char *file) {
 	int ret, flags;
 	SX_VALUE *sfile;
 
@@ -1965,7 +1965,7 @@ sx_load_file (SX_SYSTEM *system, char *file) {
 }
 
 SX_VALUE *
-sx_load_string (SX_SYSTEM *system, char *str) {
+sx_load_string (SX_SYSTEM *system, const char *str) {
 	int ret, flags;
 
 	if (str == NULL) {
@@ -2004,7 +2004,7 @@ sx_load_string (SX_SYSTEM *system, char *str) {
 }
 
 sx_thread_id
-sx_start_file (SX_SYSTEM *system, char *file, SX_VALUE *argv) {
+sx_start_file (SX_SYSTEM *system, const char *file, SX_VALUE *argv) {
 	int ret, flags;
 	SX_VALUE *sfile;
 
@@ -2063,7 +2063,7 @@ sx_start_file (SX_SYSTEM *system, char *file, SX_VALUE *argv) {
 }
 
 sx_thread_id
-sx_start_string (SX_SYSTEM *system, char *str, SX_VALUE *argv) {
+sx_start_string (SX_SYSTEM *system, const char *str, SX_VALUE *argv) {
 	int ret, flags;
 
 	if (str == NULL) {
@@ -2106,7 +2106,7 @@ sx_start_string (SX_SYSTEM *system, char *str, SX_VALUE *argv) {
 }
 
 SX_VALUE *
-sx_run_file (SX_SYSTEM *system, char *file, SX_VALUE *argv) {
+sx_run_file (SX_SYSTEM *system, const char *file, SX_VALUE *argv) {
 	sx_thread_id id;
 
 	id = sx_start_file (system, file, argv);
@@ -2118,7 +2118,7 @@ sx_run_file (SX_SYSTEM *system, char *file, SX_VALUE *argv) {
 }
 
 SX_VALUE *
-sx_run_string (SX_SYSTEM *system, char *str, SX_VALUE *argv) {
+sx_run_string (SX_SYSTEM *system, const char *str, SX_VALUE *argv) {
 	sx_thread_id id;
 
 	id = sx_start_string (system, str, argv);

@@ -35,6 +35,17 @@
 #include "system.h"
 
 void
+sx_clear_value (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *klass) {
+	value->locks = 0;
+	value->klass = klass;
+	value->members = NULL;
+	value->flags = 0;
+	value->gc_next = NULL;
+
+	sx_add_gc_value (system, value);
+}
+
+void
 sx_free_value (SX_SYSTEM *system, SX_VALUE *value) {
 	SX_VAR *rnext;
 	SX_CLASS *klass;
@@ -49,7 +60,7 @@ sx_free_value (SX_SYSTEM *system, SX_VALUE *value) {
 		value->members = rnext;
 	}
 
-	klass = sx_top_class_of (system, value);
+	klass = sx_class_of (system, value);
 	if (klass && klass->core && klass->core->fdel) {
 		klass->core->fdel (system, value);
 	} else {
@@ -59,18 +70,22 @@ sx_free_value (SX_SYSTEM *system, SX_VALUE *value) {
 
 int
 sx_is_true (SX_SYSTEM *system, SX_VALUE *value) {
+	SX_CLASS *klass;
+
 	if (value == NULL) {
 		return 0;
 	}
 
-	if (SX_ISNUM (system, value) && SX_TOINT (value) != 0) {
-		return 1;
-	}
-	if (SX_ISSTRING (system, value) && value->data.str.len > 0) {
-		return 1;
+	if (SX_ISNUM (system, value)) {
+		return SX_TOINT (value) != 0;
 	}
 
-	return 0;
+	klass = sx_class_of (system, value);
+	if (klass && klass->core && klass->core->ftrue) {
+		return klass->core->ftrue (system, value);
+	}
+
+	return 1;
 }
 
 int
@@ -81,8 +96,13 @@ sx_are_equal (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
 		return 1;
 	}
 
-	klass = sx_top_class_of (system, one);
-	if (klass != sx_top_class_of (system, two)) {
+	klass = sx_class_of (system, one);
+
+	if (klass->core == NULL) {
+		return 0;
+	}
+	
+	if (klass->core != sx_class_of (system, two)->core) {
 		return 0;
 	}
 
@@ -111,8 +131,13 @@ sx_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
 		return n1 < n2 ? -1 : n1 > n2 ? 1 : 0;
 	}
 
-	klass = sx_top_class_of (system, one);
-	if (klass != sx_top_class_of (system, two)) {
+	klass = sx_class_of (system, one);
+
+	if (klass->core == NULL) {
+		return 0;
+	}
+	
+	if (klass->core != sx_class_of (system, two)->core) {
 		return 0;
 	}
 
@@ -125,101 +150,35 @@ sx_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
 
 SX_VALUE *
 sx_get_index (SX_SYSTEM *system, SX_VALUE *cont, int index) {
-	unsigned int len;
-
-	if (SX_ISSTRING (system, cont)) {
-		len = cont->data.str.len;
-		if (len == 0) {
-			return sx_new_str (system, NULL);
+	if (cont != NULL) {
+		SX_CLASS *klass = sx_class_of (system, cont);
+		if (klass && klass->core && klass->core->fgetindex) {
+			return klass->core->fgetindex (system, cont, index);
 		}
-		if (index < 0) {
-			index += len;
-			if (index < 0) {
-				index = 0;
-			}
-		}
-		if (index >= len) {
-			index = len - 1;
-		}
-		
-		return sx_new_str_len (system, cont->data.str.str + index, 1);
-	} else if (SX_ISARRAY (system, cont)) {
-		len = cont->data.array.count;
-		if (len == 0) {
-			return sx_new_nil ();
-		}
-		if (index < 0) {
-			index += len;
-			if (index < 0) {
-				index = 0;
-			}
-		}
-		if (index >= len) {
-			index = len - 1;
-		}
-		
-		return cont->data.array.list[index];
-	} else {
-		return sx_new_nil ();
 	}
+	return NULL;
 }
 
 SX_VALUE *
 sx_set_index (SX_SYSTEM *system, SX_VALUE *cont, int index, SX_VALUE *value) {
-	unsigned int len;
-
-	if (SX_ISARRAY (system, cont)) {
-		len = cont->data.array.count;
-		if (len == 0) {
-			return sx_new_nil ();
+	if (cont != NULL) {
+		SX_CLASS *klass = sx_class_of (system, cont);
+		if (klass && klass->core && klass->core->fsetindex) {
+			return klass->core->fsetindex (system, cont, index, value);
 		}
-		if (index < 0) {
-			index += len;
-			if (index < 0) {
-				index = 0;
-			}
-		}
-		if (index >= len) {
-			index = len - 1;
-		}
-		
-		cont->data.array.list[index] = value;
-		return value;
-	} else {
-		return NULL;
 	}
+	return NULL;
 }
 
 SX_VALUE *
-sx_get_section (SX_SYSTEM *system, SX_VALUE *base, int start, int end) {
-	unsigned int len;
-	if (SX_ISSTRING (system, base)) {
-		len = base->data.str.len;
-		if (len == 0) {
-			return sx_new_str (system, NULL);
+sx_get_section (SX_SYSTEM *system, SX_VALUE *cont, int start, int end) {
+	if (cont != NULL) {
+		SX_CLASS *klass = sx_class_of (system, cont);
+		if (klass && klass->core && klass->core->fgetsection) {
+			return klass->core->fgetsection (system, cont, start, end);
 		}
-		if (start < 0) {
-			start += len;
-			if (start < 0) {
-				start = 0;
-			}
-		}
-		if (start >= len) {
-			start = len - 1;
-		}
-		if (end < 0) {
-			end += len;
-			if (start < 0) {
-				start = 0;
-			}
-		}
-		if (end >= len) {
-			end = len - 1;
-		}
-		return sx_new_str_len (system, base->data.str.str + start, end - start + 1);
-	} else {
-		return sx_new_nil ();
 	}
+	return NULL;
 }
 
 void
@@ -236,12 +195,12 @@ sx_print_value (SX_SYSTEM *system, SX_VALUE *value) {
 		return;
 	}
 
-	klass = sx_top_class_of (system, value);
+	klass = sx_class_of (system, value);
 	if (klass) {
 		if (klass->core && klass->core->fprint) {
 			klass->core->fprint (system, value);
 		} else {
-			system->print_hook ("<%s:%p>", sx_name_id_to_name (sx_class_of (system, value)->id), value);
+			system->print_hook ("<%s:%p>", sx_name_id_to_name (klass->id), value);
 		}
 	} else {
 		system->print_hook ("<unknown!:%p>", value);
@@ -293,7 +252,7 @@ sx_to_num (SX_SYSTEM *system, SX_VALUE *value) {
 		return value;
 	}
 
-	klass = sx_top_class_of (system, value);
+	klass = sx_class_of (system, value);
 	if (klass && klass->core && klass->core->ftonum) {
 		return klass->core->ftonum (system, value);
 	} else {
@@ -310,7 +269,7 @@ sx_to_str (SX_SYSTEM *system, SX_VALUE *value) {
 		return value;
 	}
 
-	klass = sx_top_class_of (system, value);
+	klass = sx_class_of (system, value);
 	if (klass && klass->core && klass->core->ftostr) {
 		return klass->core->ftostr (system, value);
 	} else {

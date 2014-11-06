@@ -1,0 +1,77 @@
+CFLAGS := -g -Wall -I../include -O2 $(CFLAGS)
+LIBS := libscriptix.a libsxparse.a
+SOLIBS := libscriptix.so.@BASE_VERSION@ libsxparse.so.@BASE_VERSION@
+SXOBJ := \
+	eval.o \
+	value.o \
+	var.o \
+	thread.o \
+	mem.o \
+	system.o \
+	class.o \
+	name.o \
+	error.o \
+	function.o \
+	block.o \
+	array.o \
+	string.o \
+	range.o \
+	stdlib.o \
+	number.o
+SOSXOBJ := $(SXOBJ:%.o=%.lo)
+YYOBJ := lex.sx.o y.tab.o 
+SOYYOBJ := $(YYOBJ:%.o=%.lo)
+OBJECTS := $(SXOBJ) $(YYOBJ)
+SOOBJECTS := $(SOSXOBJ) $(SOYYOBJ)
+#CC = ccmalloc gcc
+
+all: $(LIBS) $(SOLIBS)
+
+libscriptix.a: $(SXOBJ)
+libsxparse.a: $(YYOBJ)
+
+%.a:
+	$(AR) -cr $@ $^
+
+libscriptix.so.@BASE_VERSION@: $(SOSXOBJ)
+	$(CC) -shared -Wl,--soname,libscriptix.so.0 -o $@ $^
+	ln -sf $@ libscriptix.so.0
+	ln -sf libscriptix.so.0 libscriptix.so
+
+libsxparse.so.@BASE_VERSION@: $(SOYYOBJ)
+	$(CC) -shared -Wl,--soname,libsxparse.so.0 -o $@ $^
+	ln -sf $@ libsxparse.so.0
+	ln -sf libsxparse.so.0 libsxparse.so
+
+libsxparse.a: $(YYOBJ)
+	$(AR) -cr $@ $^
+
+lex.sx.c: lexer.l y.tab.h ../include/scriptix.h
+	$(LEX) -Psx lexer.l
+
+y.tab.c y.tab.h: grammar.y ../include/scriptix.h
+	$(YACC) -p sx -d grammar.y
+
+$(OBJECTS): ../include/scriptix.h
+
+%.lo: %.c
+	$(CC) $(CFLAGS) -fPIC -c -o $@ $<
+
+clean:
+	rm -f $(OBJECTS) $(SOOBJECTS) $(LIBS) $(SOLIBS)
+
+dist:
+	mkdir ../scriptix/lib/
+	cp $(OBJECTS:%.o=%.c) Makefile.in grammar.y lexer.l ../scriptix/lib/
+
+dist-clean: clean
+	rm -f lex.yy.c y.tab.c y.tab.h
+
+install:
+	install -D -d $(DESTDIR)/$(prefix)/lib
+	install -m 0644 $(LIBS) $(SOLIBS) $(DESTDIR)/$(prefix)/lib
+	cd $(DESTDIR)/$(prefix)/lib ;\
+	ln -sf libscriptix.so.0.0 libscriptix.so.0 ;\
+	ln -sf libsxparse.so.0.0 libsxparse.so.0 ;\
+	ln -sf libscriptix.so.0 libscriptix.so ;\
+	ln -sf libsxparse.so.0 libsxparse.so

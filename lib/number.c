@@ -26,78 +26,38 @@
  */
 
 #include <stdio.h>
+#include <malloc.h>
 #include <string.h>
+#include <stdarg.h>
 #include <stdlib.h>
 
 #include "scriptix.h"
 #include "system.h"
 
-SX_VALUE *
-_sx_range_new (SX_SYSTEM *system, SX_CLASS *klass) {
-	SX_RANGE *value;
-
-	value = (SX_RANGE *)sx_malloc (system, sizeof (SX_RANGE));
-	if (value == NULL) {
-		return NULL;
-	}
-
-	value->start = 0;
-	value->end = 0;
-
-	sx_clear_value (system, &value->header, system->crange);
-
-	return (SX_VALUE *)value;
-}
-
+/* klass helper funcs */
 void
-_sx_range_print (SX_SYSTEM *system, SX_RANGE *value) {
-	system->print_hook ("(%d..%d)", value->start, value->end);
+_sx_num_print (SX_SYSTEM *system, SX_VALUE *num) {
+	system->print_hook ("%ld", SX_TOINT (num));
 }
 
-int
-_sx_range_equal (SX_SYSTEM *system, SX_RANGE *one, SX_RANGE *two) {
-	return one->start == two->start && one->end == two->end;
-}
-
-int
-_sx_range_compare (SX_SYSTEM *system, SX_RANGE *one, SX_RANGE *two) {
-	int n1 = one->end - one->start;
-	int n2 = two->end - two->start;
-	n1 = n1 < 0 ? -n1 : n1;
-	n2 = n2 < 0 ? -n2 : n2;
-	return n1 < n2 ? -1 : n1 > n2 ? 1 : 0;
+SX_VALUE *
+_sx_num_to_str (SX_SYSTEM *system, SX_VALUE *num) {
+	char buf[20];
+	snprintf (buf, 20, "%ld", SX_TOINT (num));
+	return sx_new_str (system, buf);
 }
 
 SX_CLASS *
-sx_init_range (SX_SYSTEM *system) {
+sx_init_number (SX_SYSTEM *system) {
 	SX_CLASS *klass;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("Range"));
+	klass = sx_new_core_class (system, sx_name_to_id ("Number"));
 	if (klass == NULL) {
 		return NULL;
 	}
 
-	klass->core->fnew = (sx_class_new)_sx_range_new;
-	klass->core->fprint = (sx_class_print)_sx_range_print;
-	klass->core->fequal = (sx_class_equal)_sx_range_equal;
-	klass->core->fcompare = (sx_class_compare)_sx_range_compare;
+	klass->core->fprint = (sx_class_print)_sx_num_print;
+	klass->core->ftostr = (sx_class_to_num)_sx_num_to_str;
 
 	return klass;
-}
-
-SX_VALUE *
-sx_new_range (SX_SYSTEM *system, int start, int end) {
-	SX_RANGE *value;
-
-	value = (SX_RANGE *)sx_malloc (system, sizeof (SX_RANGE));
-	if (value == NULL) {
-		return NULL;
-	}
-
-	value->start = start;
-	value->end = end;
-
-	sx_clear_value (system, &value->header, system->crange);
-
-	return (SX_VALUE *)value;
 }

@@ -31,34 +31,52 @@
 #include "scriptix.h"
 
 /* helper functions */
+SX_VALUE *
+_sx_error_new (SX_SYSTEM *system, SX_CLASS *klass) {
+	SX_ERROR *error;
+
+	error = sx_malloc (system, sizeof (SX_ERROR));
+	if (error == NULL) {
+		return NULL;
+	}
+
+	error->file = sx_new_str (system, "<unknown>");
+	error->line = 0;
+	error->data = NULL;
+
+	sx_clear_value (system, &error->header, klass);
+
+	return (SX_VALUE *)error;
+}
+
 void
-_sx_error_print (SX_SYSTEM *system, SX_VALUE *value) {
-	system->print_hook ("<Exception %s# %s:%d", sx_name_id_to_name (value->data.error.id), SX_TOSTR (system, value->data.error.file), value->data.error.line);
-	if (!SX_ISNIL (system, value->data.error.data)) {
+_sx_error_print (SX_SYSTEM *system, SX_ERROR *value) {
+	system->print_hook ("<Exception %s# %s:%d", sx_name_id_to_name (sx_class_of (system, (SX_VALUE *)value)->id), SX_TOSTRING (value->file)->str, value->line);
+	if (!SX_ISNIL (system, value->data)) {
 		system->print_hook (" <");
-		sx_print_value (system, value->data.error.data);
+		sx_print_value (system, value->data);
 		system->print_hook (">");
 	}
 	system->print_hook (">");
 }
 
 void
-_sx_error_mark (SX_SYSTEM *system, SX_VALUE *value) {
-	sx_mark_value (system, value->data.error.file);
-	sx_mark_value (system, value->data.error.data);
+_sx_error_mark (SX_SYSTEM *system, SX_ERROR *value) {
+	sx_mark_value (system, value->file);
+	sx_mark_value (system, value->data);
 }
 
 SX_VALUE *
-_sx_error_tostr (SX_SYSTEM *system, SX_VALUE *value) {
+_sx_error_tostr (SX_SYSTEM *system, SX_ERROR *value) {
 	char buffer[512];
 
 	snprintf (buffer, 512, "<Exception %s# %s:%d%s%s%s>",
-			sx_name_id_to_name (value->data.error.id),
-			SX_TOSTR (system, value->data.error.file),
-			value->data.error.line,
-			value->data.error.data ? " <" : "",
-			value->data.error.data ? SX_TOSTR (system, sx_to_str (system, value->data.error.data)) : "", 
-			value->data.error.data ? ">" : "");
+			sx_name_id_to_name (sx_class_of (system, (SX_VALUE *)value)->id),
+			SX_TOSTRING (value->file)->str,
+			value->line,
+			value->data ? " <" : "",
+			value->data ? SX_TOSTRING (sx_to_str (system, value->data))->str : "", 
+			value->data ? ">" : "");
 
 	return sx_new_str (system, buffer);
 }
@@ -72,15 +90,16 @@ sx_init_error (SX_SYSTEM *system) {
 		return NULL;
 	}
 
-	klass->core->fprint = _sx_error_print;
-	klass->core->fmark = _sx_error_mark;
-	klass->core->ftostr = _sx_error_tostr;
+	klass->core->fnew = (sx_class_new)_sx_error_new;
+	klass->core->fprint = (sx_class_print)_sx_error_print;
+	klass->core->fmark = (sx_class_mark)_sx_error_mark;
+	klass->core->ftostr = (sx_class_to_str)_sx_error_tostr;
 
 	return klass;
 }
 
 int
-sx_raise_error (SX_THREAD *thread, sx_name_id eid, char *str) {
+sx_raise_error (SX_THREAD *thread, sx_name_id eid, const char *str) {
 	SX_VALUE *value;
 
 	if (str != NULL) {
@@ -96,33 +115,26 @@ sx_raise_error (SX_THREAD *thread, sx_name_id eid, char *str) {
 
 SX_VALUE *
 sx_new_error (SX_THREAD *thread, sx_name_id id, SX_VALUE *value) {
-	SX_VALUE *error;
+	SX_ERROR *error;
+	SX_CLASS *klass;
+
+	klass = sx_get_class (thread->system, id);
+	if (!sx_class_is_a (thread->system, klass, thread->system->cerror)) {
+		return NULL;
+	}
 
 	sx_lock_value (value);
-	error = sx_malloc (thread->system, sizeof (SX_VALUE));
+	error = sx_malloc (thread->system, sizeof (SX_ERROR));
 	sx_unlock_value (value);
 	if (error == NULL) {
 		return NULL;
 	}
 
-	error->klass = sx_get_class (thread->system, id);
-	error->members = NULL;
+	error->line = thread->line;
+	error->file = thread->file;
+	error->data = value;
 
-	if (sx_top_class_of (thread->system, error) != thread->system->cerror) {
-		sx_free (error);
-		return NULL;
-	}
+	sx_clear_value (thread->system, &error->header, klass);
 
-	error->data.error.id = id;
-	error->data.error.line = thread->line;
-	error->data.error.file = thread->file;
-	error->data.error.data = value;
-
-	error->locks = 0;
-	error->flags = 0;
-	error->gc_next = NULL;
-
-	sx_add_gc_value (thread->system, error);
-
-	return error;
+	return (SX_VALUE *)error;
 }

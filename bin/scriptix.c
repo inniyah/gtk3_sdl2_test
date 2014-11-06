@@ -32,7 +32,7 @@
 #include "scriptix.h"
 
 int
-main (int argc, char **argv) {
+main (int argc, const char **argv) {
 	SX_SYSTEM *system;
 
 	system = sx_create_system (argc - 1, argv + 1);

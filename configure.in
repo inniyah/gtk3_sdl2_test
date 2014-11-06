@@ -1,8 +1,10 @@
 AC_INIT(bin/scriptix.c)
 AC_CONFIG_HEADER(include/config.h)
 
-VERSION=0.15
+BASE_VERSION=0.16
+VERSION=0.16
 AC_SUBST(VERSION)
+AC_SUBST(BASE_VERSION)
 AC_DEFINE_UNQUOTED(SX_VERSION,"$VERSION")
 
 AC_PROG_CC
@@ -12,6 +14,7 @@ AC_CHECK_FUNC(strcasecmp)
 
 AC_OUTPUT(
 	Makefile
+	lib/Makefile
 	scriptix-conf
 	scriptix.spec
 )

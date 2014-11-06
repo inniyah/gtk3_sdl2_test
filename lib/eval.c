@@ -38,7 +38,7 @@ int
 sx_call_cfunc (SX_THREAD *thread, SX_VALUE *self, SX_VALUE *func, unsigned int argc, unsigned int top) {
 	unsigned int otop;
 
-	if (!SX_ISFUNC (thread->system, func) || func->data.func.cfunc == NULL) {
+	if (!SX_ISFUNC (thread->system, func) || SX_TOFUNC(func)->cfunc == NULL) {
 		sx_raise_error (thread, sx_TypeError, "Tried to call a non-function");
 		return thread->state = SX_STATE_ERROR;
 	}
@@ -47,10 +47,10 @@ sx_call_cfunc (SX_THREAD *thread, SX_VALUE *self, SX_VALUE *func, unsigned int a
 	sx_lock_value (self);
 
 	otop = thread->data;
-	func->data.func.cfunc (thread, self, func->data.func.data, argc, top);
+	SX_TOFUNC(func)->cfunc (thread, self, SX_TOFUNC(func)->data, argc, top);
 
 	if (thread->data == otop) { /* no return value pushed */
-		sx_push_value (thread, self ? self : func);
+		sx_push_value (thread, self ? self : NULL);
 	} else if (thread->data > otop + 1) { /* too many values, clear extras */
 		sx_pop_value (thread, otop, thread->data - otop - 1);
 	}
@@ -65,18 +65,18 @@ int
 sx_call_func (SX_THREAD *thread, SX_VALUE *self, SX_VALUE *func, unsigned int argc, unsigned int top) {
 	unsigned int i;
 
-	sx_push_call (thread, func->data.func.body, self, SX_CFLAG_HARD);
+	sx_push_call (thread, SX_TOFUNC(func)->body, self, SX_CFLAG_HARD);
 
 	if (self != NULL) {
 		sx_define_var (thread, sx_self_id, self, SX_SCOPE_LOCAL);
 	}
 
-	if (SX_ISARRAY (thread->system, func->data.func.args)) {
-		for (i = 0; i < argc && i < func->data.func.args->data.array.count; i ++) {
-			sx_define_var (thread, SX_TOINT (func->data.func.args->data.array.list[i]), sx_get_value (thread, top + i), SX_SCOPE_LOCAL);
+	if (SX_ISARRAY (thread->system, SX_TOFUNC(func)->args)) {
+		for (i = 0; i < argc && i < SX_TOARRAY(SX_TOFUNC(func)->args)->count; i ++) {
+			sx_define_var (thread, SX_TOINT (SX_TOARRAY(SX_TOFUNC(func)->args)->list[i]), sx_get_value (thread, top + i), SX_SCOPE_LOCAL);
 		}
-		for (; i < func->data.func.args->data.array.count; i ++) {
-			sx_define_var (thread, SX_TOINT (func->data.func.args->data.array.list[i]), sx_new_nil (), SX_SCOPE_LOCAL);
+		for (; i < SX_TOARRAY(SX_TOFUNC(func)->args)->count; i ++) {
+			sx_define_var (thread, SX_TOINT (SX_TOARRAY(SX_TOFUNC(func)->args)->list[i]), sx_new_nil (), SX_SCOPE_LOCAL);
 		}
 	}
 
@@ -103,16 +103,16 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 			++ call->op_ptr;
 		}
 
-		while (call->op_ptr < call->block->data.block.count && (thread->state == SX_STATE_RUN || call->state > 0) && (max == 0 || op_count > 0)) {
+		while (call->op_ptr < SX_TOBLOCK(call->block)->count && (thread->state == SX_STATE_RUN || call->state > 0) && (max == 0 || op_count > 0)) {
 			if (call->state == -1) { /* START state */
 				call->state = 0; /* DEFAULT state */
 				call->top = thread->data;
 			}
 
-			op = call->block->data.block.nodes[call->op_ptr].op;
+			op = SX_TOBLOCK(call->block)->nodes[call->op_ptr].op;
 
 			if (op == 0) {
-				sx_push_value (thread, call->block->data.block.nodes[call->op_ptr].value);
+				sx_push_value (thread, SX_TOBLOCK(call->block)->nodes[call->op_ptr].value);
 				++ call->op_ptr;
 				continue;
 			}
@@ -163,17 +163,17 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 							step = SX_TOINT (sx_get_value (thread, -2));
 							loop = sx_get_value (thread, -3);
 							if (SX_ISARRAY (thread->system,loop)) {
-								if (loop->data.array.count == 0) {
+								if (SX_TOARRAY(loop)->count == 0) {
 									sx_pop_value (thread, -4, 4);
 									sx_push_value (thread, sx_new_nil ());
 									break;
 								}
-								i = (step > 0) ? 0 : (loop->data.array.count - 1);
+								i = (step > 0) ? 0 : (SX_TOARRAY(loop)->count - 1);
 								sx_push_value (thread, sx_new_num (i));
 								sx_push_value (thread, sx_new_nil ());
 								call->state = 1;
 							} else if (SX_ISRANGE (thread->system, loop)) {
-								sx_push_value (thread, sx_new_num (loop->data.range.start));
+								sx_push_value (thread, sx_new_num (SX_TORANGE(loop)->start));
 								sx_push_value (thread, sx_new_nil ());
 								call->state = 3;
 							} else {
@@ -189,7 +189,7 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 							loop = sx_get_value (thread, -3);
 							step = SX_TOINT (sx_get_value (thread, -2));
 							sx_push_call (thread, sx_get_value (thread, -1), NULL, 0);
-							sx_define_var (thread, SX_TOINT(name), loop->data.array.list[i], SX_SCOPE_LOCAL);
+							sx_define_var (thread, SX_TOINT(name), SX_TOARRAY(loop)->list[i], SX_SCOPE_LOCAL);
 							i += step;
 							sx_push_value (thread, sx_new_num (i));
 							break;
@@ -202,7 +202,7 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 								step = SX_TOINT (sx_get_value (thread, -4));
 								loop = sx_get_value (thread, -5);
 								i = SX_TOINT (sx_get_value (thread, -2));
-								if ((step > 0) ? (i < loop->data.array.count) : (i >= 0)) {
+								if ((step > 0) ? (i < SX_TOARRAY(loop)->count) : (i >= 0)) {
 									call->state = 1;
 								} else {
 									sx_pop_value (thread, -4, 3);
@@ -219,7 +219,7 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 								i = SX_TOINT (sx_get_value (thread, -2));
 								loop = sx_get_value (thread, -5);
 								step = SX_TOINT (sx_get_value (thread, -4));
-								if (step > 0 ? (i > loop->data.range.end) : (i < loop->data.range.end)) {
+								if (step > 0 ? (i > SX_TORANGE(loop)->end) : (i < SX_TORANGE(loop)->end)) {
 									/* end loop */
 									sx_pop_value (thread, -6, 5);
 									call->state = 0;
@@ -247,14 +247,15 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 							loop = sx_get_value (thread, -3);
 							ret = sx_get_value (thread, -1);
 							if (SX_ISEXCEPTION(thread->system, ret) && SX_ISARRAY(thread->system, loop)) {
-								for (i = 0; i < loop->data.array.count; i += 2) {
-									if (ret->data.error.id == SX_TOINT (loop->data.array.list[i])) {
+								for (i = 0; i < SX_TOARRAY(loop)->count; i += 2) {
+									klass = sx_get_class (thread->system, SX_TOINT(SX_TOARRAY(loop)->list[i]));
+									if (klass && sx_value_is_a (thread->system, ret, klass)) {
 										sx_push_call (thread, sx_get_value (thread, -2), NULL, 0);
-										sx_define_var (thread, SX_TOINT(loop->data.array.list[i + 1]), ret, SX_SCOPE_LOCAL);
+										sx_define_var (thread, SX_TOINT(SX_TOARRAY(loop)->list[i + 1]), ret, SX_SCOPE_LOCAL);
 										break;
 									}
 								}
-								if (i >= loop->data.array.count) { /* no found it, or not accepted it */
+								if (i >= SX_TOARRAY(loop)->count) { /* no found it, or not accepted it */
 									sx_pop_value (thread, -4, 3);
 									break;
 								}
@@ -336,7 +337,7 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					count = SX_TOINT (sx_get_value (thread, -1));
 					value = sx_get_value (thread, -count - 2);
 					if (SX_ISFUNC (thread->system, value)) {
-						if (value->data.func.cfunc) {
+						if (SX_TOFUNC(value)->cfunc) {
 							sx_call_cfunc (thread, NULL, value, count, thread->data - count - 1);
 							sx_pop_value (thread, -3 - count, count + 2);
 						} else {
@@ -396,7 +397,7 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					if (SX_ISNUM (thread->system, value)) {
 						sx_push_value (thread, sx_get_index (thread->system, sx_get_value (thread, -2), SX_TOINT (value)));
 					} else if (SX_ISRANGE (thread->system, value)) {
-						sx_push_value (thread, sx_get_section (thread->system, sx_get_value (thread, -2), value->data.range.start, value->data.range.end));
+						sx_push_value (thread, sx_get_section (thread->system, sx_get_value (thread, -2), SX_TORANGE(value)->start, SX_TORANGE(value)->end));
 					} else {
 						sx_push_value (thread, sx_new_nil ());
 					}
@@ -454,13 +455,13 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					ret = sx_new_nil ();
 					if (SX_ISARRAY (thread->system, sx_get_value (thread, -3)) && SX_ISNUM(thread->system, sx_get_value (thread, -2))) {
 						if (SX_TOINT(sx_get_value (thread, -2)) >= 0) {
-							if (SX_TOINT (sx_get_value (thread, -2)) < sx_get_value (thread, -3)->data.array.count) {
-								sx_get_value (thread, -3)->data.array.list[SX_TOINT(sx_get_value (thread, -2))] = sx_get_value (thread, -1);
+							if (SX_TOINT (sx_get_value (thread, -2)) < SX_TOARRAY(sx_get_value (thread, -3))->count) {
+								SX_TOARRAY(sx_get_value (thread, -3))->list[SX_TOINT(sx_get_value (thread, -2))] = sx_get_value (thread, -1);
 								ret = sx_get_value (thread, -1);
 							}
 						} else {
-							if (-SX_TOINT (sx_get_value (thread, -2)) < sx_get_value (thread, -3)->data.array.count) {
-								sx_get_value (thread, -3)->data.array.list[SX_TOINT(sx_get_value (thread, -2))] = sx_get_value (thread, -1);
+							if (-SX_TOINT (sx_get_value (thread, -2)) < SX_TOARRAY(sx_get_value (thread, -3))->count) {
+								SX_TOARRAY(sx_get_value (thread, -3))->list[SX_TOINT(sx_get_value (thread, -2))] = sx_get_value (thread, -1);
 								ret = sx_get_value (thread, -1);
 							}
 						}
@@ -478,9 +479,9 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					break;
 				case SX_OP_SIZEOF:
 					if (SX_ISARRAY(thread->system, sx_get_value (thread, -1))) {
-						sx_push_value (thread, sx_new_num (sx_get_value (thread, -1)->data.array.count));
+						sx_push_value (thread, sx_new_num (SX_TOARRAY(sx_get_value (thread, -1))->count));
 					} else if (SX_ISSTRING(thread->system, sx_get_value (thread, -1))) {
-						sx_push_value (thread, sx_new_num (sx_get_value (thread, -1)->data.str.len));
+						sx_push_value (thread, sx_new_num (SX_TOSTRING (sx_get_value (thread, -1))->len));
 					} else {
 						sx_push_value (thread, sx_new_nil ());
 					}
@@ -512,8 +513,8 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					sx_push_value (thread, NULL);
 
 					if (SX_ISARRAY (thread->system, value)) {
-						for (i = 0; i < value->data.array.size; i += 2) {
-							sx_set_method (thread->system, klass, SX_TOINT (value->data.array.list[i]), value->data.array.list[i + 1]);
+						for (i = 0; i < SX_TOARRAY(value)->size; i += 2) {
+							sx_set_method (thread->system, klass, SX_TOINT (SX_TOARRAY(value)->list[i]), SX_TOARRAY(value)->list[i + 1]);
 						}
 					}
 
@@ -534,7 +535,7 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 								sx_pop_value (thread, -2, 1);
 								value = sx_get_member (thread->system, ret, sx_init_id);
 								if (SX_ISFUNC (thread->system, value)) {
-									if (value->data.func.cfunc) {
+									if (SX_TOFUNC(value)->cfunc) {
 										sx_call_cfunc (thread, ret, value, 0, thread->data);
 										sx_pop_value (thread, -1, 1);
 									} else {
@@ -575,7 +576,7 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					if (klass) {
 						ret = sx_get_method (thread->system, klass, SX_TOINT(sx_get_value (thread, -count - 2)));
 						if (SX_ISFUNC (thread->system, ret)) {
-							if (ret->data.func.cfunc) {
+							if (SX_TOFUNC(ret)->cfunc) {
 								sx_call_cfunc (thread, value, ret, count, thread->data - count - 1);
 								sx_pop_value (thread, -4 - count, count + 3);
 							} else {
@@ -584,7 +585,7 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 							}
 						} else {
 							sx_pop_value (thread, -3 - count, count + 3);
-							sx_raise_error (thread, sx_TypeError, "Tried to call a member which is a non-function");
+							sx_raise_error (thread, sx_TypeError, "Method does not exit");
 						}
 					} else {
 						sx_pop_value (thread, -3 - count, count + 3);
@@ -673,9 +674,11 @@ sx_run_thread (SX_THREAD *thread, unsigned int max) {
 		case SX_STATE_ERROR:
 			if (thread->system->error_hook != NULL) {
 				SX_VALUE *val = sx_to_str (thread->system, thread->ret);
-				sx_lock_value (val);
-				thread->system->error_hook (SX_TOSTR (thread->system, val));
-				sx_unlock_value (val);
+				if (val) {
+					sx_lock_value (val);
+					thread->system->error_hook (SX_TOSTRING (val)->str);
+					sx_unlock_value (val);
+				}
 			}
 			break;
 		case SX_STATE_RUN:

@@ -4,8 +4,8 @@ OBJECTS := scriptix.o
 
 all: scriptix
 
-scriptix: $(OBJECTS) ../lib/libscriptix.a ../lib/libsxparse.a
-	$(CC) -o $@ $(CFLAGS) $^
+scriptix: $(OBJECTS)
+	$(CC)  -L../lib -lscriptix -lsxparse -o $@ $(CFLAGS) $^
 
 $(OBJECTS): ../include/scriptix.h
 

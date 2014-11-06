@@ -26,14 +26,14 @@ install: all
 	( cd include ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
 	( cd lib ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
 	( cd bin ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
-	install -D -d $(DESTDIR)/$(prefix)/share/doc/scriptix-@VERSION@
-	install -m 0644 README COPYING $(DESTDIR)/$(prefix)/share/doc/scriptix-@VERSION@
+	install -D -d $(DESTDIR)/$(prefix)/share/doc/scriptix
+	install -m 0644 README COPYING $(DESTDIR)/$(prefix)/share/doc/scriptix
 	install -m 0755 scriptix-conf $(DESTDIR)/$(prefix)/bin/scriptix-conf
 
 dist: all
 	rm -rf scriptix/
 	mkdir scriptix
-	cp scriptix.spec scriptix.spec.in README COPYING Makefile Makefile.in configure configure.in scriptix/
+	cp scriptix.spec scriptix.spec.in scriptix-conf.in README COPYING Makefile Makefile.in configure configure.in scriptix/
 	( cd include ; make dist )
 	( cd lib ; make dist )
 	( cd bin ; make dist )

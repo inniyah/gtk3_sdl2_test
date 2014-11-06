@@ -61,22 +61,22 @@ SX_DEFINE_CFUNC (sx_stdlib_concat) {
 	one = sx_get_value (sx_thread, sx_top);
 	two = sx_get_value (sx_thread, sx_top + 1);
 
-	if (sx_top_class_of (sx_thread->system, one) != sx_top_class_of (sx_thread->system, two)) {
+	if (sx_class_of (sx_thread->system, one)->core != sx_class_of (sx_thread->system, two)->core) {
 		sx_raise_error (sx_thread, sx_TypeError, NULL);
 		return;
 	}
 
 	if (SX_ISSTRING (sx_thread->system, one)) {
-		ret = sx_new_str_len (sx_thread->system, NULL, one->data.str.len + two->data.str.len);
+		ret = sx_new_str_len (sx_thread->system, NULL, SX_TOSTRING(one)->len + SX_TOSTRING(two)->len);
 		if (ret == NULL) {
 			sx_raise_error (sx_thread, sx_MemError, NULL);
 			return;
 		}
-		if (one->data.str.len > 0) {
-			strcpy (SX_TOSTR (sx_thread->system, ret), SX_TOSTR (sx_thread->system, one));
+		if (SX_TOSTRING(one)->len > 0) {
+			strcpy (SX_TOSTRING(ret)->str, SX_TOSTRING(one)->str);
 		}
-		if (two->data.str.len > 0) {
-			strcpy (SX_TOSTR (sx_thread->system, ret) + one->data.str.len, SX_TOSTR (sx_thread->system, two));
+		if (SX_TOSTRING(two)->len > 0) {
+			strcpy (SX_TOSTRING(ret)->str + SX_TOSTRING(one)->len, SX_TOSTRING(two)->str);
 		}
 		sx_push_value (sx_thread, ret);
 	} else if (SX_ISARRAY (sx_thread->system, two)) {

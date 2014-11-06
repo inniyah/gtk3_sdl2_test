@@ -1,31 +1,32 @@
 TESTS := test-fact test-scope test-comments test-inc test-class test-error test-logic test-array
+SX := LD_LIBRARY_PATH=../lib ../bin/scriptix
 
 all: $(TESTS) 
 
 test-fact:
-	../bin/scriptix fact.sx 1000 | grep -q 720 || /bin/false
+	$(SX) fact.sx 1000 | grep -q 720 || /bin/false
 
 test-scope:
-	../bin/scriptix scope.sx > /dev/null
+	$(SX) scope.sx > /dev/null
 
 test-comments:
-	../bin/scriptix comments.sx > /dev/null
+	$(SX) comments.sx > /dev/null
 
 test-inc:
-	../bin/scriptix inc.sx > /dev/null
+	$(SX) inc.sx > /dev/null
 
 test-class:
-	../bin/scriptix class.sx > /dev/null
+	$(SX) class.sx > /dev/null
 
 test-logic:
-	../bin/scriptix logic.sx 2 1 | grep -q Success > /dev/null
-	../bin/scriptix logic.sx 1 2 | grep -q Failure > /dev/null
+	$(SX) logic.sx 2 1 | grep -q Success > /dev/null
+	$(SX) logic.sx 1 2 | grep -q Failure > /dev/null
 
 test-error:
-	../bin/scriptix error.sx > /dev/null
+	$(SX) error.sx > /dev/null
 
 test-array:
-	../bin/scriptix array.sx > /dev/null
+	$(SX) array.sx > /dev/null
 
 clean:
 

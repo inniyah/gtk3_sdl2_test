@@ -44,7 +44,11 @@ sx_new_class (SX_SYSTEM *system, sx_name_id id, SX_CLASS *parent) {
 
 	klass->id = id;
 	klass->par = parent;
-	klass->core = NULL;
+	if (parent != NULL) {
+		klass->core = parent->core;
+	} else {
+		klass->core = NULL;
+	}
 	klass->methods = NULL;
 	klass->next = system->classes;
 	system->classes = klass;
@@ -73,16 +77,35 @@ sx_new_core_class (SX_SYSTEM *system, sx_name_id id) {
 	klass->next = system->classes;
 	system->classes = klass;
 
-	klass->core->fmark = NULL;
-	klass->core->fnew = NULL;
-	klass->core->fdel = NULL;
-	klass->core->fprint = NULL;
-	klass->core->ftonum = NULL;
-	klass->core->ftostr = NULL;
-	klass->core->fequal = NULL;
-	klass->core->fcompare = NULL;
+	memset (klass->core, 0, sizeof (struct _scriptix_core));
 
 	return klass;
+}
+
+void
+sx_mark_class (SX_SYSTEM *system, SX_CLASS *klass) {
+	SX_VAR *var;
+
+	for (var = klass->methods; var != NULL; var = var->next) {
+		sx_mark_value (system, var->value);
+	}
+}
+
+void
+sx_free_class (SX_CLASS *class) {
+	SX_VAR *nmethod;
+
+	if (class->par == NULL && class->core != NULL) {
+		sx_free (class->core);
+	}
+
+	while (class->methods != NULL) {
+		nmethod = class->methods->next;
+		sx_free_var (class->methods);
+		class->methods = nmethod;
+	}
+
+	sx_free (class);
 }
 
 SX_CLASS *
@@ -119,31 +142,17 @@ sx_top_class_of (SX_SYSTEM *system, SX_VALUE *value) {
 SX_VALUE *
 sx_new_object (SX_SYSTEM *system, SX_CLASS *parent) {
 	SX_VALUE *value;
-	SX_CLASS *klass;
 
-	klass = NULL;
-	if (parent) {
-		for (klass = parent; klass != NULL && klass->par != NULL; klass = klass->par)
-			;
-	}
-
-	if (klass && klass->core && klass->core->fnew) {
-		value = klass->core->fnew (system);
+	if (parent && parent->core && parent->core->fnew) {
+		value = parent->core->fnew (system, parent);
 	} else {
 		value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
+		sx_clear_value (system, value, parent);
 	}
 
 	if (value == NULL) {
 		return NULL;
 	}
-
-	value->klass = parent;
-	value->members = NULL;
-	value->locks = 0;
-	value->flags = 0;
-	value->gc_next = NULL;
-
-	sx_add_gc_value (system, value);
 
 	return value;
 }
@@ -198,6 +207,17 @@ sx_value_is_a (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *par) {
 		if (klass == par) {
 			return 1;
 		}
+	}
+	return 0;
+}
+
+int
+sx_class_is_a (SX_SYSTEM *system, SX_CLASS *klass, SX_CLASS *par) {
+	while (klass != NULL) {
+		if (klass == par) {
+			return 1;
+		}
+		klass = klass->par;
 	}
 	return 0;
 }

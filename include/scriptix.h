@@ -133,41 +133,56 @@ typedef struct scriptix_system SX_SYSTEM;
 typedef struct scriptix_thread SX_THREAD;
 typedef struct scriptix_class SX_CLASS;
 
+typedef struct scriptix_string SX_STRING;
+typedef struct scriptix_array SX_ARRAY;
+typedef struct scriptix_func SX_FUNC;
+typedef struct scriptix_block SX_BLOCK;
+typedef struct scriptix_error SX_ERROR;
+typedef struct scriptix_range SX_RANGE;
+
 typedef unsigned int sx_name_id;
 typedef unsigned int sx_script_id;
 typedef unsigned int sx_thread_id;
 
 typedef void (*sx_gc_hook)(SX_SYSTEM *system);
 typedef int (*sx_print_hook)(const char *str, ...);
-typedef void (*sx_error_hook)(char *str);
+typedef void (*sx_error_hook)(const char *str);
 
 typedef void (*sx_class_mark)(SX_SYSTEM *system, SX_VALUE *value);
 typedef void (*sx_class_del)(SX_SYSTEM *system, SX_VALUE *value);
-typedef SX_VALUE *(*sx_class_new)(SX_SYSTEM *system);
+typedef SX_VALUE *(*sx_class_new)(SX_SYSTEM *system, SX_CLASS *klass);
 typedef void (*sx_class_print)(SX_SYSTEM *system, SX_VALUE *value);
 typedef SX_VALUE *(*sx_class_to_num)(SX_SYSTEM *system, SX_VALUE *value);
 typedef SX_VALUE *(*sx_class_to_str)(SX_SYSTEM *system, SX_VALUE *value);
 typedef int (*sx_class_equal)(SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two);
 typedef int (*sx_class_compare)(SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two);
+typedef int (*sx_class_true)(SX_SYSTEM *system, SX_VALUE *value);
+typedef SX_VALUE *(*sx_class_get_index)(SX_SYSTEM *system, SX_VALUE *value, int index);
+typedef SX_VALUE *(*sx_class_set_index)(SX_SYSTEM *system, SX_VALUE *value, int index, SX_VALUE *set);
+typedef SX_VALUE *(*sx_class_get_section)(SX_SYSTEM *system, SX_VALUE *value, int start, int end);
 
 typedef void (*sx_cfunc)(SX_THREAD *thread, SX_VALUE *klass, SX_VALUE *data, unsigned int args, unsigned int top);
 #define SX_DEFINE_CFUNC(name) void name (SX_THREAD *sx_thread, SX_VALUE *sx_self, SX_VALUE *sx_data, unsigned int sx_argc, unsigned int sx_top)
-#define SX_GET_ARG(i) (sx_get_value (sx_thread, sx_top + i))
-#define SX_NUM_ARGS() (sx_argc)
-#define SX_RETURN(v) (sx_push_value (sx_thread, (v)))
+#define sx_return(t,v) (sx_push_value ((t), (v)))
 
 extern __INLINE__ void *sx_malloc (SX_SYSTEM *system, unsigned long size);
-extern __INLINE__ void *sx_dupmem (SX_SYSTEM *system, void *mem, unsigned long size);
-extern char *sx_strdup (SX_SYSTEM *system, char *str);
+extern __INLINE__ void *sx_dupmem (SX_SYSTEM *system, const void *mem, unsigned long size);
+extern char *sx_strdup (SX_SYSTEM *system, const char *str);
 #define sx_free free
 
 #define sx_new_nil() ((SX_VALUE *)(NULL))
 #define sx_new_num(i) ((SX_VALUE *)(((i) << 1) | SX_NUM_MARK))
 #define SX_TOINT(n) ((long)(n) >> 1)
-#define SX_TOSTR(sy,s) (SX_ISSTRING((sy),(s)) ? (s)->data.str.str : NULL)
+#define SX_TOSTRING(s) ((SX_STRING *)(s))
+#define SX_TOARRAY(s) ((SX_ARRAY *)(s))
+#define SX_TOFUNC(s) ((SX_FUNC *)(s))
+#define SX_TOBLOCK(s) ((SX_BLOCK *)(s))
+#define SX_TOERROR(s) ((SX_ERROR *)(s))
+#define SX_TORANGE(s) ((SX_RANGE *)(s))
 
-extern SX_VALUE *sx_new_str (SX_SYSTEM *system, char *str);
-extern SX_VALUE *sx_new_str_len (SX_SYSTEM *system, char *str, unsigned int len);
+extern void sx_clear_value (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *klass);
+extern SX_VALUE *sx_new_str (SX_SYSTEM *system, const char *str);
+extern SX_VALUE *sx_new_str_len (SX_SYSTEM *system, const char *str, unsigned int len);
 extern SX_VALUE *sx_new_block (SX_SYSTEM *system);
 extern SX_VALUE *sx_new_func (SX_SYSTEM *system, SX_VALUE *args, SX_VALUE *body);
 extern SX_VALUE *sx_new_cfunc (SX_SYSTEM *system, sx_cfunc func, SX_VALUE *data);
@@ -208,7 +223,7 @@ extern sx_name_id sx_StackError;
 extern sx_name_id sx_NameError;
 extern sx_name_id sx_ArgumentError;
 extern sx_name_id sx_MemError;
-extern int sx_raise_error (SX_THREAD *thread, sx_name_id error, char *str);
+extern int sx_raise_error (SX_THREAD *thread, sx_name_id error, const char *str);
 
 #define sx_class_of(s,v) ((v) == (NULL) ? NULL : ((long)(v) & SX_NUM_MARK) ? (s)->cfixnum : (v)->klass)
 #define SX_ISNIL(s,v) ((v) == NULL)
@@ -222,7 +237,7 @@ extern int sx_raise_error (SX_THREAD *thread, sx_name_id error, char *str);
 
 extern int sx_eval (SX_THREAD *thread, unsigned int max);
 
-extern SX_VALUE *sx_define_cfunc (SX_SYSTEM *system, char *name, sx_cfunc func, SX_VALUE *data);
+extern SX_VALUE *sx_define_cfunc (SX_SYSTEM *system, const char *name, sx_cfunc func, SX_VALUE *data);
 
 extern SX_VALUE *sx_define_var (SX_THREAD *thread, unsigned int id, SX_VALUE *value, int scope);
 extern SX_VALUE *sx_define_system_var (SX_SYSTEM *system, unsigned int id, SX_VALUE *value);
@@ -230,13 +245,14 @@ extern SX_VAR *sx_get_var (SX_THREAD *thread, unsigned int id, int scope);
 extern SX_VAR *sx_get_system_var (SX_SYSTEM *system, unsigned int id);
 #define sx_free_var(v) sx_free ((v))
 
-extern SX_SYSTEM *sx_create_system (int argc, char **argv);
+extern SX_SYSTEM *sx_create_system (int argc, const char **argv);
 extern __INLINE__ void sx_add_gc_value (SX_SYSTEM *system, SX_VALUE *value);
 extern void sx_run_gc (SX_SYSTEM *system);
 extern void sx_run (SX_SYSTEM *system, unsigned int max);
 extern SX_VALUE *sx_run_until (SX_SYSTEM *system, sx_thread_id id);
 extern void sx_free_system (SX_SYSTEM *system);
 
+extern SX_CLASS *sx_init_number (SX_SYSTEM *system);
 extern SX_CLASS *sx_init_string (SX_SYSTEM *system);
 extern SX_CLASS *sx_init_fixnum (SX_SYSTEM *system);
 extern SX_CLASS *sx_init_error (SX_SYSTEM *system);
@@ -247,27 +263,30 @@ extern SX_CLASS *sx_init_range (SX_SYSTEM *system);
 
 extern SX_CLASS *sx_new_class (SX_SYSTEM *system, sx_name_id id, SX_CLASS *par);
 extern SX_CLASS *sx_new_core_class (SX_SYSTEM *system, sx_name_id id);
+extern void sx_mark_class (SX_SYSTEM *system, SX_CLASS *klass);
+extern void sx_free_class (SX_CLASS *klass);
 extern SX_CLASS *sx_get_class (SX_SYSTEM *system, sx_name_id id);
 extern __INLINE__ SX_CLASS *sx_top_class_of (SX_SYSTEM *system, SX_VALUE *value);
 extern SX_VALUE *sx_new_object (SX_SYSTEM *system, SX_CLASS *par);
 extern SX_VALUE *sx_set_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id, SX_VALUE *method);
 extern SX_VALUE *sx_get_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id);
-extern int sx_value_is_a (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *klass);
+extern int sx_value_is_a (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *par);
+extern int sx_class_is_a (SX_SYSTEM *system, SX_CLASS *klass, SX_CLASS *par);
 extern SX_VAR *sx_set_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id, SX_VALUE *value);
 extern SX_VALUE *sx_get_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id);
 extern SX_VAR *sx_find_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id);
 
 /* returns the block of the script */
-extern SX_VALUE *sx_load_file (SX_SYSTEM *system, char *file);
-extern SX_VALUE *sx_load_string (SX_SYSTEM *system, char *buffer);
+extern SX_VALUE *sx_load_file (SX_SYSTEM *system, const char *file);
+extern SX_VALUE *sx_load_string (SX_SYSTEM *system, const char *buffer);
 
 /* begins the script as a new thread */
-extern sx_thread_id sx_start_file (SX_SYSTEM *system, char *file, SX_VALUE *argv);
-extern sx_thread_id sx_start_string (SX_SYSTEM *system, char *buffer, SX_VALUE *argv);
+extern sx_thread_id sx_start_file (SX_SYSTEM *system, const char *file, SX_VALUE *argv);
+extern sx_thread_id sx_start_string (SX_SYSTEM *system, const char *buffer, SX_VALUE *argv);
 
 /* runs the script to completion */
-extern SX_VALUE *sx_run_file (SX_SYSTEM *system, char *file, SX_VALUE *argv);
-extern SX_VALUE *sx_run_string (SX_SYSTEM *system, char *buffer, SX_VALUE *argv);
+extern SX_VALUE *sx_run_file (SX_SYSTEM *system, const char *file, SX_VALUE *argv);
+extern SX_VALUE *sx_run_string (SX_SYSTEM *system, const char *buffer, SX_VALUE *argv);
 
 extern sx_thread_id sx_create_thread (SX_SYSTEM *system, SX_VALUE *main, SX_VALUE *argv);
 extern int sx_run_thread (SX_THREAD *thread, unsigned int max);
@@ -303,6 +322,10 @@ struct _scriptix_core {
 	sx_class_to_str ftostr;
 	sx_class_equal fequal;
 	sx_class_compare fcompare;
+	sx_class_true ftrue;
+	sx_class_get_index fgetindex;
+	sx_class_set_index fsetindex;
+	sx_class_get_section fgetsection;
 };
 
 struct scriptix_class {
@@ -321,38 +344,47 @@ struct scriptix_value {
 	unsigned int locks;
 	SX_VAR *members;
 	SX_VALUE *gc_next;
-	union {
-		struct {
-			unsigned int len;
-			char str[0];
-		} str;
-		struct {
-			SX_VALUE *args;
-			SX_VALUE *body;
-			SX_VALUE *data;
-			sx_cfunc cfunc;
-		} func;
-		struct {
-			SX_VALUE **list;
-			unsigned int count;
-			unsigned int size;
-		} array;
-		struct {
-			int start;
-			int end;
-		} range;
-		struct {
-			struct _scriptix_node *nodes;
-			unsigned int count;
-			unsigned int size;
-		} block;
-		struct {
-			sx_name_id id;
-			unsigned int line;
-			SX_VALUE *file;
-			SX_VALUE *data;
-		} error;
-	} data;
+};
+
+struct scriptix_string {
+	struct scriptix_value header;
+	unsigned int len;
+	char str[0];
+};
+
+struct scriptix_array {
+	struct scriptix_value header;
+	SX_VALUE **list;
+	unsigned int count;
+	unsigned int size;
+};
+
+struct scriptix_func {
+	struct scriptix_value header;
+	SX_VALUE *args;
+	SX_VALUE *body;
+	SX_VALUE *data;
+	sx_cfunc cfunc;
+};
+
+struct scriptix_block {
+	struct scriptix_value header;
+	struct _scriptix_node *nodes;
+	unsigned int count;
+	unsigned int size;
+};
+
+struct scriptix_error {
+	struct scriptix_value header;
+	unsigned int line;
+	SX_VALUE *file;
+	SX_VALUE *data;
+};
+
+struct scriptix_range {
+	struct scriptix_value header;
+	int start;
+	int end;
 };
 
 struct scriptix_var {

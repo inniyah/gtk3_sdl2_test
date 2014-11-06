@@ -20,20 +20,26 @@ The list of current Scriptix features include:
 	While/until/do/for loops and blocks
 	Ranges
 
+Features you won't likely see, ever, as they are unnecessary overkill:
+
+	User-defined operator overloading
+	Module loading/including/requiring
+	Virtual variables
+	Massively large standard library/class system
+
 Planned/future features (i.e. Todo list):
 
 	1.0:
 	General cleanups and bug fixes
 	Thread control
 	A moderate standard library, useful for simple embedding purposes
+	Finish full core-class system
 
 	2.0:
 	Re-entrant/threadable parsers
-	Split up _scriptix_value
 	Security Model
 	Function statements, i.e. print 'notice lack of parans'
 	Constants
-	Virtual variables
 	Regular expressions
 	Floating-point and bignum support
 	Better error system for C functions

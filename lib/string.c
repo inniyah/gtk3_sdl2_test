@@ -35,44 +35,109 @@
 #include "system.h"
 
 /* klass helper funcs */
+SX_VALUE *
+_sx_str_new (SX_SYSTEM *system, SX_CLASS *klass) {
+	SX_STRING *value;
+	
+	value = (SX_STRING *)sx_malloc (system, sizeof (SX_STRING));
+	if (value == NULL) {
+		return NULL;
+	}
+
+	sx_clear_value (system, &value->header, klass);
+
+	value->len = 0;
+
+	return (SX_VALUE*)value;
+}
+
 void
-_sx_str_print (SX_SYSTEM *system, SX_VALUE *str) {
-	if (str->data.str.str != NULL) {
-		system->print_hook ("%s", str->data.str.str);
+_sx_str_print (SX_SYSTEM *system, SX_STRING *str) {
+	if (str->len > 0) {
+		system->print_hook ("%s", str->str);
 	}
 }
 
 SX_VALUE *
-_sx_str_to_num (SX_SYSTEM *system, SX_VALUE *str) {
-	if (str->data.str.str != NULL) {
-		return sx_new_num (atoi (str->data.str.str));
+_sx_str_to_num (SX_SYSTEM *system, SX_STRING *str) {
+	if (str->len > 0) {
+		return sx_new_num (atoi (str->str));
 	} else {
 		return sx_new_num (0);
 	}
 }
 
 int
-_sx_str_equal (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
-	if (one->data.str.len != two->data.str.len) {
+_sx_str_equal (SX_SYSTEM *system, SX_STRING *one, SX_STRING *two) {
+	if (one->len != two->len) {
 		return 0;
 	}
-	if (one->data.str.len == 0) {
+	if (one->len == 0) {
 		return 1;
 	}
-	return !strcmp (one->data.str.str, two->data.str.str);
+	return !strcmp (one->str, two->str);
 }
 
 int
-_sx_str_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
-	if (one->data.str.len < two->data.str.len) {
+_sx_str_compare (SX_SYSTEM *system, SX_STRING *one, SX_STRING *two) {
+	if (one->len < two->len) {
 		return -1;
-	} else if (one->data.str.len > two->data.str.len) {
+	} else if (one->len > two->len) {
 		return 1;
 	}
-	if (one->data.str.len == 0) {
+	if (one->len == 0) {
 		return 0;
 	}
-	return strcmp (one->data.str.str, two->data.str.str);
+	return strcmp (one->str, two->str);
+}
+
+int
+_sx_str_true (SX_SYSTEM *system, SX_STRING *value) {
+	return value->len > 0;
+}
+
+SX_VALUE *
+_sx_str_get_index (SX_SYSTEM *system, SX_STRING *value, int index) {
+	if (value->len == 0) {
+		return sx_new_str (system, NULL);
+	}
+	if (index < 0) {
+		index += value->len;
+		if (index < 0) {
+			index = 0;
+		}
+	}
+	if (index >= value->len) {
+		index = value->len - 1;
+	}
+	
+	return sx_new_str_len (system, value->str + index, 1);
+}
+
+SX_VALUE *
+_sx_str_get_section (SX_SYSTEM *system, SX_STRING *string, int start, int end) {
+	if (string->len == 0) {
+		return sx_new_str (system, NULL);
+	}
+	if (start < 0) {
+		start += string->len;
+		if (start < 0) {
+			start = 0;
+		}
+	}
+	if (start >= string->len) {
+		start = string->len - 1;
+	}
+	if (end < 0) {
+		end += string->len;
+		if (start < 0) {
+			start = 0;
+		}
+	}
+	if (end >= string->len) {
+		end = string->len - 1;
+	}
+	return sx_new_str_len (system, string->str + start, end - start + 1);
 }
 
 SX_CLASS *
@@ -84,72 +149,64 @@ sx_init_string (SX_SYSTEM *system) {
 		return NULL;
 	}
 
-	klass->core->fprint = _sx_str_print;
-	klass->core->ftonum = _sx_str_to_num;
-	klass->core->fequal = _sx_str_equal;
-	klass->core->fcompare = _sx_str_compare;
+	klass->core->fnew = (sx_class_new)_sx_str_new;
+	klass->core->fprint = (sx_class_print)_sx_str_print;
+	klass->core->ftonum = (sx_class_to_num)_sx_str_to_num;
+	klass->core->fequal = (sx_class_equal)_sx_str_equal;
+	klass->core->fcompare = (sx_class_compare)_sx_str_compare;
+	klass->core->ftrue = (sx_class_true)_sx_str_true;
+	klass->core->fgetindex = (sx_class_get_index)_sx_str_get_index;
+	klass->core->fgetsection = (sx_class_get_section)_sx_str_get_section;
 
 	return klass;
 }
 
 SX_VALUE *
-sx_new_str (SX_SYSTEM *system, char *str) {
-	SX_VALUE *value;
+sx_new_str (SX_SYSTEM *system, const char *str) {
+	SX_STRING *value;
 	unsigned int len;
 	
 	if (str == NULL) {
 		len = 0;
-		value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
+		value = (SX_STRING *)sx_malloc (system, sizeof (SX_STRING));
 	} else {
 		len = strlen (str);
-		value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE) + (len + 1) * sizeof (char));
+		value = (SX_STRING *)sx_malloc (system, sizeof (SX_STRING) + (len + 1) * sizeof (char));
 	}
 	
 	if (value == NULL) {
 		return NULL;
 	}
 
-	value->klass = system->cstring;
-	value->members = NULL;
+	sx_clear_value (system, &value->header, system->cstring);
+
 	if (str == NULL) {
-		value->data.str.len = 0;
+		value->len = 0;
 	} else {
-		value->data.str.len = strlen (str);
-		strcpy (value->data.str.str, str);
+		value->len = strlen (str);
+		strcpy (value->str, str);
 	}
 
-	value->locks = 0;
-	value->flags = 0;
-	value->gc_next = NULL;
-
-	sx_add_gc_value (system, value);
-
-	return value;
+	return (SX_VALUE*)value;
 }
 
 SX_VALUE *
-sx_new_str_len (SX_SYSTEM *system, char *str, unsigned int len) {
-	SX_VALUE *value;
+sx_new_str_len (SX_SYSTEM *system, const char *str, unsigned int len) {
+	SX_STRING *value;
 	
-	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE) + (len + 1) * sizeof (char));
+	value = (SX_STRING *)sx_malloc (system, sizeof (SX_STRING) + (len + 1) * sizeof (char));
 	if (value == NULL) {
 		return NULL;
 	}
 
-	value->data.str.len = len;
+	value->len = len;
 
-	value->klass = system->cstring;
-	value->members = NULL;
+	sx_clear_value (system, &value->header, system->cstring);
+
 	if (str != NULL) {
-		strncpy (value->data.str.str, str, len);
-		SX_TOSTR(system,value)[len] = '\0';
+		strncpy (value->str, str, len);
+		value->str[len] = '\0';
 	}
 
-	value->locks = 0;
-	value->flags = 0;
-	value->gc_next = NULL;
-
-	sx_add_gc_value (system, value);
-
-	return value;
+	return (SX_VALUE *)value;
 }

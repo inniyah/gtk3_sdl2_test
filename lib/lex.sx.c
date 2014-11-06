@@ -479,7 +479,7 @@ char *yytext;
 
 	#define YY_INPUT(b,r,m) sx_parser_input((b),&(r),(m))
 
-	char *sx_parser_inbuf = NULL;
+	const char *sx_parser_inbuf = NULL;
 	void sx_parser_input (char *buf, int *result, int max);
 #define BCOMMENT 1
 

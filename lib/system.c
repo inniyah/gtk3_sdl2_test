@@ -34,14 +34,14 @@
 #include "config.h"
 
 void
-_sx_default_error_hook (char *str) {
+_sx_default_error_hook (const char *str) {
 	if (str) {
 		fprintf (stderr, "Unhandled error: %s\n", str);
 	}
 }
 
 SX_SYSTEM *
-sx_create_system (int argc, char **argv) {
+sx_create_system (int argc, const char **argv) {
 	SX_VALUE *args;
 	SX_SYSTEM *system = (SX_SYSTEM *)sx_malloc (NULL, sizeof (SX_SYSTEM));
 	if (system == NULL) {
@@ -63,7 +63,7 @@ sx_create_system (int argc, char **argv) {
 	sx_init_ids ();
 
 	system->cstring = sx_init_string (system);
-	system->cfixnum = sx_new_core_class (system, sx_name_to_id ("FixNum"));
+	system->cfixnum = sx_init_number (system);
 	system->cerror = sx_init_error (system);
 	system->cblock = sx_init_block (system);
 	system->carray = sx_init_array (system);
@@ -74,7 +74,7 @@ sx_create_system (int argc, char **argv) {
 
 	args = sx_new_array (system, argc, NULL);
 	for (-- argc; argc >= 0; -- argc) {
-		args->data.array.list[argc] = sx_new_str (system, argv[argc]);
+		SX_TOARRAY(args)->list[argc] = sx_new_str (system, argv[argc]);
 	}
 	sx_define_system_var (system, sx_argv_id, args);
 
@@ -92,6 +92,7 @@ sx_free_system (SX_SYSTEM *system) {
 	SX_THREAD *tnext;
 	SX_VAR *rnext;
 	SX_VALUE *vnext;
+	SX_CLASS *cnext;
 
 	while (system->threads != NULL) {
 		tnext = system->threads->next;
@@ -109,6 +110,12 @@ sx_free_system (SX_SYSTEM *system) {
 		vnext = system->gc_values->gc_next;
 		sx_free_value (system, system->gc_values);
 		system->gc_values = vnext;
+	}
+
+	while (system->classes) {
+		cnext = system->classes->next;
+		sx_free_class (system->classes);
+		system->classes = cnext;
 	}
 
 	sx_free (system);
@@ -142,6 +149,7 @@ sx_run_gc (SX_SYSTEM *system) {
 	SX_THREAD *thread;
 	SX_VAR *var;
 	SX_VALUE *value, *last;
+	SX_CLASS *klass;
 
 	if (system->flags & SX_SFLAG_GCOFF) {
 		return;
@@ -153,6 +161,10 @@ sx_run_gc (SX_SYSTEM *system) {
 
 	for (var = system->vars; var != NULL; var = var->next) {
 		sx_mark_value (system, var->value);
+	}
+
+	for (klass = system->classes; klass != NULL; klass = klass->next) {
+		sx_mark_class (system, klass);
 	}
 
 	for (thread = system->threads; thread != NULL; thread = thread->next) {

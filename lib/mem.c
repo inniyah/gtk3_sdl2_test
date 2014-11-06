@@ -43,7 +43,7 @@ sx_malloc (SX_SYSTEM *system, unsigned long size) {
 }
 
 void *
-sx_dupmem (SX_SYSTEM *system, void *mem, unsigned long size) {
+sx_dupmem (SX_SYSTEM *system, const void *mem, unsigned long size) {
 	void *new_mem = sx_malloc (system, size);
 	if (new_mem == NULL) {
 		return NULL;
@@ -53,7 +53,7 @@ sx_dupmem (SX_SYSTEM *system, void *mem, unsigned long size) {
 }
 
 char *
-sx_strdup (SX_SYSTEM *system, char *str) {
+sx_strdup (SX_SYSTEM *system, const char *str) {
 	if (str == NULL) {
 		return NULL;
 	}

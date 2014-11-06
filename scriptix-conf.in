@@ -1,0 +1,28 @@
+#!/bin/sh
+
+case "$1" in
+	--cflags)
+		echo "-I@prefix@/include"
+		;;
+	--lflags)
+		echo "-L@prefix@/libs"
+		;;
+	--libs)
+		echo "-lscriptix -lsxparse"
+		;;
+	--version)
+		echo "@VERSION@"
+		;;
+	--help)
+		echo "Help: $0"
+		echo
+		echo "  --cflags   Print compilation flags"
+		echo "  --lflags   Print linker flags"
+		echo "  --libs     Print library flags"
+		echo "  --version  Print version"
+		echo "  --help     This list"
+		echo
+		;;
+	*)
+		;;
+esac
