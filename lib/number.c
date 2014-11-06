@@ -34,30 +34,30 @@
 #include "scriptix.h"
 #include "system.h"
 
-/* klass helper funcs */
+/* type helper funcs */
 void
-_sx_num_print (SX_SYSTEM *system, SX_VALUE *num) {
+_sx_num_print (SX_SYSTEM system, SX_VALUE num) {
 	system->print_hook ("%ld", SX_TOINT (num));
 }
 
-SX_VALUE *
-_sx_num_to_str (SX_SYSTEM *system, SX_VALUE *num) {
+SX_VALUE 
+_sx_num_to_str (SX_SYSTEM system, SX_VALUE num) {
 	char buf[20];
 	snprintf (buf, 20, "%ld", SX_TOINT (num));
 	return sx_new_str (system, buf);
 }
 
-SX_CLASS *
-sx_init_number (SX_SYSTEM *system) {
-	SX_CLASS *klass;
+SX_TYPE 
+sx_init_int (SX_SYSTEM system) {
+	SX_TYPE type;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("Number"), NULL);
-	if (klass == NULL) {
+	type = sx_new_type (system, "Int");
+	if (type == NULL) {
 		return NULL;
 	}
 
-	klass->core->fprint = (sx_class_print)_sx_num_print;
-	klass->core->ftostr = (sx_class_to_num)_sx_num_to_str;
+	type->fprint = (sx_type_print)_sx_num_print;
+	type->ftostr = (sx_type_to_num)_sx_num_to_str;
 
-	return klass;
+	return type;
 }

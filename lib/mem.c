@@ -33,35 +33,11 @@
 #include "scriptix.h"
 
 void *
-sx_malloc (SX_SYSTEM *system, unsigned long size) {
-	void *mem = malloc (size);
-	if (mem == NULL && system != NULL) {
-		sx_run_gc (system);
-		mem = malloc (size);
-	}
-	return mem;
-}
-
-void *
-sx_dupmem (SX_SYSTEM *system, const void *mem, unsigned long size) {
-	void *new_mem = sx_malloc (system, size);
+sx_dupmem (const void *mem, unsigned long size) {
+	void *new_mem = sx_malloc (size);
 	if (new_mem == NULL) {
 		return NULL;
 	}
 	memcpy (new_mem, mem, size);
 	return new_mem;
-}
-
-void
-sx_free (void *mem) {
-	free (mem);
-}
-
-char *
-sx_strdup (SX_SYSTEM *system, const char *str) {
-	if (str == NULL) {
-		return NULL;
-	}
-
-	return sx_dupmem (system, str, strlen (str) + 1);
 }

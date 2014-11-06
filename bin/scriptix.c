@@ -33,10 +33,10 @@
 
 int
 main (int argc, const char **argv) {
-	SX_SYSTEM *system;
-	SX_FUNC *func;
-	SX_VALUE *sargv;
-	SX_MODULE *module;
+	SX_SYSTEM system;
+	SX_FUNC func;
+	SX_VALUE sargv;
+	SX_MODULE module;
 	int i;
 
 	system = sx_create_system ();
@@ -58,10 +58,10 @@ main (int argc, const char **argv) {
 	} else {
 		sargv = sx_new_array (system, argc - 2, NULL);
 		for (i = 2; i < argc; ++i) {
-			((SX_ARRAY *)sargv)->list[i - 2] = sx_new_str (system, argv[i]);
+			((SX_ARRAY)sargv)->list[i - 2] = sx_new_str (system, argv[i]);
 		}
 
-		sx_create_thread (module, func, (SX_ARRAY *)sargv);
+		sx_create_thread (module, func, (SX_ARRAY)sargv);
 		while (sx_runable (system))
 			sx_run (system, 1000);
 	}

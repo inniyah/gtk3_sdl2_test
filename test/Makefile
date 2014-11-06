@@ -1,4 +1,4 @@
-TESTS := test-fact test-comments test-inc test-class test-error test-logic test-array
+TESTS := test-fact test-comments test-inc test-logic test-array
 SX := ../bin/scriptix
 
 all: $(TESTS) 
@@ -18,17 +18,9 @@ test-inc: inc.sx $(SX)
 	$(SX) inc.sx > /dev/null
 	touch $@
 
-test-class: class.sx $(SX)
-	$(SX) class.sx > /dev/null
-	touch $@
-
 test-logic: logic.sx $(SX)
 	$(SX) logic.sx 2 1 | grep -q Success > /dev/null
 	$(SX) logic.sx 1 2 | grep -q Failure > /dev/null
-	touch $@
-
-test-error: error.sx $(SX)
-	$(SX) error.sx > /dev/null
 	touch $@
 
 test-array: array.sx $(SX)

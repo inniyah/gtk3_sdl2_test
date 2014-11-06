@@ -35,7 +35,7 @@
 /* internal block stuff */
 
 void
-_sx_block_mark (SX_SYSTEM *system, SX_BLOCK *value) {
+_sx_block_mark (SX_SYSTEM system, SX_BLOCK value) {
 	unsigned int i;
 	for (i = 0; i < value->count; ++ i) {
 		if (value->nodes[i].op == 0) {
@@ -45,31 +45,30 @@ _sx_block_mark (SX_SYSTEM *system, SX_BLOCK *value) {
 }
 
 void
-_sx_block_del (SX_SYSTEM *system, SX_BLOCK *value) {
+_sx_block_del (SX_SYSTEM system, SX_BLOCK value) {
 	if (value->nodes != NULL) {
 		sx_free (value->nodes);
 	}
-	sx_free (value);
 }
 
-SX_CLASS *
-sx_init_block (SX_SYSTEM *system) {
-	SX_CLASS *klass;
+SX_TYPE 
+sx_init_block (SX_SYSTEM system) {
+	SX_TYPE type;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("block"), NULL);
-	if (klass == NULL) {
+	type = sx_new_type (system, "block");
+	if (type == NULL) {
 		return NULL;
 	}
 
-	klass->core->fmark = (sx_class_mark)_sx_block_mark;
-	klass->core->fdel = (sx_class_del)_sx_block_del;
+	type->fmark = (sx_type_mark)_sx_block_mark;
+	type->fdel = (sx_type_del)_sx_block_del;
 
-	return klass;
+	return type;
 }
 
-SX_VALUE *
-sx_new_block (SX_SYSTEM *system) {
-	SX_BLOCK *value = (SX_BLOCK *)sx_malloc (system, sizeof (SX_BLOCK));
+SX_VALUE 
+sx_new_block (SX_SYSTEM system) {
+	SX_BLOCK value = (SX_BLOCK )sx_malloc (sizeof (struct scriptix_block));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -80,20 +79,16 @@ sx_new_block (SX_SYSTEM *system) {
 
 	sx_clear_value (system, &value->header, system->cblock);
 
-	return (SX_VALUE *)value;
+	return (SX_VALUE )value;
 }
 
-SX_VALUE *
-sx_add_to_block (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *value, sx_op_type op) {
+SX_VALUE 
+sx_add_to_block (SX_SYSTEM system, SX_VALUE block, SX_VALUE value, sx_op_type op) {
 	struct _scriptix_node *sx_new_nodes;
 
 	if (SX_ISBLOCK (system, block)) {
 		if (SX_TOBLOCK(block)->count == SX_TOBLOCK(block)->size) {
-			sx_lock_value (block);
-			sx_lock_value (value);
-			sx_new_nodes = sx_malloc (system, sizeof (struct _scriptix_node) * (SX_TOBLOCK(block)->count + system->block_chunk));
-			sx_unlock_value (block);
-			sx_unlock_value (value);
+			sx_new_nodes = sx_malloc (sizeof (struct _scriptix_node) * (SX_TOBLOCK(block)->count + system->block_chunk));
 			if (sx_new_nodes == NULL) {
 				return sx_new_nil ();
 			}

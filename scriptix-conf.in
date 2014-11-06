@@ -5,7 +5,7 @@ case "$1" in
 		if [ "@prefix@" != "/usr" ]; then echo "-I@prefix@/include"; fi
 		;;
 	--lflags)
-		if [ "@prefix@" != "/usr" ]; then echo "-L@prefix@/libs"; fi
+		if [ "@prefix@" != "/usr" ]; then echo "-L@prefix@/lib"; fi
 		;;
 	--libs)
 		echo "-lscriptix -lsxparse"

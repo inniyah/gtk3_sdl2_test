@@ -46,20 +46,13 @@ unsigned int _scriptix_free_name_id = 1;
 sx_name_id sx_parent_id = 0;
 sx_name_id sx_self_id = 0;
 sx_name_id sx_init_id = 0;
-sx_name_id sx_error_id = 0;
-
-sx_name_id sx_TypeError = 0;
-sx_name_id sx_StackError = 0;
-sx_name_id sx_NameError = 0;
-sx_name_id sx_ArgumentError = 0;
-sx_name_id sx_MemError = 0;
 
 sx_name_id
 sx_name_to_id (const char *name) {
 	struct _scriptix_name_id *ni;
 
 	for (ni = _scriptix_name_id_list; ni != NULL; ni = ni->next) {
-		if (!strcasecmp (name, ni->name)) {
+		if (!strcmp (name, ni->name)) {
 			return ni->id;
 		}
 	}
@@ -108,17 +101,10 @@ sx_init_ids (void) {
 	sx_parent_id = sx_name_to_id ("parent");
 	sx_self_id = sx_name_to_id ("self");
 	sx_init_id = sx_name_to_id ("init");
-	sx_error_id = sx_name_to_id ("error");
-
-	sx_TypeError = sx_name_to_id ("TypeError");
-	sx_StackError = sx_name_to_id ("StackError");
-	sx_NameError = sx_name_to_id ("NameError");
-	sx_ArgumentError = sx_name_to_id ("ArgumentError");
-	sx_MemError = sx_name_to_id ("MemError");
 }
 
 sx_name_id *
-sx_new_namelist (SX_SYSTEM *system, unsigned long argc, ...) {
+sx_new_namelist (SX_SYSTEM system, unsigned long argc, ...) {
 	sx_name_id *list;
 	va_list va;
 	unsigned long i;
@@ -127,7 +113,7 @@ sx_new_namelist (SX_SYSTEM *system, unsigned long argc, ...) {
 		return NULL;
 	}
 
-	list = sx_malloc (system, (argc + 1) * sizeof (sx_name_id));
+	list = sx_malloc ((argc + 1) * sizeof (sx_name_id));
 	if (list == NULL) {
 		return NULL;
 	}
@@ -144,7 +130,7 @@ sx_new_namelist (SX_SYSTEM *system, unsigned long argc, ...) {
 }
 
 sx_name_id *
-sx_new_namelist_from_array (SX_SYSTEM *system, SX_ARRAY *array) {
+sx_new_namelist_from_array (SX_SYSTEM system, SX_ARRAY array) {
 	sx_name_id *list;
 	unsigned long i;
 
@@ -156,9 +142,7 @@ sx_new_namelist_from_array (SX_SYSTEM *system, SX_ARRAY *array) {
 		return NULL;
 	}
 
-	sx_lock_value ((SX_VALUE *)array);
-	list = sx_malloc (system, (array->count + 1) * sizeof (sx_name_id));
-	sx_unlock_value ((SX_VALUE *)array);
+	list = sx_malloc ((array->count + 1) * sizeof (sx_name_id));
 	if (list == NULL) {
 		return NULL;
 	}

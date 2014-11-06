@@ -1,5 +1,6 @@
 test (a) {
-	for i in a do {
+	for (i in a) {
+		printl ('--', i);
 		for (n = 3; n <= 9; n += 3) {
 			printl ('In - ', n, ':', i);
 		}
@@ -9,5 +10,19 @@ test (a) {
 main () {
 	a = ['abc','def','ghi'];
 
+	printl(a);
+
 	test(a);
+
+	if ('def' in a) {
+		printl ('Correct - def in array');
+	} else {
+		printl ('Incorrect - def !in array');
+	}
+
+	if ('foo' in a) {
+		printl ('Incorrect - foo in array');
+	} else {
+		printl ('Correct - foo !in array');
+	}
 }

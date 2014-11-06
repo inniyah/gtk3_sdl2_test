@@ -33,9 +33,9 @@
 #include "scriptix.h"
 
 __INLINE__
-SX_VAR *
-_sx_search_call (SX_CALL *call, sx_name_id id) {
-	SX_VAR *var;
+SX_VAR 
+_sx_search_call (SX_CALL call, sx_name_id id) {
+	SX_VAR var;
 
 	for (var = call->vars; var != NULL; var = var->next) {
 		if (id == var->id) {
@@ -46,28 +46,17 @@ _sx_search_call (SX_CALL *call, sx_name_id id) {
 	return NULL;
 }
 
-SX_VALUE *
-sx_define_var (SX_THREAD *thread, sx_name_id id, SX_VALUE *value, sx_scope_type scope) {
-	SX_VAR *var;
+SX_VALUE 
+sx_define_var (SX_THREAD thread, sx_name_id id, SX_VALUE value) {
+	SX_VAR var;
 
-	if (scope == SX_SCOPE_CLASS) {
-		if (SX_ISOBJECT (thread->system, thread->call_stack[thread->call - 1].klass)) {
-			var = sx_set_member (thread->system, (SX_OBJECT *)thread->call_stack[thread->call - 1].klass, id, value);
-			return var->value;
-		} else {
-			return sx_new_nil ();
-		}
-	}
-
-	var = sx_get_var (thread, id, scope);
+	var = sx_get_var (thread, id);
 	if (var != NULL) {
 		var->value = value;
-		return value;
+		return var->value;
 	}
 
-	sx_lock_value (value);
-	var = (SX_VAR *)sx_malloc (thread->system, sizeof (SX_VAR));
-	sx_unlock_value (value);
+	var = (SX_VAR )sx_malloc (sizeof (struct scriptix_var));
 	
 	if (var == NULL) {
 		return NULL;
@@ -75,7 +64,7 @@ sx_define_var (SX_THREAD *thread, sx_name_id id, SX_VALUE *value, sx_scope_type 
 
 	var->id = id;
 	var->value = value;
-	var->flags = 0;
+	var->type = NULL;
 
 	var->next = thread->call_stack[thread->call - 1].vars;
 	thread->call_stack[thread->call - 1].vars = var;
@@ -83,32 +72,17 @@ sx_define_var (SX_THREAD *thread, sx_name_id id, SX_VALUE *value, sx_scope_type 
 	return value;
 }
 
-SX_VAR *
-sx_get_var (SX_THREAD *thread, sx_name_id id, sx_scope_type scope) {
-	SX_VAR *var;
+SX_VAR 
+sx_get_var (SX_THREAD thread, sx_name_id id) {
+	SX_VAR var;
 
-	/* local search only */
-	if (scope == SX_SCOPE_LOCAL) {
-		return _sx_search_call (&thread->call_stack[thread->call - 1], id);
+	var = _sx_search_call (&thread->call_stack[thread->call - 1], id);
+	if (var != NULL) {
+		return var;
 	}
 
-	/* default - search thru calls until top/hard call break */
-	if (scope == SX_SCOPE_DEF) {
-		var = _sx_search_call (&thread->call_stack[thread->call - 1], id);
-		if (var != NULL) {
-			return var;
-		}
-
-		if (thread->call > 1) {
-			var = _sx_search_call (&thread->call_stack[0], id);
-			if (var != NULL) {
-				return var;
-			}
-		}
-	}
-
-	if (SX_ISOBJECT (thread->system, thread->call_stack[thread->call - 1].klass)) {
-		var = sx_find_member (thread->system, (SX_OBJECT *)thread->call_stack[thread->call - 1].klass, id);
+	if (thread->call > 1) {
+		var = _sx_search_call (&thread->call_stack[0], id);
 		if (var != NULL) {
 			return var;
 		}
@@ -118,6 +92,46 @@ sx_get_var (SX_THREAD *thread, sx_name_id id, sx_scope_type scope) {
 }
 
 void
-sx_free_var (SX_VAR *var) {
+sx_free_var (SX_VAR var) {
 	sx_free (var);
+}
+
+SX_VALUE 
+sx_define_global (SX_SYSTEM system, sx_name_id id, SX_VALUE value) {
+	SX_VAR var;
+
+	for (var = system->globals; var != NULL; var = var->next) {
+		if (id == var->id) {
+			var->value = value;
+			return value;
+		}
+	}
+
+	var = (SX_VAR )sx_malloc (sizeof (struct scriptix_var));
+	
+	if (var == NULL) {
+		return NULL;
+	}
+
+	var->id = id;
+	var->value = value;
+	var->type = NULL;
+
+	var->next = system->globals;
+	system->globals = var;
+
+	return value;
+}
+
+SX_VALUE
+sx_get_global (SX_SYSTEM system, sx_name_id id) {
+	SX_VAR var;
+
+	for (var = system->globals; var != NULL; var = var->next) {
+		if (id == var->id) {
+			return var->value;
+		}
+	}
+
+	return NULL;
 }

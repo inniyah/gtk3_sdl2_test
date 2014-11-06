@@ -29,9 +29,9 @@
 
 #include "scriptix.h"
 
-SX_MODULE *
-sx_new_module (SX_SYSTEM *system, sx_name_id id, SX_MODULE *parent) {
-	SX_MODULE *mod = sx_malloc (system, sizeof (SX_MODULE));
+SX_MODULE 
+sx_new_module (SX_SYSTEM system, sx_name_id id, SX_MODULE parent) {
+	SX_MODULE mod = sx_malloc (sizeof (struct scriptix_module));
 	if (mod == NULL) {
 		return NULL;
 	}
@@ -45,7 +45,6 @@ sx_new_module (SX_SYSTEM *system, sx_name_id id, SX_MODULE *parent) {
 
 	mod->name = id;
 	mod->funcs = NULL;
-	mod->classes = NULL;
 	mod->system = system;
 	mod->refs = 1;
 	mod->next = system->modules;
@@ -56,12 +55,12 @@ sx_new_module (SX_SYSTEM *system, sx_name_id id, SX_MODULE *parent) {
 }
 
 unsigned long
-sx_ref_module (SX_MODULE *module) {
+sx_ref_module (SX_MODULE module) {
 	return ++ module->refs;
 }
 
 unsigned long
-sx_unref_module (SX_MODULE *module) {
+sx_unref_module (SX_MODULE module) {
 	if ((-- module->refs) == 0) {
 		sx_free_module (module);
 		return 0;
@@ -71,23 +70,17 @@ sx_unref_module (SX_MODULE *module) {
 }
 
 void
-sx_mark_module (SX_MODULE *module) {
-	SX_FUNC *func;
-	SX_CLASS *klass;
+sx_mark_module (SX_MODULE module) {
+	SX_FUNC func;
 
 	for (func = module->funcs; func != NULL; func = func->next) {
 		sx_mark_func (module->system, func);
 	}
-
-	for (klass = module->classes; klass != NULL; klass = klass->next) {
-		sx_mark_class (module->system, klass);
-	}
 }
 
 void
-sx_free_module (SX_MODULE *module) {
-	SX_FUNC *nfunc;
-	SX_CLASS *nclass;
+sx_free_module (SX_MODULE module) {
+	SX_FUNC nfunc;
 
 	if (module->prev != NULL) {
 		module->prev->next = module->next;
@@ -107,45 +100,10 @@ sx_free_module (SX_MODULE *module) {
 		sx_unref_func (module->funcs);
 		module->funcs = nfunc;
 	}
-
-	while (module->classes != NULL) {
-		nclass = module->classes->next;
-		sx_unref_class (module->classes);
-		module->classes = nclass;
-	}
 }
 
-SX_CLASS *
-sx_add_class (SX_MODULE *module, SX_CLASS *klass) {
-	if (klass == NULL || module == NULL) {
-		return NULL;
-	}
-
-	sx_ref_class (klass);
-	klass->next = module->classes;
-	module->classes = klass;
-
-	return klass;
-}
-
-SX_CLASS *
-sx_get_class (SX_MODULE *module, sx_name_id id) {
-	SX_CLASS *klass;
-
-	while (module != NULL) {
-		for (klass = module->classes; klass != NULL; klass = klass->next) {
-			if (klass->id == id) {
-				return klass;
-			}
-		}
-		module = module->parent;
-	}
-
-	return NULL;
-}
-
-SX_FUNC *
-sx_add_func (SX_MODULE *module, SX_FUNC *func) {
+SX_FUNC 
+sx_add_func (SX_MODULE module, SX_FUNC func) {
 	if (func == NULL || module == NULL) {
 		return NULL;
 	}
@@ -157,9 +115,9 @@ sx_add_func (SX_MODULE *module, SX_FUNC *func) {
 	return func;
 }
 
-SX_FUNC *
-sx_get_func (SX_MODULE *module, sx_name_id name) {
-	SX_FUNC *func;
+SX_FUNC 
+sx_get_func (SX_MODULE module, sx_name_id name) {
+	SX_FUNC func;
 
 	while (module != NULL) {
 		for (func = module->funcs; func != NULL; func = func->next) {

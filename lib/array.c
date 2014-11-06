@@ -35,7 +35,7 @@
 #include "system.h"
 
 void
-_sx_array_print (SX_SYSTEM *system, SX_ARRAY *value) {
+_sx_array_print (SX_SYSTEM system, SX_ARRAY value) {
 	unsigned long i;
 	if (value->count > 0) {
 		system->print_hook ("[");
@@ -51,7 +51,7 @@ _sx_array_print (SX_SYSTEM *system, SX_ARRAY *value) {
 }
 
 void
-_sx_array_mark (SX_SYSTEM *system, SX_ARRAY *value) {
+_sx_array_mark (SX_SYSTEM system, SX_ARRAY value) {
 	unsigned long i;
 	for (i = 0; i < value->count; ++ i) {
 		sx_mark_value (system, value->list[i]);
@@ -59,20 +59,19 @@ _sx_array_mark (SX_SYSTEM *system, SX_ARRAY *value) {
 }
 
 void
-_sx_array_del (SX_SYSTEM *system, SX_ARRAY *value) {
+_sx_array_del (SX_SYSTEM system, SX_ARRAY value) {
 	if (value->count > 0) {
 		sx_free (value->list);
 	}
-	sx_free (value);
 }
 
 int
-_sx_array_true (SX_SYSTEM *system, SX_ARRAY *value) {
+_sx_array_true (SX_SYSTEM system, SX_ARRAY value) {
 	return value->count > 0;
 }
 
-SX_VALUE *
-_sx_array_get_index (SX_SYSTEM *system, SX_ARRAY *value, long index) {
+SX_VALUE 
+_sx_array_get_index (SX_SYSTEM system, SX_ARRAY value, long index) {
 	if (value->count == 0) {
 		return sx_new_nil ();
 	}
@@ -89,8 +88,8 @@ _sx_array_get_index (SX_SYSTEM *system, SX_ARRAY *value, long index) {
 	return value->list[index];
 }
 
-SX_VALUE *
-_sx_array_set_index (SX_SYSTEM *system, SX_ARRAY *array, long index, SX_VALUE *value) {
+SX_VALUE 
+_sx_array_set_index (SX_SYSTEM system, SX_ARRAY array, long index, SX_VALUE value) {
 	if (array->count == 0) {
 		return sx_new_nil ();
 	}
@@ -107,30 +106,22 @@ _sx_array_set_index (SX_SYSTEM *system, SX_ARRAY *array, long index, SX_VALUE *v
 	return array->list[index] = value;
 }
 
-SX_VALUE *
-_sx_array_append (SX_SYSTEM *system, SX_ARRAY *array, SX_VALUE *add) {
-	SX_VALUE **nlist;
+SX_VALUE 
+_sx_array_append (SX_SYSTEM system, SX_ARRAY array, SX_VALUE add) {
+	SX_VALUE *nlist;
 
 	if (array->count > 0) {
-		sx_lock_value ((SX_VALUE *)array);
-		sx_lock_value (add);
-		nlist = (SX_VALUE **)sx_malloc (system, (array->count + 1) * sizeof (SX_VALUE *));
-		sx_unlock_value (add);
-		sx_unlock_value ((SX_VALUE *)array);
+		nlist = (SX_VALUE *)sx_malloc ( (array->count + 1) * sizeof (SX_VALUE ));
 		if (nlist == NULL) {
 			return NULL;
 		}
-		memcpy (nlist, array->list, array->count * sizeof (SX_VALUE *));
+		memcpy (nlist, array->list, array->count * sizeof (SX_VALUE ));
 		sx_free (array->list);
 		array->list = nlist;
 		array->list[array->count] = add;
 		array->count += 1;
 	} else {
-		sx_lock_value ((SX_VALUE *)array);
-		sx_lock_value (add);
-		array->list = (SX_VALUE **)sx_malloc (system, sizeof (SX_VALUE *));
-		sx_unlock_value (add);
-		sx_unlock_value ((SX_VALUE *)array);
+		array->list = (SX_VALUE *)sx_malloc ( sizeof (SX_VALUE ));
 		if (array->list == NULL) {
 			return NULL;
 		}
@@ -138,40 +129,52 @@ _sx_array_append (SX_SYSTEM *system, SX_ARRAY *array, SX_VALUE *add) {
 		array->count = 1;
 	}
 
-	return (SX_VALUE *)array;
+	return (SX_VALUE )array;
+}
+
+int
+_sx_array_is_in (SX_SYSTEM system, SX_ARRAY array, SX_VALUE value) {
+	unsigned long i;
+	for (i = 0; i < array->count; ++ i) {
+		if (sx_are_equal (system, array->list[i], value)) {
+			return 1;
+		}
+	}
+	return 0;
 }
 
 /* methods */
 
 SX_DEFINE_CFUNC(_sx_array_length) {
-	sx_push_value (sx_thread, sx_new_num (((SX_ARRAY *)sx_self)->count));
+	*sx_ret = sx_new_num (((SX_ARRAY )sx_self)->count);
 }
 
-SX_CLASS *
-sx_init_array (SX_SYSTEM *system) {
-	SX_CLASS *klass;
+SX_TYPE 
+sx_init_array (SX_SYSTEM system) {
+	SX_TYPE type;
 
-	klass = sx_new_core_class (system, sx_name_to_id ("array"), NULL);
-	if (klass == NULL) {
+	type = sx_new_type (system, "array");
+	if (type == NULL) {
 		return NULL;
 	}
 
-	klass->core->fprint = (sx_class_print)_sx_array_print;
-	klass->core->fmark = (sx_class_mark)_sx_array_mark;
-	klass->core->fdel = (sx_class_del)_sx_array_del;
-	klass->core->ftrue = (sx_class_true)_sx_array_true;
-	klass->core->fgetindex = (sx_class_get_index)_sx_array_get_index;
-	klass->core->fsetindex = (sx_class_set_index)_sx_array_set_index;
-	klass->core->fappend = (sx_class_append)_sx_array_append;
+	type->fprint = (sx_type_print)_sx_array_print;
+	type->fmark = (sx_type_mark)_sx_array_mark;
+	type->fdel = (sx_type_del)_sx_array_del;
+	type->ftrue = (sx_type_true)_sx_array_true;
+	type->fgetindex = (sx_type_get_index)_sx_array_get_index;
+	type->fsetindex = (sx_type_set_index)_sx_array_set_index;
+	type->fappend = (sx_type_append)_sx_array_append;
+	type->fisin = (sx_type_is_in)_sx_array_is_in;
 
-	sx_add_method (system, klass, sx_new_cfunc (system, sx_name_to_id ("length"), 0, 0, _sx_array_length));
+	sx_add_method (system, type, "length", 0, 0, _sx_array_length);
 
-	return klass;
+	return type;
 }
 
-SX_VALUE *
-sx_new_array (SX_SYSTEM *system, unsigned long argc, SX_VALUE **argv) {
-	SX_ARRAY *value = (SX_ARRAY *)sx_malloc (system, sizeof (SX_ARRAY));
+SX_VALUE 
+sx_new_array (SX_SYSTEM system, unsigned long argc, SX_VALUE *argv) {
+	SX_ARRAY value = (SX_ARRAY )sx_malloc ( sizeof (struct scriptix_array));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -180,18 +183,18 @@ sx_new_array (SX_SYSTEM *system, unsigned long argc, SX_VALUE **argv) {
 	value->size = argc;
 	if (argc > 0) {
 		if (argv != NULL) {
-			value->list = sx_dupmem (system, argv, argc * sizeof (SX_ARRAY *));
+			value->list = sx_dupmem ( argv, argc * sizeof (SX_ARRAY ));
 			if (value->list == NULL) {
 				sx_free (value);
 				return NULL;
 			}
 		} else {
-			value->list = sx_malloc (system, argc * sizeof (SX_ARRAY *));
+			value->list = sx_malloc ( argc * sizeof (SX_ARRAY ));
 			if (value->list == NULL) {
 				sx_free (value);
 				return NULL;
 			}
-			memset (value->list, 0, argc * sizeof (SX_ARRAY *));
+			memset (value->list, 0, argc * sizeof (SX_ARRAY ));
 		}
 	} else {
 		value->list = NULL;
@@ -199,13 +202,13 @@ sx_new_array (SX_SYSTEM *system, unsigned long argc, SX_VALUE **argv) {
 
 	sx_clear_value (system, &value->header, system->carray);
 
-	return (SX_VALUE *)value;
+	return (SX_VALUE )value;
 }
 
-SX_VALUE *
-sx_new_stack_array (SX_THREAD *thread, unsigned long argc, long top) {
+SX_VALUE 
+sx_new_stack_array (SX_THREAD thread, unsigned long argc, long top) {
 	long i;
-	SX_ARRAY *value = (SX_ARRAY *)sx_malloc (thread->system, sizeof (SX_ARRAY));
+	SX_ARRAY value = (SX_ARRAY )sx_malloc ( sizeof (struct scriptix_array));
 	if (value == NULL) {
 		return NULL;
 	}
@@ -213,7 +216,7 @@ sx_new_stack_array (SX_THREAD *thread, unsigned long argc, long top) {
 	value->count = argc;
 	value->size = argc;
 	if (argc > 0) {
-		value->list = sx_malloc (thread->system, argc * sizeof (SX_ARRAY *));
+		value->list = sx_malloc ( argc * sizeof (SX_ARRAY ));
 		if (value->list == NULL) {
 			sx_free (value);
 			return NULL;
@@ -228,5 +231,5 @@ sx_new_stack_array (SX_THREAD *thread, unsigned long argc, long top) {
 
 	sx_clear_value (thread->system, &value->header, thread->system->carray);
 
-	return (SX_VALUE *)value;
+	return (SX_VALUE )value;
 }

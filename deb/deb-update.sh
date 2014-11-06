@@ -1,14 +1,16 @@
 #!/bin/sh
 
-if [ -f 'configure.in' ] ; then
+if [ -n "$1" ] ; then
+	VERSION="$1"
+elif [ -f 'configure.in' ] ; then
 	VERSION=`grep -E "^VERSION=" configure.in | sed 's/^VERSION=\([0-9.]*\).*$/\1/'`
 else
 	echo "No ./configure.in found"
 	exit 1
 fi
 
-if [ -n "$1" ] ; then
-	NOTES="$1"
+if [ -n "$2" ] ; then
+	NOTES="$2"
 else
 	NOTES="New release/snapshot."
 fi

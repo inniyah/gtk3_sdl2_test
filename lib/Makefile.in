@@ -5,7 +5,6 @@ SOLIBS := libscriptix.so.@BASE_VERSION@ libsxparse.so.@BASE_VERSION@
 SXOBJ := \
 	array.o \
 	block.o \
-	class.o \
 	error.o \
 	eval.o \
 	function.o \
@@ -18,6 +17,7 @@ SXOBJ := \
 	string.o \
 	system.o \
 	thread.o \
+	type.o \
 	value.o \
 	var.o
 SOSXOBJ := $(SXOBJ:%.o=%.lo)

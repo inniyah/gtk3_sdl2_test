@@ -33,138 +33,54 @@
 
 #include "scriptix.h"
 
-void
-_sx_object_mark (SX_SYSTEM *system, SX_OBJECT *value) {
-	SX_VAR *var;
+SX_TYPE 
+sx_init_object (SX_SYSTEM system) {
+	SX_TYPE type;
 
-	for (var = value->members; var != NULL; var = var->next) {
-		sx_mark_value (system, var->value);
-	}
-
-	if (value->mark_func != NULL) {
-		value->mark_func (system, value);
-	}
-}
-
-void
-_sx_object_del (SX_SYSTEM *system, SX_OBJECT *value) {
-	SX_VAR *rnext;
-
-	while (value->members) {
-		rnext = value->members->next;
-		sx_free_var (value->members);
-		value->members = rnext;
-	}
-
-	if (value->del_func != NULL) {
-		value->del_func (system, value);
-	}
-}
-
-SX_CLASS *
-sx_init_object (SX_SYSTEM *system) {
-	SX_CLASS *klass;
-
-	klass = sx_new_core_class (system, sx_name_to_id ("Object"), NULL);
-	if (klass == NULL) {
+	type = sx_new_type (system, "Object");
+	if (type == NULL) {
 		return NULL;
 	}
 
-	klass->core->fmark = (sx_class_mark)_sx_object_mark;
-	klass->core->fdel = (sx_class_del)_sx_object_del;
-
-	return klass;
+	return type;
 }
 
-SX_OBJECT *
-sx_new_object (SX_SYSTEM *system, SX_CLASS *parent) {
-	SX_OBJECT *value;
-	unsigned long i, c;
+SX_TYPE 
+sx_new_object_type (SX_SYSTEM system, const char *name, SX_TYPE parent) {
+	SX_TYPE type;
 
-	if (!sx_class_is_a (system, parent, system->cobject)) {
+	type = sx_malloc (sizeof (struct scriptix_type));
+	if (type == NULL) {
+		sx_free (type);
+		return NULL;
+	}
+	memset (type, 0, sizeof (struct scriptix_type));
+
+	type->id = sx_name_to_id (name);
+	type->refs = 1;
+	if (parent) {
+		type->parent = parent;
+	} else {
+		type->parent = system->cobject;
+	}
+	type->next = system->types;
+	system->types = type;
+
+	return type;
+}
+
+SX_OBJECT 
+sx_new_object (SX_SYSTEM system, SX_TYPE parent, void *data) {
+	SX_OBJECT value;
+
+	if (!sx_type_is_a (system, parent, system->cobject)) {
 		return NULL;
 	}
 
-	value = sx_malloc (system, sizeof (SX_OBJECT));
-	sx_clear_value (system, (SX_VALUE *)value, parent);
+	value = sx_malloc (sizeof (struct scriptix_object));
+	sx_clear_value (system, (SX_VALUE )value, parent);
 
-	value->members = NULL;
-	value->data = NULL;
-	value->mark_func = NULL;
-	value->del_func = NULL;
-
-	if (value == NULL) {
-		return NULL;
-	}
-
-	/* define members */
-	while (parent != NULL) {
-		c = sx_sizeof_namelist (parent->members);
-		for (i = 0; i < c; ++ i) {
-			sx_set_member (system, value, parent->members[i], NULL);
-		}
-		parent = parent->par;
-	}
+	value->data = data;
 
 	return value;
-}
-
-SX_VAR *
-sx_set_member (SX_SYSTEM *system, SX_OBJECT *obj, sx_name_id id, SX_VALUE *value) {
-	SX_VAR *var;
-
-	for (var = obj->members; var != NULL; var = var->next) {
-		if (id == var->id) {
-			var->value = value;
-			return var;
-		}
-	}
-
-	sx_lock_value ((SX_VALUE *)obj);
-	sx_lock_value (value);
-
-	var = (SX_VAR *)sx_malloc (system, sizeof (SX_VAR));
-
-	sx_unlock_value (value);
-	sx_unlock_value ((SX_VALUE *)obj);
-
-	if (var == NULL) {
-		return NULL;
-	}
-
-	var->id = id;
-	var->value = value;
-	var->next = obj->members;
-	obj->members = var;
-
-	return var;
-}
-
-SX_VALUE *
-sx_get_member (SX_SYSTEM *system, SX_OBJECT *obj, sx_name_id id) {
-	SX_VAR *var;
-
-	var = sx_find_member (system, obj, id);
-	if (var != NULL) {
-		return var->value;
-	} else {
-		return sx_new_nil ();
-	}
-}
-
-SX_VAR *
-sx_find_member (SX_SYSTEM *system, SX_OBJECT *obj, sx_name_id id) {
-	SX_VAR *var;
-
-	if (obj == NULL || ((long)obj) & SX_NUM_MARK) {
-		return NULL;
-	}
-
-	for (var = obj->members; var != NULL; var = var->next) {
-		if (id == var->id) {
-			return var;
-		}
-	}
-
-	return NULL;
 }

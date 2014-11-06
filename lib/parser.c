@@ -43,8 +43,8 @@ sxp_error (SXP_INFO *info, const char *msg) {
 }
 
 SXP_INFO *
-sxp_new_info (SX_MODULE *module) {
-	SXP_INFO *info = sx_malloc (module->system, sizeof (SXP_INFO));
+sxp_new_info (SX_MODULE module) {
+	SXP_INFO *info = sx_malloc (sizeof (SXP_INFO));
 	if (!info)
 		return NULL;
 
@@ -52,7 +52,6 @@ sxp_new_info (SX_MODULE *module) {
 	info->system = module->system;
 	info->module = module;
 	info->nodes = NULL;
-	info->classes = NULL;
 	info->funcs = NULL;
 	info->blocks = NULL;
 	info->file = sx_new_str (module->system, "<input>");
@@ -67,19 +66,12 @@ sxp_new_info (SX_MODULE *module) {
 void
 sxp_del_info (SXP_INFO *info) {
 	SXP_NODE *nnext;
-	SXP_CLASS *cnext;
 	SXP_FUNC *fnext;
 
 	while (info->nodes != NULL) {
 		nnext = info->nodes->inext;
 		sx_free (info->nodes);
 		info->nodes = nnext;
-	}
-
-	while (info->classes != NULL) {
-		cnext = info->classes->next;
-		sxp_del_class (info->classes);
-		info->classes = cnext;
 	}
 
 	while (info->funcs != NULL) {
@@ -97,76 +89,9 @@ sxp_del_info (SXP_INFO *info) {
 	sx_free (info);
 }
 
-SXP_CLASS *
-sxp_new_class (SXP_INFO *info, sx_name_id name, sx_name_id parent) {
-	SXP_CLASS *klass = sx_malloc (info->system, sizeof (SXP_CLASS));
-	if (!klass)
-		return NULL;
-
-	klass->info = info;
-	klass->methods = NULL;
-	klass->static_methods = NULL;
-	klass->name = name;
-	klass->parent = parent;
-	klass->members = NULL;
-	klass->next = info->classes;
-	info->classes = klass;
-
-	return klass;
-}
-
-void
-sxp_add_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, sx_name_id varg, SXP_NODE *body) {
-	SXP_FUNC *func = sx_malloc (klass->info->system, sizeof (SXP_FUNC));
-	if (!func)
-		return;
-
-	func->name = name;
-	func->args = args;
-	func->body = body;
-	func->varg = varg;
-
-	func->next = klass->methods;
-	klass->methods = func;
-}
-
-void
-sxp_add_static_method (SXP_CLASS *klass, sx_name_id name, SX_ARRAY *args, sx_name_id varg, SXP_NODE *body) {
-	SXP_FUNC *func = sx_malloc (klass->info->system, sizeof (SXP_FUNC));
-	if (!func)
-		return;
-
-	func->name = name;
-	func->args = args;
-	func->body = body;
-	func->varg = varg;
-
-	func->next = klass->static_methods;
-	klass->static_methods = func;
-}
-
-void
-sxp_del_class (SXP_CLASS *klass) {
-	SXP_FUNC *next;
-
-	while (klass->methods) {
-		next = klass->methods->next;
-		sx_free (klass->methods);
-		klass->methods = next;
-	}
-
-	while (klass->static_methods) {
-		next = klass->static_methods->next;
-		sx_free (klass->static_methods);
-		klass->static_methods = next;
-	}
-
-	sx_free (klass);
-}
-
 SXP_FUNC *
-sxp_new_func (SXP_INFO *info, sx_name_id name, SX_ARRAY *args, sx_name_id varg, SXP_NODE *body) {
-	SXP_FUNC *func = sx_malloc (info->system, sizeof (SXP_FUNC));
+sxp_new_func (SXP_INFO *info, sx_name_id name, SX_ARRAY args, sx_name_id varg, SXP_NODE *body) {
+	SXP_FUNC *func = sx_malloc (sizeof (SXP_FUNC));
 	if (!func)
 		return NULL;
 
@@ -195,7 +120,7 @@ sxp_new_break (SXP_INFO *info, unsigned long loc) {
 		return NULL;
 	}
 	
-	jump = sx_malloc (info->system, sizeof (SXP_JUMP));
+	jump = sx_malloc (sizeof (SXP_JUMP));
 	if (jump == NULL)
 		return NULL;
 
@@ -216,7 +141,7 @@ sxp_new_continue (SXP_INFO *info, unsigned long loc) {
 		return NULL;
 	}
 	
-	jump = sx_malloc (info->system, sizeof (SXP_JUMP));
+	jump = sx_malloc (sizeof (SXP_JUMP));
 	if (jump == NULL)
 		return NULL;
 
@@ -230,7 +155,7 @@ sxp_new_continue (SXP_INFO *info, unsigned long loc) {
 
 SXP_JUMP *
 sxp_new_return (SXP_INFO *info, unsigned long loc) {
-	SXP_JUMP *jump = sx_malloc (info->system, sizeof (SXP_JUMP));
+	SXP_JUMP *jump = sx_malloc (sizeof (SXP_JUMP));
 	if (jump == NULL)
 		return NULL;
 
@@ -244,7 +169,7 @@ sxp_new_return (SXP_INFO *info, unsigned long loc) {
 
 SXP_BLOCK *
 sxp_push_block (SXP_INFO *info) {
-	SXP_BLOCK *block = sx_malloc (info->system, sizeof (SXP_BLOCK));
+	SXP_BLOCK *block = sx_malloc (sizeof (SXP_BLOCK));
 	if (!block)
 		return NULL;
 
@@ -258,7 +183,7 @@ sxp_push_block (SXP_INFO *info) {
 }
 
 void
-sxp_pop_block (SXP_INFO *info, SX_BLOCK *block, unsigned long bloc, unsigned long cloc) {
+sxp_pop_block (SXP_INFO *info, SX_BLOCK block, unsigned long bloc, unsigned long cloc) {
 	SXP_JUMP *next;
 	SXP_BLOCK *bnext;
 
@@ -287,7 +212,7 @@ sxp_pop_block (SXP_INFO *info, SX_BLOCK *block, unsigned long bloc, unsigned lon
 }
 
 void
-sxp_do_returns (SXP_INFO *info, SX_BLOCK *block, unsigned long loc) {
+sxp_do_returns (SXP_INFO *info, SX_BLOCK block, unsigned long loc) {
 	SXP_JUMP *next;
 
 	while (info->returns) {
@@ -302,7 +227,7 @@ sxp_do_returns (SXP_INFO *info, SX_BLOCK *block, unsigned long loc) {
 /* allocate */
 SXP_NODE *
 _sxp_new_node (SXP_INFO *info, int type) {
-	SXP_NODE *node = sx_malloc (info->system, sizeof (SXP_NODE));
+	SXP_NODE *node = sx_malloc (sizeof (SXP_NODE));
 	if (node == NULL)
 		return NULL;
 
@@ -328,7 +253,7 @@ sxp_new_math (SXP_INFO *info, int op, SXP_NODE *left, SXP_NODE *right) {
 }
 
 SXP_NODE *
-sxp_new_data (SXP_INFO *info, SX_VALUE *value) {
+sxp_new_data (SXP_INFO *info, SX_VALUE value) {
 	SXP_NODE *node = _sxp_new_node (info, SXP_DATA);
 	node->data.data = value;
 	return node;
@@ -371,18 +296,16 @@ sxp_new_call (SXP_INFO *info, sx_name_id name, SXP_NODE *args) {
 }
 
 SXP_NODE *
-sxp_new_name (SXP_INFO *info, sx_name_id name, int scope) {
+sxp_new_name (SXP_INFO *info, sx_name_id name) {
 	SXP_NODE *ret = _sxp_new_node (info, SXP_NAME);
 	ret->data.name.name = name;
-	ret->data.name.scope = scope;
 	return ret;
 }
 
 SXP_NODE *
-sxp_new_assi (SXP_INFO *info, sx_name_id name, int scope, SXP_NODE *node) {
+sxp_new_assi (SXP_INFO *info, sx_name_id name, SXP_NODE *node) {
 	SXP_NODE *ret = _sxp_new_node (info, SXP_ASSI);
 	ret->data.assi.name = name;
-	ret->data.assi.scope = scope;
 	ret->data.assi.node = node;
 	return ret;
 }
@@ -431,19 +354,16 @@ sxp_new_indx (SXP_INFO *info, SXP_NODE *array, SXP_NODE *index) {
 
 SXP_NODE *
 sxp_new_setm (SXP_INFO *info, SXP_NODE *base, sx_name_id name, SXP_NODE *value) {
-	SXP_NODE *ret = _sxp_new_node (info, SXP_SETM);
-	ret->data.setm.base = base;
-	ret->data.setm.name = name;
-	ret->data.setm.node = value;
-	return ret;
+	char nname[SX_MAX_NAME];
+	snprintf (nname, SX_MAX_NAME, "%s=", sx_name_id_to_name (name));
+	return sxp_new_meth (info, base, sx_name_to_id (nname), value);
 }
 
 SXP_NODE *
 sxp_new_getm (SXP_INFO *info, SXP_NODE *base, sx_name_id name) {
-	SXP_NODE *ret = _sxp_new_node (info, SXP_GETM);
-	ret->data.getm.base = base;
-	ret->data.getm.name = name;
-	return ret;
+	char nname[SX_MAX_NAME];
+	snprintf (nname, SX_MAX_NAME, "=%s", sx_name_id_to_name (name));
+	return sxp_new_meth (info, base, sx_name_to_id (nname), NULL);
 }
 
 SXP_NODE *
@@ -474,36 +394,19 @@ sxp_new_cont (SXP_INFO *info) {
 }
 
 SXP_NODE *
-sxp_new_klass (SXP_INFO *info, SXP_NODE *base, sx_name_id name, SXP_NODE *node, int type) {
-	SXP_NODE *ret = _sxp_new_node (info, type);
-	ret->data.klass.base = base;
-	ret->data.klass.name = name;
-	ret->data.klass.node = node;
+sxp_new_meth (SXP_INFO *info, SXP_NODE *base, sx_name_id name, SXP_NODE *node) {
+	SXP_NODE *ret = _sxp_new_node (info, SXP_METH);
+	ret->data.meth.base = base;
+	ret->data.meth.name = name;
+	ret->data.meth.node = node;
 	return ret;
 }
 
 SXP_NODE *
-sxp_new_isa (SXP_INFO *info, SXP_NODE *node, sx_name_id name) {
-	SXP_NODE *ret = _sxp_new_node (info, SXP_ISA);
-	ret->data.isa.node = node;
-	ret->data.isa.name = name;
-	return ret;
-}
-
-SXP_NODE *
-sxp_new_rais (SXP_INFO *info, sx_name_id name, SXP_NODE *node) {
-	SXP_NODE *ret = _sxp_new_node (info, SXP_RAIS);
-	ret->data.rais.name = name;
-	ret->data.rais.node = node;
-	return ret;
-}
-
-SXP_NODE *
-sxp_new_try (SXP_INFO *info, SX_VALUE *names, SXP_NODE *body, SXP_NODE *rescue) {
-	SXP_NODE *ret = _sxp_new_node (info, SXP_TRY);
-	ret->data.tryd.names = names;
-	ret->data.tryd.body = body;
-	ret->data.tryd.rescue = rescue;
+sxp_new_cast (SXP_INFO *info, SXP_NODE *node, sx_name_id name) {
+	SXP_NODE *ret = _sxp_new_node (info, SXP_CAST);
+	ret->data.cast.node = node;
+	ret->data.cast.name = name;
 	return ret;
 }
 
@@ -527,9 +430,9 @@ sxp_new_cfor (SXP_INFO *info, SXP_NODE *start, SXP_NODE *test, SXP_NODE *inc, SX
 }
 
 SXP_NODE *
-sxp_new_smet (SXP_INFO *info, sx_name_id klass, sx_name_id func, SXP_NODE *args) {
+sxp_new_smet (SXP_INFO *info, sx_name_id type, sx_name_id func, SXP_NODE *args) {
 	SXP_NODE *ret = _sxp_new_node (info, SXP_SMET);
-	ret->data.smet.klass = klass;
+	ret->data.smet.type = type;
 	ret->data.smet.func = func;
 	ret->data.smet.args = args;
 	return ret;

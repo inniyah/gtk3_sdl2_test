@@ -6,9 +6,4 @@
 #define snprintf _snprintf
 #endif
 
-/* check for stricmp define */
-#ifdef _MSC_VER
-#define strcasecmp stricmp
-#endif
-
 #endif

@@ -31,85 +31,22 @@
 
 #include "scriptix.h"
 
-void
-_sx_error_mark (SX_SYSTEM *system, SX_ERROR *value) {
-	sx_mark_value (system, value->file);
-	sx_mark_value (system, value->data);
-}
-
-SX_VALUE *
-_sx_error_tostr (SX_SYSTEM *system, SX_ERROR *value) {
-	char buffer[512];
-
-	snprintf (buffer, 512, "<Exception %s# %s:%ld %s>",
-			sx_name_id_to_name (sx_class_of (system, (SX_VALUE *)value)->id),
-			value->file ? SX_TOSTRING (value->file)->str : "-unknown-",
-			value->line,
-			value->data ? SX_TOSTRING (sx_to_str (system, value->data))->str : "");
-
-	return sx_new_str (system, buffer);
-}
-
-SX_CLASS *
-sx_init_error (SX_SYSTEM *system) {
-	SX_CLASS *klass;
-
-	klass = sx_new_core_class (system, sx_name_to_id ("Error"), NULL);
-	if (klass == NULL) {
-		return NULL;
-	}
-
-	klass->core->fmark = (sx_class_mark)_sx_error_mark;
-	klass->core->ftostr = (sx_class_to_str)_sx_error_tostr;
-
-	return klass;
-}
-
 int
-sx_raise_error (SX_THREAD *thread, sx_name_id eid, const char *format, ...) {
-	SX_VALUE *value;
+sx_raise_error (SX_THREAD thread, const char *format, ...) {
+	SX_VALUE value;
 	char buf[256]; /* big enough */
 	va_list va;
 
 	va_start (va, format);
-	vsnprintf (buf, 256, format, va);
+	vsnprintf (buf, sizeof(buf), format, va);
 	va_end (va);
+	if (thread->system->error_hook != NULL) {
+		thread->system->error_hook (buf);
+	}
 
 	value = sx_new_str (thread->system, buf);
 
-	sx_push_value (thread, sx_new_error (thread, eid, value));
+	sx_push_value (thread, value);
 	thread->state = SX_STATE_ERROR;
 	return thread->state;
-}
-
-SX_VALUE *
-sx_new_error (SX_THREAD *thread, sx_name_id id, SX_VALUE *value) {
-	SX_ERROR *error;
-	SX_CLASS *klass;
-	SX_CALL *call;
-
-	klass = sx_get_class (thread->module, id);
-	if (!sx_class_is_a (thread->system, klass, thread->system->cerror)) {
-		return NULL;
-	}
-
-	sx_lock_value (value);
-	error = sx_malloc (thread->system, sizeof (SX_ERROR));
-	sx_unlock_value (value);
-	if (error == NULL) {
-		return NULL;
-	}
-
-	call = sx_get_call (thread);
-
-	error->line = call->line;
-	if (call->file)
-		error->file = call->file;
-	else
-		error->file = sx_new_str (thread->system, "<unknown>");
-	error->data = value;
-
-	sx_clear_value (thread->system, &error->header, klass);
-
-	return (SX_VALUE *)error;
 }

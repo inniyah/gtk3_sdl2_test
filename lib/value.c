@@ -35,44 +35,33 @@
 #include "system.h"
 
 void
-sx_clear_value (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *klass) {
-	value->locks = 0;
-	value->flags = 0;
-	value->klass = klass;
+sx_clear_value (SX_SYSTEM system, SX_VALUE value, SX_TYPE type) {
+	value->type = type;
 	value->next = system->gc_list;
 	system->gc_list = value;
-
-	if (klass != NULL) {
-		sx_ref_class (klass);
-	}
-
-	if (++ system->gc_count >= system->gc_thresh) {
-		sx_lock_value (value);
-		sx_run_gc (system);
-		sx_unlock_value (value);
-	}
+	++system->gc_count;
 }
 
 void
-sx_free_value (SX_SYSTEM *system, SX_VALUE *value) {
-	SX_CLASS *klass;
+sx_free_value (SX_SYSTEM system, SX_VALUE value) {
+	SX_TYPE type;
 
 	if (value == NULL || ((long)(value)) & SX_NUM_MARK) {
 		return;
 	}
 
-	klass = sx_class_of (system, value);
-	if (klass && klass->core && klass->core->fdel) {
-		klass->core->fdel (system, value);
-		sx_unref_class (klass);
+	type = sx_type_of (system, value);
+	if (type && type && type->fdel) {
+		type->fdel (system, value);
+		sx_free (value);
 	} else {
 		sx_free (value);
 	}
 }
 
 int
-sx_is_true (SX_SYSTEM *system, SX_VALUE *value) {
-	SX_CLASS *klass;
+sx_is_true (SX_SYSTEM system, SX_VALUE value) {
+	SX_TYPE type;
 
 	if (value == NULL) {
 		return 0;
@@ -82,17 +71,17 @@ sx_is_true (SX_SYSTEM *system, SX_VALUE *value) {
 		return SX_TOINT (value) != 0;
 	}
 
-	klass = sx_class_of (system, value);
-	if (klass && klass->core && klass->core->ftrue) {
-		return klass->core->ftrue (system, value);
+	type = sx_type_of (system, value);
+	if (type && type && type->ftrue) {
+		return type->ftrue (system, value);
 	}
 
 	return 1;
 }
 
 int
-sx_are_equal (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
-	SX_CLASS *klass;
+sx_are_equal (SX_SYSTEM system, SX_VALUE one, SX_VALUE two) {
+	SX_TYPE type;
 
 	if (one == two) {
 		return 1;
@@ -102,26 +91,26 @@ sx_are_equal (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
 		return 0;
 	}
 
-	klass = sx_class_of (system, one);
+	type = sx_type_of (system, one);
 
-	if (klass->core == NULL) {
+	if (type == NULL) {
 		return 0;
 	}
 	
-	if (klass->core != sx_class_of (system, two)->core) {
+	if (type != sx_type_of (system, two)) {
 		return 0;
 	}
 
-	if (klass && klass->core && klass->core->fequal) {
-		return klass->core->fequal (system, one, two);
+	if (type && type && type->fequal) {
+		return type->fequal (system, one, two);
 	} else {
 		return 0;
 	}
 }
 
 int
-sx_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
-	SX_CLASS *klass;
+sx_compare (SX_SYSTEM system, SX_VALUE one, SX_VALUE two) {
+	SX_TYPE type;
 
 	if (one == two) {
 		return 0;
@@ -137,51 +126,62 @@ sx_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
 		return n1 < n2 ? -1 : n1 > n2 ? 1 : 0;
 	}
 
-	klass = sx_class_of (system, one);
+	type = sx_type_of (system, one);
 
-	if (klass->core == NULL) {
+	if (type == NULL) {
 		return 0;
 	}
 	
-	if (klass->core != sx_class_of (system, two)->core) {
+	if (type != sx_type_of (system, two)) {
 		return 0;
 	}
 
-	if (klass && klass->core && klass->core->fcompare) {
-		return klass->core->fcompare (system, one, two);
+	if (type && type && type->fcompare) {
+		return type->fcompare (system, one, two);
 	} else {
 		return 0;
 	}
 }
 
-SX_VALUE *
-sx_get_index (SX_SYSTEM *system, SX_VALUE *cont, long index) {
+int
+sx_is_in (SX_SYSTEM system, SX_VALUE cont, SX_VALUE value) {
 	if (cont != NULL) {
-		SX_CLASS *klass = sx_class_of (system, cont);
-		if (klass && klass->core && klass->core->fgetindex) {
-			return klass->core->fgetindex (system, cont, index);
+		SX_TYPE type = sx_type_of (system, cont);
+		if (type && type->fisin) {
+			return type->fisin(system, cont, value);
+		}
+	}
+	return 0;
+}
+
+SX_VALUE 
+sx_get_index (SX_SYSTEM system, SX_VALUE cont, long index) {
+	if (cont != NULL) {
+		SX_TYPE type = sx_type_of (system, cont);
+		if (type && type->fgetindex) {
+			return type->fgetindex (system, cont, index);
 		}
 	}
 	return NULL;
 }
 
-SX_VALUE *
-sx_set_index (SX_SYSTEM *system, SX_VALUE *cont, long index, SX_VALUE *value) {
+SX_VALUE 
+sx_set_index (SX_SYSTEM system, SX_VALUE cont, long index, SX_VALUE value) {
 	if (cont != NULL) {
-		SX_CLASS *klass = sx_class_of (system, cont);
-		if (klass && klass->core && klass->core->fsetindex) {
-			return klass->core->fsetindex (system, cont, index, value);
+		SX_TYPE type = sx_type_of (system, cont);
+		if (type && type->fsetindex) {
+			return type->fsetindex (system, cont, index, value);
 		}
 	}
 	return NULL;
 }
 
-SX_VALUE *
-sx_append (SX_SYSTEM *system, SX_VALUE *base, SX_VALUE *add) {
+SX_VALUE 
+sx_append (SX_SYSTEM system, SX_VALUE base, SX_VALUE add) {
 	if (base != NULL) {
-		SX_CLASS *klass = sx_class_of (system, base);
-		if (klass && klass->core && klass->core->fappend) {
-			return klass->core->fappend (system, base, add);
+		SX_TYPE type = sx_type_of (system, base);
+		if (type && type->fappend) {
+			return type->fappend (system, base, add);
 		}
 	}
 	return NULL;
@@ -189,8 +189,8 @@ sx_append (SX_SYSTEM *system, SX_VALUE *base, SX_VALUE *add) {
 
 
 void
-sx_print_value (SX_SYSTEM *system, SX_VALUE *value) {
-	SX_CLASS *klass;
+sx_print_value (SX_SYSTEM system, SX_VALUE value) {
+	SX_TYPE type;
 
 	if (value == NULL) {
 		system->print_hook ("<nil>");
@@ -202,12 +202,12 @@ sx_print_value (SX_SYSTEM *system, SX_VALUE *value) {
 		return;
 	}
 
-	klass = sx_class_of (system, value);
-	if (klass) {
-		if (klass->core && klass->core->fprint) {
-			klass->core->fprint (system, value);
+	type = sx_type_of (system, value);
+	if (type) {
+		if (type && type->fprint) {
+			type->fprint (system, value);
 		} else {
-			system->print_hook ("<%s:%p>", sx_name_id_to_name (klass->id), value);
+			system->print_hook ("<%s:%p>", sx_name_id_to_name (type->id), value);
 		}
 	} else {
 		system->print_hook ("<unknown!:%p>", value);
@@ -215,65 +215,50 @@ sx_print_value (SX_SYSTEM *system, SX_VALUE *value) {
 }
 
 void
-sx_lock_value (SX_VALUE *value) {
-	if (!SX_ISNUM (system, value) && !SX_ISNIL (system, value)) {
-		++ value->locks;
-	}
-}
-
-void
-sx_unlock_value (SX_VALUE *value) {
-	if (!SX_ISNUM (system, value) && !SX_ISNIL (system, value) && value->locks > 0) {
-		-- value->locks;
-	}
-}
-
-void
-sx_mark_value (SX_SYSTEM *system, SX_VALUE *value) {
-	SX_CLASS *klass;
-
+sx_mark_value (SX_SYSTEM system, SX_VALUE value) {
+	SX_TYPE type;
 	if (value == NULL || SX_ISNUM (system, value)) {
 		return;
 	}
 
-	value->flags |= SX_VFLAG_MARK;
+	/* stuff the GC mark onto the type pointer */
+	(long)value->type|= 0x01; 
 
-	for (klass = value->klass; klass != NULL && klass->par != NULL; klass = klass->par)
-		;
-	if (klass && klass->core && klass->core->fmark) {
-		klass->core->fmark (system, value);
+	type = sx_type_of (system, value);
+	if (type && type && type->fmark) {
+		type->fmark (system, value);
 	}
 }
 
-SX_VALUE *
-sx_to_num (SX_SYSTEM *system, SX_VALUE *value) {
-	SX_CLASS *klass;
+SX_VALUE 
+sx_to_num (SX_SYSTEM system, SX_VALUE value) {
+	SX_TYPE type;
 	if (value == NULL) {
 		return sx_new_num (0);
 	} else if (((long)value) & SX_NUM_MARK) {
 		return value;
 	}
 
-	klass = sx_class_of (system, value);
-	if (klass && klass->core && klass->core->ftonum) {
-		return klass->core->ftonum (system, value);
+	type = sx_type_of (system, value);
+	if (type && type && type->ftonum) {
+		return type->ftonum (system, value);
 	} else {
 		return sx_new_num (0);
 	}
 }
 
-SX_VALUE *
-sx_to_str (SX_SYSTEM *system, SX_VALUE *value) {
-	SX_CLASS *klass;
+SX_VALUE 
+sx_to_str (SX_SYSTEM system, SX_VALUE value) {
+	SX_TYPE type;
 	if (value == NULL) {
 		return sx_new_str (system, "");
 	} else if (SX_ISSTRING (system, value)) {
 		return value;
 	}
 
-	klass = sx_class_of (system, value);
-	if (klass && klass->core && klass->core->ftostr) {
-		return klass->core->ftostr (system, value);
+	type = sx_type_of (system, value);
+	if (type && type && type->ftostr) {
+		return type->ftostr (system, value);
 	} else {
 		return sx_new_str (system, "");
 	}

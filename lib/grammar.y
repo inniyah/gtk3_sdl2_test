@@ -47,28 +47,26 @@
 
 %union {
 	SXP_NODE *node;
-	SX_VALUE *value;
-	char name[SX_MAX_NAME + 1];
+	SX_VALUE value;
 	sx_name_id id;
 	struct _sxp_arg_list args;
 }
 
 %token<value> TNUM TSTR
-%token<name> TNAME
-%token TIF TELSE TWHILE TDO TAND TOR TGTE TLTE TNE TSTATMETHOD
-%token TRETURN TBREAK TLOCAL TEQUALS TCONTINUE TSUPER TYIELD
-%token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT TSTATIC
-%token TCLASS TNEW TUNTIL TNIL TRAISE TRESCUE TTRY TIN TFOR
+%token<id> TNAME TTYPE
+%token TIF TELSE TWHILE TDO TAND TOR TGTE TLTE TNE
+%token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT 
+%token TUNTIL TNIL TRESCUE TIN TFOR TCONTINUE TYIELD
 
-%nonassoc TBREAK TRETURN TRAISE
+%nonassoc TBREAK TRETURN 
 %right '=' TADDASSIGN TSUBASSIGN 
-%left TAND
-%left TOR
-%left '>' '<' TGTE TLTE
-%left TNE TEQUALS TISA
+%left TAND TOR
+%left '>' '<' TGTE TLTE TIN
+%left TNE TEQUALS
 %left '+' '-' TINCREMENT TDECREMENT
 %left '*' '/'
-%nonassoc TLENGTH TWHILE TUNTIL TDO TNEW
+%nonassoc TCAST
+%nonassoc TLENGTH TWHILE TUNTIL TDO
 %left TRANGE
 %nonassoc '!' CUNARY
 %left '.' TSTATMETHOD '[' '(' '^'
@@ -77,35 +75,16 @@
 %nonassoc TELSE
 
 %type<node> node args block stmts stmt control expr
-%type<value> arg_names_list errors data
-%type<id> name
+%type<value> arg_names_list data
+%type<id> name type
 %type<args> arg_names
 
 %%
 program:
-	| program class
 	| program function
 	;
 
-class:	TCLASS name { sxp_new_class (sxp_parser_info, $2, 0); } '{' cblock '}'
-	| TCLASS name ':' name { sxp_new_class (sxp_parser_info, $2, $4); } '{' cblock '}'
-	;
-
-cblock:	cstmt 
-	| cblock cstmt
-	;
-
-cstmt:	name '(' arg_names ')' '{' block '}' { sxp_add_method (sxp_parser_info->classes, $1, (SX_ARRAY *)$3.args, $3.varg, $6); }
-	| TSTATIC name '(' arg_names ')' '{' block '}' { sxp_add_static_method (sxp_parser_info->classes, $2, (SX_ARRAY *)$4.args, $4.varg, $7); }
-	| name ';' { 
-		if (sxp_parser_info->classes->members == NULL) {
-			sxp_parser_info->classes->members = (SX_ARRAY *)sx_new_array (sxp_parser_info->system, 0, NULL);
-		}
-		sx_append (sxp_parser_info->system, (SX_VALUE *)sxp_parser_info->classes->members, sx_new_num ($1));
-	}
-	;
-
-function: name '(' arg_names ')' '{' block '}' { sxp_new_func (sxp_parser_info, $1, (SX_ARRAY *)$3.args, $3.varg, $6); }
+function: name '(' arg_names ')' '{' block '}' { sxp_new_func (sxp_parser_info, $1, (SX_ARRAY )$3.args, $3.varg, $6); }
 	;
 
 block: { $$ = NULL; }
@@ -125,10 +104,11 @@ stmt:	node ';' { $$ = $1; }
 	| TDO stmt TWHILE '(' expr ')' ';' { $$ = sxp_new_whil (sxp_parser_info, $5, $2, SXP_W_DW); }
 	| TDO stmt TUNTIL '(' expr ')' ';' { $$ = sxp_new_whil (sxp_parser_info, $5, $2, SXP_W_DU); }
 	
-	| TTRY '{' block '}' TRESCUE '(' errors ')' '{' block '}' { $$ = sxp_new_try (sxp_parser_info, $7, $3, $10); }
-
-	| TFOR name TIN expr TDO stmt { $$ = sxp_new_for (sxp_parser_info, $2, $4, $6); }
+	| TFOR '(' name TIN expr ')' stmt { $$ = sxp_new_for (sxp_parser_info, $3, $5, $7); }
 	| TFOR '(' node ';' expr ';' node ')' stmt { $$ = sxp_new_cfor (sxp_parser_info, $3, $5, $7, $9); }
+
+	| type name ';' {}
+	| type name '=' expr ';' {}
 
 	| '{' block '}' { $$ = $2; }
 	;
@@ -141,8 +121,6 @@ control: TRETURN expr { $$ = sxp_new_retr (sxp_parser_info, $2); }
 	| TRETURN { $$ = sxp_new_retr (sxp_parser_info, NULL); }
 	| TBREAK { $$ = sxp_new_brak (sxp_parser_info); }
 	| TCONTINUE { $$ = sxp_new_cont (sxp_parser_info); }
-	| TRAISE name { $$ = sxp_new_rais (sxp_parser_info, $2, NULL); }
-	| TRAISE name expr { $$ = sxp_new_rais (sxp_parser_info, $2, $3); }
 	| TYIELD { $$ = sxp_new_yeld (sxp_parser_info); }
 	;
 
@@ -161,16 +139,13 @@ arg_names_list: name { $$ = sx_append (sxp_parser_info->system, sx_new_array (sx
 	| arg_names_list ',' name { $$ = sx_append (sxp_parser_info->system, $1, sx_new_num ($3)); }
 	;
 
-errors: { $$ = NULL; }
-	| name name { $$ = sx_append (sxp_parser_info->system, sx_append (sxp_parser_info->system, sx_new_array (sxp_parser_info->system, 0, NULL), sx_new_num ($1)), sx_new_num ($2)); }
-	| errors ',' name name { $$ = sx_append (sxp_parser_info->system, sx_append (sxp_parser_info->system, sx_new_array (sxp_parser_info->system, 0, NULL), sx_new_num ($3)), sx_new_num ($4)); }
-	;
-
 expr:	expr '+' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_ADD, $1, $3); }
 	| expr '-' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_SUBTRACT, $1, $3); }
 	| expr '*' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_MULTIPLY, $1, $3); }
 	| expr '/' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_DIVIDE, $1, $3); }
 	| '(' expr ')' { $$ = $2; }
+
+	| expr TIN expr { $$ = sxp_new_in (sxp_parser_info, $1, $3); }
 
 	| '-' expr %prec CUNARY { $$ = sxp_new_nega (sxp_parser_info, $2); }
 
@@ -185,8 +160,7 @@ expr:	expr '+' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_ADD, $1, $3); }
 	| expr TLTE expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_LTE, $1, $3); }
 	| expr TEQUALS expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_EQUAL, $1, $3); }
 
-	| name '=' expr { $$ = sxp_new_assi (sxp_parser_info, $1, SX_SCOPE_DEF, $3); }
-	| TLOCAL name '=' expr { $$ = sxp_new_assi (sxp_parser_info, $2, SX_SCOPE_LOCAL, $4); }
+	| name '=' expr { $$ = sxp_new_assi (sxp_parser_info, $1, $3); }
 	| expr '[' expr ']' '=' expr %prec '=' { $$ = sxp_new_set (sxp_parser_info, $1, $3, $6); }
 	| expr '.' name '=' expr %prec '=' { $$ = sxp_new_setm (sxp_parser_info, $1, $3, $5); }
 
@@ -197,22 +171,19 @@ expr:	expr '+' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_ADD, $1, $3); }
 	| name TDECREMENT { $$ = sxp_new_poic (sxp_parser_info, $1, sxp_new_data (sxp_parser_info, sx_new_num (-1))); }
 	| TDECREMENT name { $$ = sxp_new_pric (sxp_parser_info, $2, sxp_new_data (sxp_parser_info, sx_new_num (-1))); }
 	
-	| expr TISA name { $$ = sxp_new_isa (sxp_parser_info, $1, $3); }
+	| '(' type ')' expr %prec TCAST { $$ = sxp_new_cast (sxp_parser_info, $4, $2); }
 	| name '(' args ')' { $$ = sxp_new_call (sxp_parser_info, $1, $3); }
-	| TSUPER '(' args ')' { $$ = sxp_new_supr (sxp_parser_info, $3); }
 
-	| name TSTATMETHOD name '(' args ')' { $$ = sxp_new_smet (sxp_parser_info, $1, $3, $5); }
+	| type '.' name '(' args ')' { $$ = sxp_new_smet (sxp_parser_info, $1, $3, $5); }
 	| expr '.' name '(' args ')' { $$ = sxp_new_meth (sxp_parser_info, $1, $3, $5); }
-	| expr '.' name { $$ = sxp_new_memb (sxp_parser_info, $1, $3); }
-	| TNEW name '(' args ')' { $$ = sxp_new_newc (sxp_parser_info, $2, $4); }
+	| expr '.' name { $$ = sxp_new_getm (sxp_parser_info, $1, $3); }
 
 	| expr '[' expr ']' { $$ = sxp_new_indx (sxp_parser_info, $1, $3); }
 	| '[' args ']' { $$ = sxp_new_arry (sxp_parser_info, $2); }
 
 	| data { $$ = sxp_new_data (sxp_parser_info, $1); }
 
-	| name { $$ = sxp_new_name (sxp_parser_info, $1, SX_SCOPE_DEF); }
-	| TLOCAL name { $$ = sxp_new_name (sxp_parser_info, $2, SX_SCOPE_LOCAL); }
+	| name { $$ = sxp_new_name (sxp_parser_info, $1); }
 	;
 
 	
@@ -221,7 +192,10 @@ data:	TNUM { $$ = $1;  }
 	| TNIL { $$ = NULL; }
 	;
 
-name:	TNAME { $$ = sx_name_to_id ($1); }
+name:	TNAME { $$ = $1; }
+	;
+
+type:	TTYPE { $$ = $1; }
 	;
 
 %%
@@ -244,7 +218,7 @@ sxwrap (void) {
 }
 
 int
-sxp_load_file (SX_MODULE *module, const char *file) {
+sxp_load_file (SX_MODULE module, const char *file) {
 	int ret, flags;
 
 	if (file == NULL) {
@@ -291,7 +265,7 @@ sxp_load_file (SX_MODULE *module, const char *file) {
 }
 
 int
-sxp_load_string (SX_MODULE *module, const char *buf) {
+sxp_load_string (SX_MODULE module, const char *buf) {
 	int ret, flags;
 
 	if (buf == NULL) {

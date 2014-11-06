@@ -34,31 +34,28 @@
 #include "scriptix.h"
 
 void
-sx_mark_func (SX_SYSTEM *system, SX_FUNC *func) {
+sx_mark_func (SX_SYSTEM system, SX_FUNC func) {
 	if (func->body != NULL) {
-		sx_mark_value (system, (SX_VALUE *)func->body);
+		sx_mark_value (system, (SX_VALUE )func->body);
 	}
 }
 
-SX_FUNC *
-sx_new_func (SX_SYSTEM *system, sx_name_id id, sx_name_id *args, sx_name_id varg, SX_BLOCK *body) {
-	SX_FUNC *func;
+SX_FUNC 
+sx_new_func (SX_SYSTEM system, sx_name_id id, sx_name_id *args, sx_name_id varg, SX_BLOCK body) {
+	SX_FUNC func;
 
-	sx_lock_value ((SX_VALUE *)body);
-	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
+	func = (SX_FUNC )sx_malloc (sizeof (struct scriptix_func));
 	if (func == NULL) {
-		sx_unlock_value ((SX_VALUE *)body);
 		return NULL;
 	}
 	if (args != NULL) {
 		func->argc = sx_sizeof_namelist (args);
-		func->arg_names = sx_dupmem (system, args, func->argc * sizeof (sx_name_id));
-		sx_unlock_value ((SX_VALUE *)body);
+		func->arg_names = sx_dupmem (args, func->argc * sizeof (sx_name_id));
 		if (func->arg_names == NULL) {
+			sx_free (func);
 			return NULL;
 		}
 	} else {
-		sx_unlock_value ((SX_VALUE *)body);
 		func->arg_names = NULL;
 		func->argc = 0;
 	}
@@ -73,11 +70,11 @@ sx_new_func (SX_SYSTEM *system, sx_name_id id, sx_name_id *args, sx_name_id varg
 	return func;
 }
 
-SX_FUNC *
-sx_new_cfunc (SX_SYSTEM *system, sx_name_id id, unsigned long argc, int varg, sx_cfunc cfunc) {
-	SX_FUNC *func ;
+SX_FUNC 
+sx_new_cfunc (SX_SYSTEM system, sx_name_id id, unsigned long argc, int varg, sx_cfunc cfunc) {
+	SX_FUNC func ;
 	
-	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
+	func = (SX_FUNC )sx_malloc (sizeof (struct scriptix_func));
 	if (func == NULL) {
 		return NULL;
 	}
@@ -95,7 +92,7 @@ sx_new_cfunc (SX_SYSTEM *system, sx_name_id id, unsigned long argc, int varg, sx
 }
 
 void
-sx_free_func (SX_FUNC *func) {
+sx_free_func (SX_FUNC func) {
 	if (func->arg_names) {
 		sx_free (func->arg_names);
 	}
@@ -103,12 +100,12 @@ sx_free_func (SX_FUNC *func) {
 }
 
 unsigned long
-sx_ref_func (SX_FUNC *func) {
+sx_ref_func (SX_FUNC func) {
 	return ++ func->refs;
 }
 
 unsigned long
-sx_unref_func (SX_FUNC *func) {
+sx_unref_func (SX_FUNC func) {
 	if ((-- func->refs) == 0) {
 		sx_free_func (func);
 		return 0;

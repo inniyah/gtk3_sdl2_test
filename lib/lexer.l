@@ -39,17 +39,15 @@
 
 	#define LEX_NAME(name,value) if (!strcmp (yytext, name)) { return value; } else 
 
-	char sx_lex_str[SX_LEX_STR_MAX + 1];
-	unsigned int sx_lex_str_i;
-	__INLINE__ void sx_lex_str_escape (char esc);
-	__INLINE__ void sx_lex_str_push (char c);
-
-	__INLINE__ void sxll_to_lower (char *buf);
+	static char sx_lex_str[SX_LEX_STR_MAX + 1];
+	static unsigned int sx_lex_str_i;
+	static __INLINE__ void sx_lex_str_escape (char esc);
+	static __INLINE__ void sx_lex_str_push (char c);
 
 	#define YY_INPUT(b,r,m) sxp_parser_input((b),&(r),(m))
 
 	const char *sxp_parser_inbuf = NULL;
-	void sxp_parser_input (char *buf, int *result, int max);
+	static void sxp_parser_input (char *buf, int *result, int max);
 %}
 
 %x BCOMMENT
@@ -80,7 +78,6 @@
 # { BEGIN LCOMMENT; }
 [\n] { sxp_parser_info->line ++; }
 [a-zA-Z_][a-zA-Z0-9_]* { 
-		sxll_to_lower (yytext);
 		LEX_NAME("if", TIF)
 		LEX_NAME("else", TELSE)
 		LEX_NAME("while", TWHILE)
@@ -88,24 +85,17 @@
 		LEX_NAME("until", TUNTIL)
 		LEX_NAME("return", TRETURN)
 		LEX_NAME("break", TBREAK)
-		LEX_NAME("local", TLOCAL)
-		LEX_NAME("class", TCLASS)
-		LEX_NAME("new", TNEW)
-		LEX_NAME("isa", TISA)
 		LEX_NAME("nil", TNIL)
-		LEX_NAME("raise", TRAISE)
-		LEX_NAME("rescue", TRESCUE)
-		LEX_NAME("try", TTRY)
 		LEX_NAME("in", TIN)
 		LEX_NAME("for", TFOR)
 		LEX_NAME("continue", TCONTINUE)
-		LEX_NAME("static", TSTATIC)
-		LEX_NAME("super", TSUPER)
 		LEX_NAME("yield", TYIELD)
 		{
-			strncpy (sxlval.name, yytext, SX_MAX_NAME);
-			sxlval.name[SX_MAX_NAME] = 0;
-			return TNAME;
+			sxlval.id = sx_name_to_id (yytext);
+			if (sx_get_type (sxp_parser_info->system, sxlval.id))
+				return TTYPE;
+			else
+				return TNAME;
 		}
 	}
 [0-9]+ { sxlval.value = sx_new_num (atoi (yytext)); return TNUM; }
@@ -119,21 +109,13 @@
 "||" { return TOR; }
 "&&" { return TAND; }
 != { return TNE; }
-:: { return TSTATMETHOD; }
 ' { sx_lex_str_i = 0; BEGIN SSTRING; }
 \" { sx_lex_str_i = 0; BEGIN DSTRING; }
 . { return yytext[0]; }
 <<EOF>> { return 0; }
 
 %%
-void
-sxll_to_lower (char *buf) {
-	while (*buf != '\0') {
-		*buf = tolower (*buf);
-		++ buf;
-	}
-}
-
+static
 void
 sx_lex_str_escape (char esc) {
 	if (esc == 'n') {
@@ -151,7 +133,7 @@ sx_lex_str_escape (char esc) {
 	}
 }
 
-
+static
 void
 sx_lex_str_push (char c) {
 	sx_lex_str[sx_lex_str_i] = c;
@@ -159,6 +141,7 @@ sx_lex_str_push (char c) {
 		++ sx_lex_str_i;
 }
 	
+static
 void
 sxp_parser_input (char *buf, int *result, int max_size) {
 	if (sxp_parser_inbuf != NULL) {
