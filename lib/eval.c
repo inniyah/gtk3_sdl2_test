@@ -46,7 +46,7 @@ sx_eval (SX_THREAD *thread, unsigned long max) {
 	SX_FUNC *func;
 	sx_name_id name;
 
-	while (thread->call > 0 && thread->state == SX_STATE_RUN) {
+	while (thread->call > 0) {
 run_code:
 		call = &thread->call_stack[thread->call - 1];
 
@@ -116,7 +116,7 @@ run_code:
 							ret = sx_get_value (thread, -1);
 							if (SX_ISEXCEPTION(thread->system, ret) && SX_ISARRAY(thread->system, loop)) {
 								for (i = 0; i < SX_TOARRAY(loop)->count; i += 2) {
-									klass = sx_get_class (thread->system, SX_TOINT(SX_TOARRAY(loop)->list[i]));
+									klass = sx_get_class (thread->module, SX_TOINT(SX_TOARRAY(loop)->list[i]));
 									if (klass && sx_value_is_a (thread->system, ret, klass)) {
 										sx_push_call (thread, sx_get_value (thread, -2), NULL, 0);
 										sx_define_var (thread, SX_TOINT(SX_TOARRAY(loop)->list[i + 1]), ret, SX_SCOPE_LOCAL);
@@ -172,7 +172,7 @@ run_code:
 				case SX_OP_CALL:
 					count = SX_TOINT (sx_get_value (thread, -2));
 					name = SX_TOINT (sx_get_value (thread, -1));
-					func = sx_get_func (thread->system, name);
+					func = sx_get_func (thread->module, name);
 					sx_pop_value (thread, -2, 2);
 					if (func != NULL) {
 						if (func->argc > count || (func->argc < count && func->var_arg_name == 0)) {
@@ -287,7 +287,8 @@ run_code:
 					sx_pop_value (thread, -4, 3);
 					break;
 				case SX_OP_SETMEMBER:
-					if (sx_set_member (thread->system, sx_get_value (thread, -3), SX_TOINT(sx_get_value (thread, -2)), sx_get_value (thread, -1))) {
+					value = sx_get_value (thread, -3);
+					if (SX_ISOBJECT (thread->system, value) && sx_set_member (thread->system, (SX_OBJECT *)value, SX_TOINT(sx_get_value (thread, -2)), sx_get_value (thread, -1))) {
 						sx_pop_value (thread, -3, 2);
 					} else {
 						sx_pop_value (thread, -3, 3);
@@ -305,14 +306,20 @@ run_code:
 					sx_pop_value (thread, -2, 1);
 					break;
 				case SX_OP_MEMBER:
-					value = sx_get_member (thread->system, sx_get_value (thread, -2), SX_TOINT(sx_get_value (thread, -1)));
-					sx_push_value (thread, value);
-					sx_pop_value (thread, -3, 2);
+					value = sx_get_value (thread, -2);
+					if (SX_ISOBJECT (thread->system, value)) {
+						value = sx_get_member (thread->system, (SX_OBJECT *)value, SX_TOINT(sx_get_value (thread, -1)));
+						sx_pop_value (thread, -2, 2);
+						sx_push_value (thread, value);
+					} else {
+						sx_pop_value (thread, -2, 2);
+						sx_raise_error (thread, sx_TypeError, "Cannot get member on non-object value");
+					}
 					break;
 				case SX_OP_NEWINSTANCE:
 					count = SX_TOINT (sx_get_value (thread, -2));
 					name = SX_TOINT (sx_get_value (thread, -1));
-					klass = sx_get_class (thread->system, name);
+					klass = sx_get_class (thread->module, name);
 					sx_pop_value (thread, -2, 2);
 					if (klass != NULL) {
 						func = sx_get_method (thread->system, klass, sx_init_id);
@@ -320,7 +327,7 @@ run_code:
 							sx_pop_value (thread, -count, count);
 							sx_raise_error (thread, sx_ArgumentError, "Incorrect number of arguments to the init method on class '%s'", sx_name_id_to_name (klass->id));
 						} else {
-							ret = sx_new_object (thread->system, klass);
+							ret = (SX_VALUE *)sx_new_object (thread->system, klass);
 							if (ret) {
 								/* ugly hack */
 								thread->data_stack[thread->data - count - 1] = ret;
@@ -333,7 +340,7 @@ run_code:
 								}
 							} else {
 								sx_pop_value (thread, -count, count);
-								sx_raise_error (thread, sx_MemError, "Failed to create object '%s'", sx_name_id_to_name (klass->id));
+								sx_raise_error (thread, sx_MemError, "Cannot create object of class '%s'", sx_name_id_to_name (klass->id));
 							}
 						}
 					} else {
@@ -343,7 +350,7 @@ run_code:
 					break;
 				case SX_OP_ISA:
 					value = sx_get_value (thread, -2);
-					klass = sx_get_class (thread->system, SX_TOINT(sx_get_value (thread, -1)));
+					klass = sx_get_class (thread->module, SX_TOINT(sx_get_value (thread, -1)));
 					sx_pop_value (thread, -2, 2);
 					if (klass) {
 						sx_push_value (thread, sx_new_num (sx_value_is_a (thread->system, value, klass)));
@@ -380,7 +387,7 @@ run_code:
 				case SX_OP_STATIC_METHOD:
 					count = SX_TOINT (sx_get_value (thread, -3));
 					name = SX_TOINT (sx_get_value (thread, -2)); /* the class */
-					klass = sx_get_class (thread->system, name);
+					klass = sx_get_class (thread->module, name);
 					name = SX_TOINT (sx_get_value (thread, -1));
 					sx_pop_value (thread, -3, 3);
 
@@ -479,6 +486,10 @@ run_code:
 							}
 						}
 					}
+					break;
+				case SX_OP_YIELD:
+					thread->state = SX_STATE_SWITCH;
+					return thread->state;
 					break;
 			}
 

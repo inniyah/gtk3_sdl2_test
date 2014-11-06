@@ -1,4 +1,4 @@
-test () {
+test (a) {
 	for i in a do {
 		for (n = 3; n <= 9; n += 3) {
 			printl ('In - ', n, ':', i);
@@ -6,13 +6,8 @@ test () {
 	}
 }
 
-scope () {
-	local a = [1,2,3];
-	test ();
-}
-
 main () {
-	global a = ['abc','def','ghi'];
+	a = ['abc','def','ghi'];
 
-	scope();
+	test(a);
 }

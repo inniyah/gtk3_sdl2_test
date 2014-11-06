@@ -6,4 +6,4 @@ dist-clean:
 
 dist:
 	mkdir ../scriptix/deb/
-	cp -f dirs control.in changelog rules README.debian Makefile.in copyright ../scriptix/deb/
+	cp -f dirs deb-update.sh control.in changelog rules README.debian Makefile.in copyright ../scriptix/deb/

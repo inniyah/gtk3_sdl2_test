@@ -54,7 +54,7 @@ sx_name_id sx_NameError = 0;
 sx_name_id sx_ArgumentError = 0;
 sx_name_id sx_MemError = 0;
 
-unsigned int
+sx_name_id
 sx_name_to_id (const char *name) {
 	struct _scriptix_name_id *ni;
 

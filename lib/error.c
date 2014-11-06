@@ -31,34 +31,6 @@
 
 #include "scriptix.h"
 
-/* helper functions */
-SX_VALUE *
-_sx_error_new (SX_SYSTEM *system, SX_CLASS *klass) {
-	SX_ERROR *error;
-
-	error = sx_malloc (system, sizeof (SX_ERROR));
-	if (error == NULL) {
-		return NULL;
-	}
-
-	error->file = sx_new_str (system, "<unknown>");
-	error->line = 0;
-	error->data = NULL;
-
-	sx_clear_value (system, &error->header, klass);
-
-	return (SX_VALUE *)error;
-}
-
-void
-_sx_error_print (SX_SYSTEM *system, SX_ERROR *value) {
-	system->print_hook ("<Exception %s# %s:%d", sx_name_id_to_name (sx_class_of (system, (SX_VALUE *)value)->id), SX_TOSTRING (value->file)->str, value->line);
-	if (!SX_ISNIL (system, value->data)) {
-		sx_print_value (system, value->data);
-	}
-	system->print_hook (">");
-}
-
 void
 _sx_error_mark (SX_SYSTEM *system, SX_ERROR *value) {
 	sx_mark_value (system, value->file);
@@ -69,7 +41,7 @@ SX_VALUE *
 _sx_error_tostr (SX_SYSTEM *system, SX_ERROR *value) {
 	char buffer[512];
 
-	snprintf (buffer, 512, "<Exception %s# %s:%d %s>",
+	snprintf (buffer, 512, "<Exception %s# %s:%ld %s>",
 			sx_name_id_to_name (sx_class_of (system, (SX_VALUE *)value)->id),
 			value->file ? SX_TOSTRING (value->file)->str : "-unknown-",
 			value->line,
@@ -87,8 +59,6 @@ sx_init_error (SX_SYSTEM *system) {
 		return NULL;
 	}
 
-	klass->core->fnew = (sx_class_new)_sx_error_new;
-	klass->core->fprint = (sx_class_print)_sx_error_print;
 	klass->core->fmark = (sx_class_mark)_sx_error_mark;
 	klass->core->ftostr = (sx_class_to_str)_sx_error_tostr;
 
@@ -118,7 +88,7 @@ sx_new_error (SX_THREAD *thread, sx_name_id id, SX_VALUE *value) {
 	SX_CLASS *klass;
 	SX_CALL *call;
 
-	klass = sx_get_class (thread->system, id);
+	klass = sx_get_class (thread->module, id);
 	if (!sx_class_is_a (thread->system, klass, thread->system->cerror)) {
 		return NULL;
 	}

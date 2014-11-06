@@ -33,14 +33,14 @@
 #include "scriptix.h"
 
 SX_THREAD *
-sx_create_thread (SX_SYSTEM *system, SX_FUNC *func, SX_ARRAY *argv) {
+sx_create_thread (SX_MODULE *module, SX_FUNC *func, SX_ARRAY *argv) {
 	SX_THREAD *thread;
 	static unsigned long _free_id = 0; /* ID tag for threads */
 	unsigned long i;
 
 	sx_lock_value ((SX_VALUE *)argv);
 	
-	thread = (SX_THREAD *)sx_malloc (system, sizeof (SX_THREAD));
+	thread = (SX_THREAD *)sx_malloc (module->system, sizeof (SX_THREAD));
 
 	sx_unlock_value ((SX_VALUE *)argv);
 
@@ -48,8 +48,9 @@ sx_create_thread (SX_SYSTEM *system, SX_FUNC *func, SX_ARRAY *argv) {
 		return NULL;
 	}
 
-	thread->system = system;
-	thread->next = system->threads;
+	thread->module = module;
+	thread->system = module->system;
+	thread->next = module->system->threads;
 	thread->call_stack = NULL;
 	thread->call_size = 0;
 	thread->call = 0;
@@ -59,8 +60,8 @@ sx_create_thread (SX_SYSTEM *system, SX_FUNC *func, SX_ARRAY *argv) {
 	thread->ret = NULL;
 	thread->state = SX_STATE_RUN;
 	thread->id = ++_free_id;
-	system->threads = thread;
-	++ system->valid_threads;
+	module->system->threads = thread;
+	++ module->system->valid_threads;
 
 	if (argv != NULL) {
 		for (i = 0; i < SX_TOARRAY(argv)->count; ++ i) {
@@ -92,7 +93,7 @@ sx_end_thread (SX_THREAD *thread) {
 }
 
 SX_THREAD *
-sx_create_thread_v (SX_SYSTEM *system, SX_FUNC *func, unsigned long argc, ...) {
+sx_create_thread_v (SX_MODULE *module, SX_FUNC *func, unsigned long argc, ...) {
 	SX_VALUE *array;
 	SX_VALUE *value;
 	unsigned long i;
@@ -105,7 +106,7 @@ sx_create_thread_v (SX_SYSTEM *system, SX_FUNC *func, unsigned long argc, ...) {
 			sx_lock_value (value);
 		}
 		va_end (va);
-		array = sx_new_array (system, argc, NULL);
+		array = sx_new_array (module->system, argc, NULL);
 		va_start (va, argc);
 		for (i = 0; i <= argc; ++ i) {
 			value = va_arg (va, SX_VALUE *);
@@ -114,9 +115,9 @@ sx_create_thread_v (SX_SYSTEM *system, SX_FUNC *func, unsigned long argc, ...) {
 		}
 		va_end (va);
 
-		return sx_create_thread (system, func, (SX_ARRAY *)array);
+		return sx_create_thread (module, func, (SX_ARRAY *)array);
 	} else {
-		return sx_create_thread (system, func, NULL);
+		return sx_create_thread (module, func, NULL);
 	}
 }
 
@@ -196,6 +197,8 @@ sx_push_call (SX_THREAD *thread, SX_FUNC *func, SX_VALUE *klass, unsigned long a
 	thread->call_stack[thread->call].argc = argc;
 	++ thread->call;
 
+	sx_ref_func (func);
+
 	if (klass) {
 		sx_define_var (thread, sx_self_id, klass, SX_SCOPE_LOCAL);
 	}
@@ -246,6 +249,8 @@ sx_pop_call (SX_THREAD *thread) {
 			thread->call_stack[i].vars = rnext;
 		}
 
+		sx_unref_func (thread->call_stack[i].func);
+
 		/* pop stack  */
 		if (thread->data > thread->call_stack[i].top + 1) {
 			sx_pop_value (thread, thread->call_stack[i].top, thread->data - thread->call_stack[i].top - 1);
@@ -282,7 +287,9 @@ sx_push_value (SX_THREAD *thread, SX_VALUE *value) {
 SX_VALUE *
 sx_get_value (SX_THREAD *thread, long index) {
 	if (index >= 0) {
-		index += thread->call_stack[thread->call - 1].top;
+		if (thread->call > 0) {
+			index += thread->call_stack[thread->call - 1].top;
+		}
 		if (index < thread->data) {
 			return thread->data_stack[index];
 		}

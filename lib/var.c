@@ -50,13 +50,9 @@ SX_VALUE *
 sx_define_var (SX_THREAD *thread, sx_name_id id, SX_VALUE *value, sx_scope_type scope) {
 	SX_VAR *var;
 
-	if (scope == SX_SCOPE_GLOBAL) {
-		return sx_define_system_var (thread->system, id, value);
-	}
-
 	if (scope == SX_SCOPE_CLASS) {
-		if (thread->call_stack[thread->call - 1].klass != NULL) {
-			var = sx_set_member (thread->system, thread->call_stack[thread->call - 1].klass, id, value);
+		if (SX_ISOBJECT (thread->system, thread->call_stack[thread->call - 1].klass)) {
+			var = sx_set_member (thread->system, (SX_OBJECT *)thread->call_stack[thread->call - 1].klass, id, value);
 			return var->value;
 		} else {
 			return sx_new_nil ();
@@ -87,34 +83,6 @@ sx_define_var (SX_THREAD *thread, sx_name_id id, SX_VALUE *value, sx_scope_type 
 	return value;
 }
 
-SX_VALUE *
-sx_define_system_var (SX_SYSTEM *system, sx_name_id id, SX_VALUE *value) {
-	SX_VAR *var;
-
-	for (var = system->vars; var != NULL; var = var->next) {
-		if (id == var->id) {
-			var->value = value;
-			return value;
-		}
-	}
-
-	sx_lock_value (value);
-	var = (SX_VAR *)sx_malloc (system, sizeof (SX_VAR));
-	sx_unlock_value (value);
-
-	if (var == NULL) {
-		return NULL;
-	}
-
-	var->id = id;
-	var->value = value;
-	var->flags = 0;
-	var->next = system->vars;
-	system->vars = var;
-
-	return value;
-}
-
 SX_VAR *
 sx_get_var (SX_THREAD *thread, sx_name_id id, sx_scope_type scope) {
 	SX_VAR *var;
@@ -139,30 +107,17 @@ sx_get_var (SX_THREAD *thread, sx_name_id id, sx_scope_type scope) {
 		}
 	}
 
-	if (scope != SX_SCOPE_GLOBAL) {
-		if (thread->call_stack[thread->call - 1].klass != NULL) {
-			var = sx_find_member (thread->system, thread->call_stack[thread->call - 1].klass, id);
-			if (var != NULL) {
-				return var;
-			}
+	if (SX_ISOBJECT (thread->system, thread->call_stack[thread->call - 1].klass)) {
+		var = sx_find_member (thread->system, (SX_OBJECT *)thread->call_stack[thread->call - 1].klass, id);
+		if (var != NULL) {
+			return var;
 		}
-	}
-
-	/* only get here on system or def search */
-	if (scope != SX_SCOPE_CLASS) {
-		return sx_get_system_var (thread->system, id);
 	}
 
 	return NULL;
 }
 
-SX_VAR *
-sx_get_system_var (SX_SYSTEM *system, sx_name_id id) {
-	SX_VAR *var;
-	for (var = system->vars; var != NULL; var = var->next) {
-		if (id == var->id) {
-			return var;
-		}
-	}
-	return NULL;
+void
+sx_free_var (SX_VAR *var) {
+	sx_free (var);
 }

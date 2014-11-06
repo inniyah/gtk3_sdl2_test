@@ -1,4 +1,3 @@
-# Generated automatically from Makefile.in by configure.
 prefix := /usr/local
 
 debian: all
@@ -18,6 +17,7 @@ clean:
 	( cd test ; make clean )
 
 dist-clean:
+	rm -f config.cache config.status config.log
 	( cd include ; make dist-clean )
 	( cd lib ; make dist-clean )
 	( cd bin ; make dist-clean )
@@ -40,15 +40,15 @@ dist: all
 	( cd bin ; make dist )
 	( cd test ; make dist )
 	( cd deb ; make dist )
-	mv scriptix/ scriptix-0.18/
-	tar -zcf scriptix-0.18.tar.gz scriptix-0.18/
-	rm -rf scriptix-0.18/
+	mv scriptix/ scriptix-0.19/
+	tar -zcf scriptix-0.19.tar.gz scriptix-0.19/
+	rm -rf scriptix-0.19/
 
 deb:
 	if [ ! -d debian/ ] ; then ln -s deb debian ; fi
-	debuild
+	debuild -rfakeroot
 
 rpm: dist
-	rpm -ta scriptix-0.18.tar.gz
+	rpm -ta scriptix-0.19.tar.gz
 
 .PHONY: deb rpm dist install clean all dist-clean

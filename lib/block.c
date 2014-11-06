@@ -34,22 +34,6 @@
 
 /* internal block stuff */
 
-SX_VALUE *
-_sx_block_new (SX_SYSTEM *system, SX_CLASS *klass) {
-	SX_BLOCK *value = (SX_BLOCK *)sx_malloc (system, sizeof (SX_BLOCK));
-	if (value == NULL) {
-		return NULL;
-	}
-
-	value->nodes = NULL;
-	value->count = 0;
-	value->size = 0;
-
-	sx_clear_value (system, &value->header, klass);
-
-	return (SX_VALUE *)value;
-}
-
 void
 _sx_block_mark (SX_SYSTEM *system, SX_BLOCK *value) {
 	unsigned int i;
@@ -77,7 +61,6 @@ sx_init_block (SX_SYSTEM *system) {
 		return NULL;
 	}
 
-	klass->core->fnew = (sx_class_new)_sx_block_new;
 	klass->core->fmark = (sx_class_mark)_sx_block_mark;
 	klass->core->fdel = (sx_class_del)_sx_block_del;
 

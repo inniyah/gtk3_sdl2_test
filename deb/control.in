@@ -3,10 +3,11 @@ Section: interpreters
 Priority: optional
 Maintainer: Sean Middleditch <elanthis@awesomeplay.com>
 Standards-Version: 3.2.1
+Build-Depends: bison, flex, debhelper (>= 3.0.0)
 
 Package: scriptix
 Architecture: any
-Depends: ${shlibs:Depends}, libscriptix@BASE_VERSION@
+Depends: ${shlibs:Depends}
 Description: (unofficial) Lite-weight scripting interface
  Scriptix is a scripting interface designed solely for
  embedding in applications.
@@ -23,7 +24,7 @@ Description: (unofficial) Scriptix development files
  (Note: this is not an official Debian package)
 
 Package: libscriptix@BASE_VERSION@
-Conflicts: scriptix(<=0.17)
+Conflicts: scriptix(<=0.17), libscriptix0.18, libscriptix0.17
 Architecture: any
 Depends: ${shlibs:Depends}
 Description: (unofficial) Scriptix shared libraries

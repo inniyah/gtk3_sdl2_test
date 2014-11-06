@@ -42,14 +42,14 @@ _sx_default_error_hook (const char *str) {
 
 SX_SYSTEM *
 sx_create_system (void) {
+	SX_CLASS *klass;
 	SX_SYSTEM *system = (SX_SYSTEM *)sx_malloc (NULL, sizeof (SX_SYSTEM));
 	if (system == NULL) {
 		return system;
 	}
 
 	system->threads = NULL;
-	system->vars = NULL;
-	system->classes = NULL;
+	system->modules = NULL;
 	system->gc_list = NULL;
 	system->flags = 0;
 	system->gc_count = 0;
@@ -64,6 +64,14 @@ sx_create_system (void) {
 	system->block_chunk = SX_DEF_BLOCK_CHUNK;
 	system->gc_thresh = SX_DEF_GC_THRESH;
 
+	system->core = NULL; /* important line */
+	system->core = sx_new_module (system, sx_name_to_id ("Scriptix"), NULL);
+	if (system->core == NULL) {
+		sx_free_system (system);
+		return NULL;
+	}
+	sx_ref_module (system->core);
+
 	sx_init_ids ();
 
 	system->cstring = sx_init_string (system);
@@ -71,14 +79,33 @@ sx_create_system (void) {
 	system->cerror = sx_init_error (system);
 	system->cblock = sx_init_block (system);
 	system->carray = sx_init_array (system);
+	system->cobject = sx_init_object (system);
 
-	sx_define_system_var (system, sx_name_to_id ("SX_VERSION"), sx_new_str (system, SX_VERSION));
-
-	sx_new_class (system, sx_NameError, NULL, system->cerror);
-	sx_new_class (system, sx_TypeError, NULL, system->cerror);
-	sx_new_class (system, sx_MemError, NULL, system->cerror);
-	sx_new_class (system, sx_StackError, NULL, system->cerror);
-	sx_new_class (system, sx_ArgumentError, NULL, system->cerror);
+	klass = sx_new_class (system, sx_NameError, NULL, system->cerror);
+	if (klass != NULL) {
+		sx_add_class (system->core, klass);
+		sx_unref_class (klass);
+	}
+	klass = sx_new_class (system, sx_TypeError, NULL, system->cerror);
+	if (klass != NULL) {
+		sx_add_class (system->core, klass);
+		sx_unref_class (klass);
+	}
+	klass = sx_new_class (system, sx_MemError, NULL, system->cerror);
+	if (klass != NULL) {
+		sx_add_class (system->core, klass);
+		sx_unref_class (klass);
+	}
+	klass = sx_new_class (system, sx_StackError, NULL, system->cerror);
+	if (klass != NULL) {
+		sx_add_class (system->core, klass);
+		sx_unref_class (klass);
+	}
+	klass = sx_new_class (system, sx_ArgumentError, NULL, system->cerror);
+	if (klass != NULL) {
+		sx_add_class (system->core, klass);
+		sx_unref_class (klass);
+	}
 
 	return system;
 }
@@ -86,21 +113,22 @@ sx_create_system (void) {
 void
 sx_free_system (SX_SYSTEM *system) {
 	SX_THREAD *tnext;
-	SX_VAR *rnext;
 	SX_VALUE *vnext;
-	SX_CLASS *cnext;
+	SX_MODULE *mnext;
 
 	while (system->threads != NULL) {
 		tnext = system->threads->next;
 		sx_free_thread (system->threads);
 		system->threads = tnext;
 	}
-
-	while (system->vars) {
-		rnext = system->vars->next;
-		sx_free_var (system->vars);
-		system->vars = rnext;
+	
+	while (system->modules) {
+		mnext = system->modules->next;
+		sx_unref_module (system->modules);
+		system->modules = mnext;
 	}
+
+	sx_unref_module (system->core);
 
 	while (system->gc_list) {
 		vnext = system->gc_list->next;
@@ -108,13 +136,12 @@ sx_free_system (SX_SYSTEM *system) {
 		system->gc_list = vnext;
 	}
 
-	while (system->classes) {
-		cnext = system->classes->next;
-		sx_free_class (system->classes);
-		system->classes = cnext;
-	}
-
 	sx_free (system);
+}
+
+int
+sx_runable (SX_SYSTEM *system) {
+	return system->valid_threads != 0;
 }
 
 int
@@ -230,10 +257,8 @@ sx_run_until (SX_SYSTEM *system, sx_thread_id id) {
 void
 sx_run_gc (SX_SYSTEM *system) {
 	SX_THREAD *thread;
-	SX_VAR *var;
 	SX_VALUE *value, *last;
-	SX_CLASS *klass;
-	SX_FUNC *func;
+	SX_MODULE *module;
 
 	if (system->flags & SX_SFLAG_GCOFF) {
 		return;
@@ -243,20 +268,12 @@ sx_run_gc (SX_SYSTEM *system) {
 		system->gc_hook (system);
 	}
 
-	for (var = system->vars; var != NULL; var = var->next) {
-		sx_mark_value (system, var->value);
-	}
-
-	for (func = system->funcs; func != NULL; func = func->next) {
-		sx_mark_func (system, func);
-	}
-
-	for (klass = system->classes; klass != NULL; klass = klass->next) {
-		sx_mark_class (system, klass);
-	}
-
 	for (thread = system->threads; thread != NULL; thread = thread->next) {
 		sx_mark_thread (thread);
+	}
+
+	for (module = system->modules; module != NULL; module = module->next) {
+		sx_mark_module (module);
 	}
 
 	value = system->gc_list;

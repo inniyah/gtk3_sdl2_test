@@ -52,6 +52,11 @@ sx_dupmem (SX_SYSTEM *system, const void *mem, unsigned long size) {
 	return new_mem;
 }
 
+void
+sx_free (void *mem) {
+	free (mem);
+}
+
 char *
 sx_strdup (SX_SYSTEM *system, const char *str) {
 	if (str == NULL) {

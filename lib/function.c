@@ -68,6 +68,7 @@ sx_new_func (SX_SYSTEM *system, sx_name_id id, sx_name_id *args, sx_name_id varg
 	func->body = body;
 	func->cfunc = NULL;
 	func->next = NULL;
+	func->refs = 0;
 
 	return func;
 }
@@ -88,32 +89,9 @@ sx_new_cfunc (SX_SYSTEM *system, sx_name_id id, unsigned long argc, int varg, sx
 	func->argc = argc;
 	func->id = id;
 	func->next = NULL;
+	func->refs = 1;
 
 	return func;
-}
-
-SX_FUNC *
-sx_add_func (SX_SYSTEM *system, SX_FUNC *func) {
-	if (func == NULL) {
-		return NULL;
-	}
-
-	func->next = system->funcs;
-	system->funcs = func;
-
-	return func;
-}
-
-SX_FUNC *
-sx_get_func (SX_SYSTEM *system, sx_name_id name) {
-	SX_FUNC *func;
-
-	for (func = system->funcs; func != NULL; func = func->next) {
-		if (func->id == name)
-			return func;
-	}
-		
-	return NULL;
 }
 
 void
@@ -122,4 +100,19 @@ sx_free_func (SX_FUNC *func) {
 		sx_free (func->arg_names);
 	}
 	sx_free (func);
+}
+
+unsigned long
+sx_ref_func (SX_FUNC *func) {
+	return ++ func->refs;
+}
+
+unsigned long
+sx_unref_func (SX_FUNC *func) {
+	if ((-- func->refs) == 0) {
+		sx_free_func (func);
+		return 0;
+	} else {
+		return func->refs;
+	}
 }

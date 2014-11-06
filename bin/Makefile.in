@@ -1,5 +1,5 @@
 CC := @CC@
-CFLAGS := -Wall -I../include @CFLAGS@
+CFLAGS := -I../include @CFLAGS@
 OBJECTS := scriptix.o
 #CC = ccmalloc gcc
 

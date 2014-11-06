@@ -1,25 +1,31 @@
 CC := @CC@
-CFLAGS := -Wall -I../include @CFLAGS@
+CFLAGS := -I../include @CFLAGS@
 LIBS := libscriptix.a libsxparse.a
 SOLIBS := libscriptix.so.@BASE_VERSION@ libsxparse.so.@BASE_VERSION@
 SXOBJ := \
-	eval.o \
-	value.o \
-	var.o \
-	thread.o \
-	mem.o \
-	system.o \
-	class.o \
-	name.o \
-	error.o \
-	function.o \
-	block.o \
 	array.o \
-	string.o \
+	block.o \
+	class.o \
+	error.o \
+	eval.o \
+	function.o \
+	mem.o \
+	module.o \
+	name.o \
+	number.o \
+	object.o \
 	stdlib.o \
-	number.o
+	string.o \
+	system.o \
+	thread.o \
+	value.o \
+	var.o
 SOSXOBJ := $(SXOBJ:%.o=%.lo)
-YYOBJ := lex.sx.o y.tab.o parser.o
+YYOBJ := \
+	lex.sx.o \
+	y.tab.o \
+	parser.o \
+	compiler.o
 SOYYOBJ := $(YYOBJ:%.o=%.lo)
 OBJECTS := $(SXOBJ) $(YYOBJ)
 SOOBJECTS := $(SOSXOBJ) $(SOYYOBJ)

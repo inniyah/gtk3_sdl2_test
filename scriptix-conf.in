@@ -2,16 +2,26 @@
 
 case "$1" in
 	--cflags)
-		echo "-I@prefix@/include"
+		if [ "@prefix@" != "/usr" ]; then echo "-I@prefix@/include"; fi
 		;;
 	--lflags)
-		echo "-L@prefix@/libs"
+		if [ "@prefix@" != "/usr" ]; then echo "-L@prefix@/libs"; fi
 		;;
 	--libs)
 		echo "-lscriptix -lsxparse"
 		;;
 	--version)
 		echo "@VERSION@"
+		;;
+	--check)
+		set "VER" `echo "$2" | sed 's/\./ /g'`
+		SX_MAJOR="$2"
+		SX_MINOR="$3"
+		SX_REV="$4"
+		set "VER" `echo '@VERSION@' | sed 's/\./ /g'`
+		if test "$2" != "$SX_MAJOR" || test "$3" != "$SX_MINOR" || test "x$4" != "x$SX_REV"; then
+			exit 1
+		fi
 		;;
 	--help)
 		echo "Help: $0"
@@ -22,7 +32,11 @@ case "$1" in
 		echo "  --version  Print version"
 		echo "  --help     This list"
 		echo
+		exit 1
 		;;
 	*)
+		exit 0
 		;;
 esac
+
+exit 0

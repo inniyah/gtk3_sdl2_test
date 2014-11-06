@@ -46,10 +46,10 @@
 
 	__INLINE__ void sxll_to_lower (char *buf);
 
-	#define YY_INPUT(b,r,m) sx_parser_input((b),&(r),(m))
+	#define YY_INPUT(b,r,m) sxp_parser_input((b),&(r),(m))
 
-	const char *sx_parser_inbuf = NULL;
-	void sx_parser_input (char *buf, int *result, int max);
+	const char *sxp_parser_inbuf = NULL;
+	void sxp_parser_input (char *buf, int *result, int max);
 %}
 
 %x BCOMMENT
@@ -60,25 +60,25 @@
 %%
 
 <BCOMMENT>[^*\n]+ { /* IGNORE */ }
-<BCOMMENT>[\n] { parser_add_line (); }
+<BCOMMENT>[\n] { sxp_parser_info->line ++; }
 <BCOMMENT>"*"+[^*/\n]	{ /* IGNORE */ }
 <BCOMMENT>"*/" { BEGIN INITIAL; }
 
 <LCOMMENT>[^\n]+ { /* IGNORE */ }
-<LCOMMENT>[\n] { parser_add_line (); BEGIN INITIAL; }
+<LCOMMENT>[\n] { sxp_parser_info->line ++; BEGIN INITIAL; }
 
 <SSTRING,DSTRING>\\. { sx_lex_str_escape (yytext[1]); }
 <SSTRING>[^'\n] { sx_lex_str_push (yytext[0]); }
 <DSTRING>[^"\n] { sx_lex_str_push (yytext[0]); }
-<SSTRING,DSTRING>[\n] { parser_add_line (); sx_lex_str_push ('\n'); }
-<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_info->system, sx_lex_str); return TSTR; } 
-<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_info->system, sx_lex_str); return TSTR; } 
+<SSTRING,DSTRING>[\n] { sxp_parser_info->line ++; sx_lex_str_push ('\n'); }
+<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (sxp_parser_info->system, sx_lex_str); return TSTR; } 
+<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (sxp_parser_info->system, sx_lex_str); return TSTR; } 
 
 [ \t]+ { /* IGNORE */ }
 "/*"  { BEGIN BCOMMENT; }
 "//"  { BEGIN LCOMMENT; }
 # { BEGIN LCOMMENT; }
-[\n] { parser_add_line (); }
+[\n] { sxp_parser_info->line ++; }
 [a-zA-Z_][a-zA-Z0-9_]* { 
 		sxll_to_lower (yytext);
 		LEX_NAME("if", TIF)
@@ -89,7 +89,6 @@
 		LEX_NAME("return", TRETURN)
 		LEX_NAME("break", TBREAK)
 		LEX_NAME("local", TLOCAL)
-		LEX_NAME("global", TGLOBAL)
 		LEX_NAME("class", TCLASS)
 		LEX_NAME("new", TNEW)
 		LEX_NAME("isa", TISA)
@@ -102,6 +101,7 @@
 		LEX_NAME("continue", TCONTINUE)
 		LEX_NAME("static", TSTATIC)
 		LEX_NAME("super", TSUPER)
+		LEX_NAME("yield", TYIELD)
 		{
 			strncpy (sxlval.name, yytext, SX_MAX_NAME);
 			sxlval.name[SX_MAX_NAME] = 0;
@@ -144,6 +144,8 @@ sx_lex_str_escape (char esc) {
 		sx_lex_str_push ('\t');
 	} else if (esc == 'b') {
 		sx_lex_str_push ('\b');
+	} else if (esc == '0') {
+		sx_lex_str_push (0);
 	} else {
 		sx_lex_str_push (esc);
 	}
@@ -158,15 +160,15 @@ sx_lex_str_push (char c) {
 }
 	
 void
-sx_parser_input (char *buf, int *result, int max_size) {
-	if (sx_parser_inbuf != NULL) {
-		int len = strlen (sx_parser_inbuf);
+sxp_parser_input (char *buf, int *result, int max_size) {
+	if (sxp_parser_inbuf != NULL) {
+		int len = strlen (sxp_parser_inbuf);
 		if (max_size > len) {
 			max_size = len;
 		}
 
-		memcpy (buf, sx_parser_inbuf, max_size);
-		sx_parser_inbuf += max_size;
+		memcpy (buf, sxp_parser_inbuf, max_size);
+		sxp_parser_inbuf += max_size;
 
 		*result = max_size;
 	} else {

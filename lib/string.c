@@ -34,27 +34,10 @@
 #include "scriptix.h"
 #include "system.h"
 
-/* klass helper funcs */
-SX_VALUE *
-_sx_str_new (SX_SYSTEM *system, SX_CLASS *klass) {
-	SX_STRING *value;
-	
-	value = (SX_STRING *)sx_malloc (system, sizeof (SX_STRING));
-	if (value == NULL) {
-		return NULL;
-	}
-
-	sx_clear_value (system, &value->header, klass);
-
-	value->len = 0;
-
-	return (SX_VALUE*)value;
-}
-
 void
 _sx_str_print (SX_SYSTEM *system, SX_STRING *str) {
 	if (str->len > 0) {
-		system->print_hook ("%s", str->str);
+		system->print_hook ("%.*s", str->len, str->str);
 	}
 }
 
@@ -75,7 +58,7 @@ _sx_str_equal (SX_SYSTEM *system, SX_STRING *one, SX_STRING *two) {
 	if (one->len == 0) {
 		return 1;
 	}
-	return !strcmp (one->str, two->str);
+	return !memcmp (one->str, two->str, one->len * sizeof (char));
 }
 
 int
@@ -88,7 +71,7 @@ _sx_str_compare (SX_SYSTEM *system, SX_STRING *one, SX_STRING *two) {
 	if (one->len == 0) {
 		return 0;
 	}
-	return strcmp (one->str, two->str);
+	return memcmp (one->str, two->str, one->len * sizeof (char));
 }
 
 int
@@ -123,8 +106,8 @@ SX_DEFINE_CFUNC(_sx_str_concat) {
 	}
 
 	ret = sx_new_str_len (sx_thread->system, NULL, SX_TOSTRING(value1)->len + SX_TOSTRING(value2)->len);
-	memcpy (SX_TOSTRING(ret)->str, SX_TOSTRING(value1)->str, SX_TOSTRING(value1)->len);
-	memcpy (SX_TOSTRING(ret)->str + SX_TOSTRING(value1)->len, SX_TOSTRING(value2)->str, SX_TOSTRING(value2)->len);
+	memcpy (SX_TOSTRING(ret)->str, SX_TOSTRING(value1)->str, SX_TOSTRING(value1)->len * sizeof (char));
+	memcpy (SX_TOSTRING(ret)->str + SX_TOSTRING(value1)->len, SX_TOSTRING(value2)->str, SX_TOSTRING(value2)->len * sizeof (char));
 	SX_TOSTRING(ret)->str[SX_TOSTRING(ret)->len] = '\0';
 
 	sx_push_value (sx_thread, ret);
@@ -163,7 +146,6 @@ sx_init_string (SX_SYSTEM *system) {
 		return NULL;
 	}
 
-	klass->core->fnew = (sx_class_new)_sx_str_new;
 	klass->core->fprint = (sx_class_print)_sx_str_print;
 	klass->core->ftonum = (sx_class_to_num)_sx_str_to_num;
 	klass->core->fequal = (sx_class_equal)_sx_str_equal;
@@ -221,7 +203,7 @@ sx_new_str_len (SX_SYSTEM *system, const char *str, unsigned long len) {
 	sx_clear_value (system, &value->header, system->cstring);
 
 	if (str != NULL) {
-		strncpy (value->str, str, len);
+		memcpy (value->str, str, len * sizeof (char));
 		value->str[len] = '\0';
 	}
 

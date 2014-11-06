@@ -36,20 +36,23 @@ main (int argc, const char **argv) {
 	SX_SYSTEM *system;
 	SX_FUNC *func;
 	SX_VALUE *sargv;
+	SX_MODULE *module;
 	int i;
 
 	system = sx_create_system ();
 	sx_init_stdlib (system);
 
+	module = sx_new_module (system, sx_name_to_id ("main"), NULL);
+
 	if (argc > 1 && strcmp (argv[1], "-")) {
-		if (sxp_load_file (system, argv[1]))
+		if (sxp_load_file (module, argv[1]))
 			return 1;
 	} else {
-		if (sxp_load_file (system, NULL))
+		if (sxp_load_file (module, NULL))
 			return 1;
 	}
 
-	func = sx_get_func (system, sx_name_to_id ("main"));
+	func = sx_get_func (module, sx_name_to_id ("main"));
 	if (func == NULL) {
 		fprintf (stderr, "Fatal error: No main() function defined.\n");
 	} else {
@@ -58,7 +61,7 @@ main (int argc, const char **argv) {
 			((SX_ARRAY *)sargv)->list[i - 2] = sx_new_str (system, argv[i]);
 		}
 
-		sx_create_thread (system, func, (SX_ARRAY *)sargv);
+		sx_create_thread (module, func, (SX_ARRAY *)sargv);
 		while (sx_runable (system))
 			sx_run (system, 1000);
 	}

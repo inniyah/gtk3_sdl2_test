@@ -52,8 +52,8 @@ sx_new_class (SX_SYSTEM *system, sx_name_id id, sx_name_id *members, SX_CLASS *p
 	klass->methods = NULL;
 	klass->static_methods = NULL;
 	klass->members = members;
-	klass->next = system->classes;
-	system->classes = klass;
+	klass->refs = 1;
+	klass->next = NULL;
 
 	return klass;
 }
@@ -72,7 +72,24 @@ sx_new_core_class (SX_SYSTEM *system, sx_name_id id, sx_name_id *members) {
 
 	memset (klass->core, 0, sizeof (struct _scriptix_core));
 
+	sx_add_class (system->core, klass);
+
 	return klass;
+}
+
+unsigned long
+sx_ref_class (SX_CLASS *klass) {
+	return ++ klass->refs;
+}
+
+unsigned long
+sx_unref_class (SX_CLASS *klass) {
+	if ((-- klass->refs) == 0) {
+		sx_free_class (klass);
+		return 0;
+	} else {
+		return klass->refs;
+	}
 }
 
 void
@@ -98,13 +115,13 @@ sx_free_class (SX_CLASS *class) {
 
 	while (class->methods != NULL) {
 		nmethod = class->methods->next;
-		sx_free_func (class->methods);
+		sx_unref_func (class->methods);
 		class->methods = nmethod;
 	}
 
 	while (class->static_methods != NULL) {
 		nmethod = class->static_methods->next;
-		sx_free_func (class->static_methods);
+		sx_unref_func (class->static_methods);
 		class->static_methods = nmethod;
 	}
 
@@ -113,19 +130,6 @@ sx_free_class (SX_CLASS *class) {
 	}
 
 	sx_free (class);
-}
-
-SX_CLASS *
-sx_get_class (SX_SYSTEM *system, sx_name_id id) {
-	SX_CLASS *klass;
-
-	for (klass = system->classes; klass != NULL; klass = klass->next) {
-		if (klass->id == id) {
-			return klass;
-		}
-	}
-
-	return NULL;
 }
 
 SX_CLASS *
@@ -144,34 +148,6 @@ sx_top_class_of (SX_SYSTEM *system, SX_VALUE *value) {
 		;
 
 	return klass;
-}
-
-SX_VALUE *
-sx_new_object (SX_SYSTEM *system, SX_CLASS *parent) {
-	SX_VALUE *value;
-	unsigned long i, c;
-
-	if (parent && parent->core && parent->core->fnew) {
-		value = parent->core->fnew (system, parent);
-	} else {
-		value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
-		sx_clear_value (system, value, parent);
-	}
-
-	if (value == NULL) {
-		return NULL;
-	}
-
-	/* define members */
-	while (parent != NULL) {
-		c = sx_sizeof_namelist (parent->members);
-		for (i = 0; i < c; ++ i) {
-			sx_set_member (system, value, parent->members[i], NULL);
-		}
-		parent = parent->par;
-	}
-
-	return value;
 }
 
 SX_FUNC *
@@ -195,6 +171,7 @@ sx_add_method (SX_SYSTEM *system, SX_CLASS *klass, SX_FUNC *func) {
 		return NULL;
 	}
 
+	sx_ref_func (func);
 	func->next = klass->methods;
 	klass->methods = func;
 
@@ -222,6 +199,7 @@ sx_add_static_method (SX_SYSTEM *system, SX_CLASS *klass, SX_FUNC *func) {
 		return NULL;
 	}
 
+	sx_ref_func (func);
 	func->next = klass->static_methods;
 	klass->static_methods = func;
 
@@ -249,68 +227,4 @@ sx_class_is_a (SX_SYSTEM *system, SX_CLASS *klass, SX_CLASS *par) {
 		klass = klass->par;
 	}
 	return 0;
-}
-
-SX_VAR *
-sx_set_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id, SX_VALUE *value) {
-	SX_VAR *var;
-
-	if (klass == NULL || ((long)klass) & SX_NUM_MARK) {
-		return NULL;
-	}
-
-	for (var = klass->members; var != NULL; var = var->next) {
-		if (id == var->id) {
-			var->value = value;
-			return var;
-		}
-	}
-
-	sx_lock_value (klass);
-	sx_lock_value (value);
-
-	var = (SX_VAR *)sx_malloc (system, sizeof (SX_VAR));
-
-	sx_unlock_value (klass);
-	sx_unlock_value (value);
-
-	if (var == NULL) {
-		return NULL;
-	}
-
-	var->id = id;
-	var->value = value;
-	var->next = klass->members;
-	klass->members = var;
-
-	return var;
-}
-
-SX_VALUE *
-sx_get_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id) {
-	SX_VAR *var;
-
-	var = sx_find_member (system, klass, id);
-	if (var != NULL) {
-		return var->value;
-	} else {
-		return sx_new_nil ();
-	}
-}
-
-SX_VAR *
-sx_find_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id) {
-	SX_VAR *var;
-
-	if (klass == NULL || ((long)klass) & SX_NUM_MARK) {
-		return NULL;
-	}
-
-	for (var = klass->members; var != NULL; var = var->next) {
-		if (id == var->id) {
-			return var;
-		}
-	}
-
-	return NULL;
 }

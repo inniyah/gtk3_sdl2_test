@@ -38,12 +38,11 @@
 	#define COMP_STACK_SIZE 20
 	#define NAME_LIST_SIZE 20
 
-	__INLINE__ void parser_add_line (void);
-
 	int sxerror (const char *);
 	int sxlex (void);
+	int sxparse (void);
 
-	SXP_INFO *parse_info = NULL;
+	SXP_INFO *sxp_parser_info = NULL;
 %}
 
 %union {
@@ -57,7 +56,7 @@
 %token<value> TNUM TSTR
 %token<name> TNAME
 %token TIF TELSE TWHILE TDO TAND TOR TGTE TLTE TNE TSTATMETHOD
-%token TRETURN TBREAK TLOCAL TGLOBAL TEQUALS TCONTINUE TSUPER
+%token TRETURN TBREAK TLOCAL TEQUALS TCONTINUE TSUPER TYIELD
 %token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT TSTATIC
 %token TCLASS TNEW TUNTIL TNIL TRAISE TRESCUE TTRY TIN TFOR
 
@@ -88,25 +87,25 @@ program:
 	| program function
 	;
 
-class:	TCLASS name { sxp_new_class (parse_info, $2, 0); } '{' cblock '}'
-	| TCLASS name ':' name { sxp_new_class (parse_info, $2, $4); } '{' cblock '}'
+class:	TCLASS name { sxp_new_class (sxp_parser_info, $2, 0); } '{' cblock '}'
+	| TCLASS name ':' name { sxp_new_class (sxp_parser_info, $2, $4); } '{' cblock '}'
 	;
 
 cblock:	cstmt 
 	| cblock cstmt
 	;
 
-cstmt:	name '(' arg_names ')' '{' block '}' { sxp_add_method (parse_info->classes, $1, (SX_ARRAY *)$3.args, $3.varg, $6); }
-	| TSTATIC name '(' arg_names ')' '{' block '}' { sxp_add_static_method (parse_info->classes, $2, (SX_ARRAY *)$4.args, $4.varg, $7); }
+cstmt:	name '(' arg_names ')' '{' block '}' { sxp_add_method (sxp_parser_info->classes, $1, (SX_ARRAY *)$3.args, $3.varg, $6); }
+	| TSTATIC name '(' arg_names ')' '{' block '}' { sxp_add_static_method (sxp_parser_info->classes, $2, (SX_ARRAY *)$4.args, $4.varg, $7); }
 	| name ';' { 
-		if (parse_info->classes->members == NULL) {
-			parse_info->classes->members = (SX_ARRAY *)sx_new_array (parse_info->system, 0, NULL);
+		if (sxp_parser_info->classes->members == NULL) {
+			sxp_parser_info->classes->members = (SX_ARRAY *)sx_new_array (sxp_parser_info->system, 0, NULL);
 		}
-		sx_append (parse_info->system, (SX_VALUE *)parse_info->classes->members, sx_new_num ($1));
+		sx_append (sxp_parser_info->system, (SX_VALUE *)sxp_parser_info->classes->members, sx_new_num ($1));
 	}
 	;
 
-function: name '(' arg_names ')' '{' block '}' { sxp_new_func (parse_info, $1, (SX_ARRAY *)$3.args, $3.varg, $6); }
+function: name '(' arg_names ')' '{' block '}' { sxp_new_func (sxp_parser_info, $1, (SX_ARRAY *)$3.args, $3.varg, $6); }
 	;
 
 block: { $$ = NULL; }
@@ -119,31 +118,32 @@ stmts:	stmt { $$ = $1; }
 
 stmt:	node ';' { $$ = $1; }
 	| control ';' { $$ = $1; }
-	| TIF '(' expr ')' stmt %prec TIF { $$ = sxp_new_if (parse_info, $3, $5, NULL); }
-	| TIF '(' expr ')' stmt TELSE stmt %prec TELSE { $$ = sxp_new_if (parse_info, $3, $5, $7); }
-	| TWHILE '(' expr ')' stmt { $$ = sxp_new_whil (parse_info, $3, $5, SXP_W_WD); }
-	| TUNTIL '(' expr ')' stmt { $$ = sxp_new_whil (parse_info, $3, $5, SXP_W_UD); }
-	| TDO stmt TWHILE '(' expr ')' ';' { $$ = sxp_new_whil (parse_info, $5, $2, SXP_W_DW); }
-	| TDO stmt TUNTIL '(' expr ')' ';' { $$ = sxp_new_whil (parse_info, $5, $2, SXP_W_DU); }
+	| TIF '(' expr ')' stmt %prec TIF { $$ = sxp_new_if (sxp_parser_info, $3, $5, NULL); }
+	| TIF '(' expr ')' stmt TELSE stmt %prec TELSE { $$ = sxp_new_if (sxp_parser_info, $3, $5, $7); }
+	| TWHILE '(' expr ')' stmt { $$ = sxp_new_whil (sxp_parser_info, $3, $5, SXP_W_WD); }
+	| TUNTIL '(' expr ')' stmt { $$ = sxp_new_whil (sxp_parser_info, $3, $5, SXP_W_UD); }
+	| TDO stmt TWHILE '(' expr ')' ';' { $$ = sxp_new_whil (sxp_parser_info, $5, $2, SXP_W_DW); }
+	| TDO stmt TUNTIL '(' expr ')' ';' { $$ = sxp_new_whil (sxp_parser_info, $5, $2, SXP_W_DU); }
 	
-	| TTRY '{' block '}' TRESCUE '(' errors ')' '{' block '}' { $$ = sxp_new_try (parse_info, $7, $3, $10); }
+	| TTRY '{' block '}' TRESCUE '(' errors ')' '{' block '}' { $$ = sxp_new_try (sxp_parser_info, $7, $3, $10); }
 
-	| TFOR name TIN expr TDO stmt { $$ = sxp_new_for (parse_info, $2, $4, $6); }
-	| TFOR '(' node ';' expr ';' node ')' stmt { $$ = sxp_new_cfor (parse_info, $3, $5, $7, $9); }
+	| TFOR name TIN expr TDO stmt { $$ = sxp_new_for (sxp_parser_info, $2, $4, $6); }
+	| TFOR '(' node ';' expr ';' node ')' stmt { $$ = sxp_new_cfor (sxp_parser_info, $3, $5, $7, $9); }
 
 	| '{' block '}' { $$ = $2; }
 	;
 
 node:	{ $$ = NULL; }
-	| expr { $$ = sxp_new_stmt (parse_info, $1); }
+	| expr { $$ = sxp_new_stmt (sxp_parser_info, $1); }
 	;
 
-control: TRETURN expr { $$ = sxp_new_retr (parse_info, $2); }
-	| TRETURN { $$ = sxp_new_retr (parse_info, NULL); }
-	| TBREAK { $$ = sxp_new_brak (parse_info); }
-	| TCONTINUE { $$ = sxp_new_cont (parse_info); }
-	| TRAISE name { $$ = sxp_new_rais (parse_info, $2, NULL); }
-	| TRAISE name expr { $$ = sxp_new_rais (parse_info, $2, $3); }
+control: TRETURN expr { $$ = sxp_new_retr (sxp_parser_info, $2); }
+	| TRETURN { $$ = sxp_new_retr (sxp_parser_info, NULL); }
+	| TBREAK { $$ = sxp_new_brak (sxp_parser_info); }
+	| TCONTINUE { $$ = sxp_new_cont (sxp_parser_info); }
+	| TRAISE name { $$ = sxp_new_rais (sxp_parser_info, $2, NULL); }
+	| TRAISE name expr { $$ = sxp_new_rais (sxp_parser_info, $2, $3); }
+	| TYIELD { $$ = sxp_new_yeld (sxp_parser_info); }
 	;
 
 args: { $$ = NULL; }
@@ -157,64 +157,62 @@ arg_names: { $$.args = NULL; $$.varg = 0; }
 	| '&' name { $$.args = NULL; $$.varg = $2; }
 	;
 
-arg_names_list: name { $$ = sx_append (parse_info->system, sx_new_array (parse_info->system, 0, NULL), sx_new_num ($1)); }
-	| arg_names_list ',' name { $$ = sx_append (parse_info->system, $1, sx_new_num ($3)); }
+arg_names_list: name { $$ = sx_append (sxp_parser_info->system, sx_new_array (sxp_parser_info->system, 0, NULL), sx_new_num ($1)); }
+	| arg_names_list ',' name { $$ = sx_append (sxp_parser_info->system, $1, sx_new_num ($3)); }
 	;
 
 errors: { $$ = NULL; }
-	| name name { $$ = sx_append (parse_info->system, sx_append (parse_info->system, sx_new_array (parse_info->system, 0, NULL), sx_new_num ($1)), sx_new_num ($2)); }
-	| errors ',' name name { $$ = sx_append (parse_info->system, sx_append (parse_info->system, sx_new_array (parse_info->system, 0, NULL), sx_new_num ($3)), sx_new_num ($4)); }
+	| name name { $$ = sx_append (sxp_parser_info->system, sx_append (sxp_parser_info->system, sx_new_array (sxp_parser_info->system, 0, NULL), sx_new_num ($1)), sx_new_num ($2)); }
+	| errors ',' name name { $$ = sx_append (sxp_parser_info->system, sx_append (sxp_parser_info->system, sx_new_array (sxp_parser_info->system, 0, NULL), sx_new_num ($3)), sx_new_num ($4)); }
 	;
 
-expr:	expr '+' expr { $$ = sxp_new_math (parse_info, SX_OP_ADD, $1, $3); }
-	| expr '-' expr { $$ = sxp_new_math (parse_info, SX_OP_SUBTRACT, $1, $3); }
-	| expr '*' expr { $$ = sxp_new_math (parse_info, SX_OP_MULTIPLY, $1, $3); }
-	| expr '/' expr { $$ = sxp_new_math (parse_info, SX_OP_DIVIDE, $1, $3); }
+expr:	expr '+' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_ADD, $1, $3); }
+	| expr '-' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_SUBTRACT, $1, $3); }
+	| expr '*' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_MULTIPLY, $1, $3); }
+	| expr '/' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_DIVIDE, $1, $3); }
 	| '(' expr ')' { $$ = $2; }
 
-	| '-' expr %prec CUNARY { $$ = sxp_new_nega (parse_info, $2); }
+	| '-' expr %prec CUNARY { $$ = sxp_new_nega (sxp_parser_info, $2); }
 
-	| '!' expr { $$ = sxp_new_not (parse_info, $2); }
-	| expr TAND expr { $$ = sxp_new_and (parse_info, $1, $3); }
-	| expr TOR expr { $$ = sxp_new_or (parse_info, $1, $3); }
+	| '!' expr { $$ = sxp_new_not (sxp_parser_info, $2); }
+	| expr TAND expr { $$ = sxp_new_and (sxp_parser_info, $1, $3); }
+	| expr TOR expr { $$ = sxp_new_or (sxp_parser_info, $1, $3); }
 
-	| expr '>' expr { $$ = sxp_new_math (parse_info, SX_OP_GT, $1, $3); }
-	| expr '<' expr { $$ = sxp_new_math (parse_info, SX_OP_LT, $1, $3); }
-	| expr TNE expr { $$ = sxp_new_math (parse_info, SX_OP_NEQUAL, $1, $3); }
-	| expr TGTE expr { $$ = sxp_new_math (parse_info, SX_OP_GTE, $1, $3); }
-	| expr TLTE expr { $$ = sxp_new_math (parse_info, SX_OP_LTE, $1, $3); }
-	| expr TEQUALS expr { $$ = sxp_new_math (parse_info, SX_OP_EQUAL, $1, $3); }
+	| expr '>' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_GT, $1, $3); }
+	| expr '<' expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_LT, $1, $3); }
+	| expr TNE expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_NEQUAL, $1, $3); }
+	| expr TGTE expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_GTE, $1, $3); }
+	| expr TLTE expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_LTE, $1, $3); }
+	| expr TEQUALS expr { $$ = sxp_new_math (sxp_parser_info, SX_OP_EQUAL, $1, $3); }
 
-	| name '=' expr { $$ = sxp_new_assi (parse_info, $1, SX_SCOPE_DEF, $3); }
-	| TLOCAL name '=' expr { $$ = sxp_new_assi (parse_info, $2, SX_SCOPE_LOCAL, $4); }
-	| TGLOBAL name '=' expr { $$ = sxp_new_assi (parse_info, $2, SX_SCOPE_GLOBAL, $4); }
-	| expr '[' expr ']' '=' expr %prec '=' { $$ = sxp_new_set (parse_info, $1, $3, $6); }
-	| expr '.' name '=' expr %prec '=' { $$ = sxp_new_setm (parse_info, $1, $3, $5); }
+	| name '=' expr { $$ = sxp_new_assi (sxp_parser_info, $1, SX_SCOPE_DEF, $3); }
+	| TLOCAL name '=' expr { $$ = sxp_new_assi (sxp_parser_info, $2, SX_SCOPE_LOCAL, $4); }
+	| expr '[' expr ']' '=' expr %prec '=' { $$ = sxp_new_set (sxp_parser_info, $1, $3, $6); }
+	| expr '.' name '=' expr %prec '=' { $$ = sxp_new_setm (sxp_parser_info, $1, $3, $5); }
 
-	| name TADDASSIGN expr { $$ = sxp_new_pric (parse_info, $1, $3); }
-	| name TSUBASSIGN expr { $$ = sxp_new_pric (parse_info, $1, sxp_new_nega (parse_info, $3)); }
-	| name TINCREMENT { $$ = sxp_new_poic (parse_info, $1, sxp_new_data (parse_info, sx_new_num (1))); }
-	| TINCREMENT name { $$ = sxp_new_pric (parse_info, $2, sxp_new_data (parse_info, sx_new_num (1))); }
-	| name TDECREMENT { $$ = sxp_new_poic (parse_info, $1, sxp_new_data (parse_info, sx_new_num (-1))); }
-	| TDECREMENT name { $$ = sxp_new_pric (parse_info, $2, sxp_new_data (parse_info, sx_new_num (-1))); }
+	| name TADDASSIGN expr { $$ = sxp_new_pric (sxp_parser_info, $1, $3); }
+	| name TSUBASSIGN expr { $$ = sxp_new_pric (sxp_parser_info, $1, sxp_new_nega (sxp_parser_info, $3)); }
+	| name TINCREMENT { $$ = sxp_new_poic (sxp_parser_info, $1, sxp_new_data (sxp_parser_info, sx_new_num (1))); }
+	| TINCREMENT name { $$ = sxp_new_pric (sxp_parser_info, $2, sxp_new_data (sxp_parser_info, sx_new_num (1))); }
+	| name TDECREMENT { $$ = sxp_new_poic (sxp_parser_info, $1, sxp_new_data (sxp_parser_info, sx_new_num (-1))); }
+	| TDECREMENT name { $$ = sxp_new_pric (sxp_parser_info, $2, sxp_new_data (sxp_parser_info, sx_new_num (-1))); }
 	
-	| expr TISA name { $$ = sxp_new_isa (parse_info, $1, $3); }
-	| name '(' args ')' { $$ = sxp_new_call (parse_info, $1, $3); }
-	| TSUPER '(' args ')' { $$ = sxp_new_supr (parse_info, $3); }
+	| expr TISA name { $$ = sxp_new_isa (sxp_parser_info, $1, $3); }
+	| name '(' args ')' { $$ = sxp_new_call (sxp_parser_info, $1, $3); }
+	| TSUPER '(' args ')' { $$ = sxp_new_supr (sxp_parser_info, $3); }
 
-	| name TSTATMETHOD name '(' args ')' { $$ = sxp_new_smet (parse_info, $1, $3, $5); }
-	| expr '.' name '(' args ')' { $$ = sxp_new_meth (parse_info, $1, $3, $5); }
-	| expr '.' name { $$ = sxp_new_memb (parse_info, $1, $3); }
-	| TNEW name '(' args ')' { $$ = sxp_new_newc (parse_info, $2, $4); }
+	| name TSTATMETHOD name '(' args ')' { $$ = sxp_new_smet (sxp_parser_info, $1, $3, $5); }
+	| expr '.' name '(' args ')' { $$ = sxp_new_meth (sxp_parser_info, $1, $3, $5); }
+	| expr '.' name { $$ = sxp_new_memb (sxp_parser_info, $1, $3); }
+	| TNEW name '(' args ')' { $$ = sxp_new_newc (sxp_parser_info, $2, $4); }
 
-	| expr '[' expr ']' { $$ = sxp_new_indx (parse_info, $1, $3); }
-	| '[' args ']' { $$ = sxp_new_arry (parse_info, $2); }
+	| expr '[' expr ']' { $$ = sxp_new_indx (sxp_parser_info, $1, $3); }
+	| '[' args ']' { $$ = sxp_new_arry (sxp_parser_info, $2); }
 
-	| data { $$ = sxp_new_data (parse_info, $1); }
+	| data { $$ = sxp_new_data (sxp_parser_info, $1); }
 
-	| name { $$ = sxp_new_name (parse_info, $1, SX_SCOPE_DEF); }
-	| TLOCAL name { $$ = sxp_new_name (parse_info, $2, SX_SCOPE_LOCAL); }
-	| TGLOBAL name { $$ = sxp_new_name (parse_info, $2, SX_SCOPE_GLOBAL); }
+	| name { $$ = sxp_new_name (sxp_parser_info, $1, SX_SCOPE_DEF); }
+	| TLOCAL name { $$ = sxp_new_name (sxp_parser_info, $2, SX_SCOPE_LOCAL); }
 	;
 
 	
@@ -228,19 +226,14 @@ name:	TNAME { $$ = sx_name_to_id ($1); }
 
 %%
 
-void
-parser_add_line (void) {
-	++ parse_info->line;
-}
-
 int
 sxerror (const char *str) {
-	if (parse_info->system->error_hook != NULL) {
+	if (sxp_parser_info->system->error_hook != NULL) {
 		char buffer[512];
-		snprintf (buffer, 512, "File %s, line %d: %s", parse_info->file ? SX_TOSTRING (parse_info->file)->str : "<input>", parse_info->line, str);
-		parse_info->system->error_hook (buffer);
+		snprintf (buffer, 512, "File %s, line %d: %s", sxp_parser_info->file ? SX_TOSTRING (sxp_parser_info->file)->str : "<input>", sxp_parser_info->line, str);
+		sxp_parser_info->system->error_hook (buffer);
 	} else {
-		fprintf (stderr, "Scriptix Error: File %s, line %d: %s\n", parse_info->file ? SX_TOSTRING (parse_info->file)->str : "<input>", parse_info->line, str);
+		fprintf (stderr, "Scriptix Error: File %s, line %d: %s\n", sxp_parser_info->file ? SX_TOSTRING (sxp_parser_info->file)->str : "<input>", sxp_parser_info->line, str);
 	}
 	return 1;
 }
@@ -251,7 +244,7 @@ sxwrap (void) {
 }
 
 int
-sxp_load_file (SX_SYSTEM *system, const char *file) {
+sxp_load_file (SX_MODULE *module, const char *file) {
 	int ret, flags;
 
 	if (file == NULL) {
@@ -264,69 +257,69 @@ sxp_load_file (SX_SYSTEM *system, const char *file) {
 		}
 	}
 
-	parse_info = sxp_new_info (system);
-	if (parse_info == NULL) {
+	sxp_parser_info = sxp_new_info (module);
+	if (sxp_parser_info == NULL) {
 		if (file != NULL)
 			fclose (sxin);
 		fprintf (stderr, "Failed to create info\n");
 		return 1;
 	}
 	if (file != NULL)
-		parse_info->file = sx_new_str (system, file);
+		sxp_parser_info->file = sx_new_str (module->system, file);
 
-	sx_parser_inbuf = NULL;
-	flags = system->flags;
-	system->flags |= SX_SFLAG_GCOFF;
+	sxp_parser_inbuf = NULL;
+	flags = module->system->flags;
+	module->system->flags |= SX_SFLAG_GCOFF;
 
 	ret = sxparse ();
 
-	system->flags = flags;
+	module->system->flags = flags;
 
 	if (file != NULL) {
 		fclose (sxin);
 	}
 
 	if (!ret) {
-		ret = sxp_compile (parse_info);
+		ret = sxp_compile (sxp_parser_info);
 	}
 
-	sxp_del_info (parse_info);
+	sxp_del_info (sxp_parser_info);
 
-	sx_run_gc (system);
+	sx_run_gc (module->system);
 
 	return ret;
 }
 
 int
-sxp_load_string (SX_SYSTEM *system, const char *buf) {
+sxp_load_string (SX_MODULE *module, const char *buf) {
 	int ret, flags;
 
 	if (buf == NULL) {
 		return 1;
 	}
 
-	parse_info = sxp_new_info (system);
-	if (parse_info == NULL) {
+	sxp_parser_info = sxp_new_info (module);
+	if (sxp_parser_info == NULL) {
 		fprintf (stderr, "Failed to create info\n");
 		return 1;
 	}
 
 	sxin = NULL;
-	sx_parser_inbuf = buf;
-	flags = system->flags;
-	system->flags |= SX_SFLAG_GCOFF;
+	sxp_parser_inbuf = buf;
+	flags = module->system->flags;
+	module->system->flags |= SX_SFLAG_GCOFF;
 
 	ret = sxparse ();
 
-	system->flags = flags;
+	module->system->flags = flags;
 
 	if (!ret) {
-		ret = sxp_compile (parse_info);
+		ret = sxp_compile (sxp_parser_info);
 	}
 
-	sxp_del_info (parse_info);
+	sxp_del_info (sxp_parser_info);
 
-	sx_run_gc (system);
+	sx_run_gc (module->system);
 
 	return ret;
 }

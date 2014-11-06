@@ -12,7 +12,6 @@ sx_create_system
 sx_create_thread
 sx_create_thread_v
 SX_DEFINE_CFUNC
-sx_define_system_var
 sx_define_var
 sx_dupmem
 sx_find_member
@@ -25,7 +24,6 @@ sx_get_index
 sx_get_member
 sx_get_method
 sx_get_static_method
-sx_get_system_var
 sx_get_value
 sx_get_var
 SX_ISARRAY
@@ -34,6 +32,8 @@ sx_is_true
 sx_lock_value
 sx_malloc
 sx_mark_value
+sx_name_id_to_name
+sx_name_to_id
 sx_new_array
 sx_new_block
 sx_new_cfunc
@@ -41,6 +41,7 @@ sx_new_class
 sx_new_core_class
 sx_new_error
 sx_new_func
+sx_new_module
 sx_new_namelist
 sx_new_namelist_from_array
 sx_new_nil
@@ -56,7 +57,11 @@ sx_pop_value
 sx_push_call
 sx_push_value
 sx_raise_error
+sx_ref_class
+sx_ref_func
+sx_ref_module
 sx_run
+sx_runable
 sx_run_gc
 sx_run_until
 sx_set_index
@@ -66,4 +71,7 @@ sx_strdup
 SX_TOARRAY
 SX_TOSTRING
 sx_unlock_value
+sx_unref_class
+sx_unref_func
+sx_unref_module
 sx_value_is_a

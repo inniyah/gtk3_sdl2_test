@@ -61,6 +61,7 @@
 #define SXP_CONT 31
 #define SXP_SMET 32
 #define SXP_SUPR 33
+#define SXP_YELD 34
 
 #define SXP_W_WD 1
 #define SXP_W_DW 2
@@ -105,6 +106,7 @@ struct scriptix_parse_class {
 
 struct scriptix_parse_info {
 	SX_SYSTEM *system;
+	SX_MODULE *module;
 	SXP_NODE *nodes;
 	SXP_CLASS *classes;
 	SXP_FUNC *funcs;
@@ -217,9 +219,14 @@ struct scriptix_parse_node {
 	} data;
 };
 
+struct _sxp_arg_list {
+	SX_VALUE *args;
+	sx_name_id varg;
+};
+
 void sxp_error (SXP_INFO *info, const char *msg);
 
-SXP_INFO *sxp_new_info (SX_SYSTEM *system);
+SXP_INFO *sxp_new_info (SX_MODULE *module);
 void sxp_del_info (SXP_INFO *info);
 
 SXP_CLASS *sxp_new_class (SXP_INFO *info, sx_name_id name, sx_name_id parent);
@@ -275,22 +282,16 @@ extern SXP_NODE *sxp_new_for (SXP_INFO *info, sx_name_id name, SXP_NODE *node, S
 extern SXP_NODE *sxp_new_cfor (SXP_INFO *info, SXP_NODE *start, SXP_NODE *test, SXP_NODE *inc, SXP_NODE *body);
 extern SXP_NODE *sxp_new_cont (SXP_INFO *info);
 extern SXP_NODE *sxp_new_supr (SXP_INFO *info, SXP_NODE *args);
+extern SXP_NODE *sxp_new_yeld (SXP_INFO *info);
 
 extern SXP_NODE *sxp_append (SXP_NODE *base, SXP_NODE *add);
 
+/* compilation helpers */
 extern int sxp_compile (SXP_INFO *info);
 
 /* globals for during compilation */
-extern SXP_INFO *parse_info;
+extern SXP_INFO *sxp_parser_info;
 extern FILE *sxin;
-extern const char *sx_parser_inbuf;
-
-extern __INLINE__ void parser_add_line (void);
-int sxparse (void);
-
-struct _sxp_arg_list {
-	SX_VALUE *args;
-	sx_name_id varg;
-};
+extern const char *sxp_parser_inbuf;
 
 #endif

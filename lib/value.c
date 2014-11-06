@@ -39,9 +39,12 @@ sx_clear_value (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *klass) {
 	value->locks = 0;
 	value->flags = 0;
 	value->klass = klass;
-	value->members = NULL;
 	value->next = system->gc_list;
 	system->gc_list = value;
+
+	if (klass != NULL) {
+		sx_ref_class (klass);
+	}
 
 	if (++ system->gc_count >= system->gc_thresh) {
 		sx_lock_value (value);
@@ -52,22 +55,16 @@ sx_clear_value (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *klass) {
 
 void
 sx_free_value (SX_SYSTEM *system, SX_VALUE *value) {
-	SX_VAR *rnext;
 	SX_CLASS *klass;
 
 	if (value == NULL || ((long)(value)) & SX_NUM_MARK) {
 		return;
 	}
 
-	while (value->members) {
-		rnext = value->members->next;
-		sx_free_var (value->members);
-		value->members = rnext;
-	}
-
 	klass = sx_class_of (system, value);
 	if (klass && klass->core && klass->core->fdel) {
 		klass->core->fdel (system, value);
+		sx_unref_class (klass);
 	} else {
 		sx_free (value);
 	}
@@ -233,15 +230,10 @@ sx_unlock_value (SX_VALUE *value) {
 
 void
 sx_mark_value (SX_SYSTEM *system, SX_VALUE *value) {
-	SX_VAR *var;
 	SX_CLASS *klass;
 
 	if (value == NULL || SX_ISNUM (system, value)) {
 		return;
-	}
-
-	for (var = value->members; var != NULL; var = var->next) {
-		sx_mark_value (system, var->value);
 	}
 
 	value->flags |= SX_VFLAG_MARK;

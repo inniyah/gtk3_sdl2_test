@@ -1,8 +1,8 @@
 AC_INIT(bin/scriptix.c)
 AC_CONFIG_HEADER(include/config.h)
 
-BASE_VERSION=0.18
-VERSION=0.18
+BASE_VERSION=0.19
+VERSION=0.19
 AC_SUBST(VERSION)
 AC_SUBST(BASE_VERSION)
 AC_DEFINE_UNQUOTED(SX_VERSION,"$VERSION")
@@ -12,6 +12,11 @@ AC_PROG_CC
 AC_CHECK_FUNC(snprintf)
 AC_CHECK_FUNC(strcasecmp)
 AC_CHECK_FUNC(strdup)
+
+if test "$CC" = "gcc" ; then 
+	CFLAGS="$CFLAGS -Wall"
+	AC_SUBST(CFLAGS)
+fi
 
 AC_OUTPUT(
 	Makefile
@@ -24,6 +29,3 @@ AC_OUTPUT(
 )
 
 chmod +x scriptix-conf
-
-echo "VERSION=$VERSION" > deb/version-info
-echo "BASE_VERSION=$BASE_VERSION" >> deb/version-info

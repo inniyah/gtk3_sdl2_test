@@ -27,7 +27,8 @@
 #define YY_FLEX_MINOR_VERSION 5
 
 #include <stdio.h>
-#include <errno.h>
+#include <unistd.h>
+
 
 /* cfront 1.2 defines "c_plusplus" instead of "__cplusplus" */
 #ifdef c_plusplus
@@ -40,9 +41,6 @@
 #ifdef __cplusplus
 
 #include <stdlib.h>
-#ifndef _WIN32
-#include <unistd.h>
-#endif
 
 /* Use prototypes in function declarations. */
 #define YY_USE_PROTOS
@@ -469,10 +467,10 @@ char *yytext;
 
 	__INLINE__ void sxll_to_lower (char *buf);
 
-	#define YY_INPUT(b,r,m) sx_parser_input((b),&(r),(m))
+	#define YY_INPUT(b,r,m) sxp_parser_input((b),&(r),(m))
 
-	const char *sx_parser_inbuf = NULL;
-	void sx_parser_input (char *buf, int *result, int max);
+	const char *sxp_parser_inbuf = NULL;
+	void sxp_parser_input (char *buf, int *result, int max);
 #define BCOMMENT 1
 
 #define LCOMMENT 2
@@ -481,7 +479,7 @@ char *yytext;
 
 #define DSTRING 4
 
-#line 485 "lex.sx.c"
+#line 483 "lex.sx.c"
 
 /* Macros after this point can all be overridden by user definitions in
  * section 1.
@@ -581,20 +579,9 @@ YY_MALLOC_DECL
 			YY_FATAL_ERROR( "input in flex scanner failed" ); \
 		result = n; \
 		} \
-	else \
-		{ \
-		errno=0; \
-		while ( (result = fread(buf, 1, max_size, yyin))==0 && ferror(yyin)) \
-			{ \
-			if( errno != EINTR) \
-				{ \
-				YY_FATAL_ERROR( "input in flex scanner failed" ); \
-				break; \
-				} \
-			errno=0; \
-			clearerr(yyin); \
-			} \
-		}
+	else if ( ((result = fread( buf, 1, max_size, yyin )) == 0) \
+		  && ferror( yyin ) ) \
+		YY_FATAL_ERROR( "input in flex scanner failed" );
 #endif
 
 /* No semi-colon after return; correct usage is to write "yyterminate();" -
@@ -640,13 +627,13 @@ YY_MALLOC_DECL
 YY_DECL
 	{
 	register yy_state_type yy_current_state;
-	register char *yy_cp, *yy_bp;
+	register char *yy_cp = NULL, *yy_bp = NULL;
 	register int yy_act;
 
 #line 60 "lexer.l"
 
 
-#line 650 "lex.sx.c"
+#line 637 "lex.sx.c"
 
 	if ( yy_init )
 		{
@@ -737,7 +724,7 @@ YY_RULE_SETUP
 case 2:
 YY_RULE_SETUP
 #line 63 "lexer.l"
-{ parser_add_line (); }
+{ sxp_parser_info->line ++; }
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
@@ -757,7 +744,7 @@ YY_RULE_SETUP
 case 6:
 YY_RULE_SETUP
 #line 68 "lexer.l"
-{ parser_add_line (); BEGIN INITIAL; }
+{ sxp_parser_info->line ++; BEGIN INITIAL; }
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
@@ -777,17 +764,17 @@ YY_RULE_SETUP
 case 10:
 YY_RULE_SETUP
 #line 73 "lexer.l"
-{ parser_add_line (); sx_lex_str_push ('\n'); }
+{ sxp_parser_info->line ++; sx_lex_str_push ('\n'); }
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
 #line 74 "lexer.l"
-{ BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_info->system, sx_lex_str); return TSTR; } 
+{ BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (sxp_parser_info->system, sx_lex_str); return TSTR; } 
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
 #line 75 "lexer.l"
-{ BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_info->system, sx_lex_str); return TSTR; } 
+{ BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (sxp_parser_info->system, sx_lex_str); return TSTR; } 
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
@@ -812,7 +799,7 @@ YY_RULE_SETUP
 case 17:
 YY_RULE_SETUP
 #line 81 "lexer.l"
-{ parser_add_line (); }
+{ sxp_parser_info->line ++; }
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
@@ -827,7 +814,6 @@ YY_RULE_SETUP
 		LEX_NAME("return", TRETURN)
 		LEX_NAME("break", TBREAK)
 		LEX_NAME("local", TLOCAL)
-		LEX_NAME("global", TGLOBAL)
 		LEX_NAME("class", TCLASS)
 		LEX_NAME("new", TNEW)
 		LEX_NAME("isa", TISA)
@@ -840,6 +826,7 @@ YY_RULE_SETUP
 		LEX_NAME("continue", TCONTINUE)
 		LEX_NAME("static", TSTATIC)
 		LEX_NAME("super", TSUPER)
+		LEX_NAME("yield", TYIELD)
 		{
 			strncpy (sxlval.name, yytext, SX_MAX_NAME);
 			sxlval.name[SX_MAX_NAME] = 0;
@@ -935,7 +922,7 @@ YY_RULE_SETUP
 #line 128 "lexer.l"
 ECHO;
 	YY_BREAK
-#line 939 "lex.sx.c"
+#line 926 "lex.sx.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1497,15 +1484,6 @@ YY_BUFFER_STATE b;
 	}
 
 
-#ifndef _WIN32
-#include <unistd.h>
-#else
-#ifndef YY_ALWAYS_INTERACTIVE
-#ifndef YY_NEVER_INTERACTIVE
-extern int isatty YY_PROTO(( int ));
-#endif
-#endif
-#endif
 
 #ifdef YY_USE_PROTOS
 void yy_init_buffer( YY_BUFFER_STATE b, FILE *file )
@@ -1843,6 +1821,8 @@ sx_lex_str_escape (char esc) {
 		sx_lex_str_push ('\t');
 	} else if (esc == 'b') {
 		sx_lex_str_push ('\b');
+	} else if (esc == '0') {
+		sx_lex_str_push (0);
 	} else {
 		sx_lex_str_push (esc);
 	}
@@ -1857,15 +1837,15 @@ sx_lex_str_push (char c) {
 }
 	
 void
-sx_parser_input (char *buf, int *result, int max_size) {
-	if (sx_parser_inbuf != NULL) {
-		int len = strlen (sx_parser_inbuf);
+sxp_parser_input (char *buf, int *result, int max_size) {
+	if (sxp_parser_inbuf != NULL) {
+		int len = strlen (sxp_parser_inbuf);
 		if (max_size > len) {
 			max_size = len;
 		}
 
-		memcpy (buf, sx_parser_inbuf, max_size);
-		sx_parser_inbuf += max_size;
+		memcpy (buf, sxp_parser_inbuf, max_size);
+		sxp_parser_inbuf += max_size;
 
 		*result = max_size;
 	} else {

@@ -1,4 +1,4 @@
-TESTS := test-fact test-scope test-comments test-inc test-class test-error test-logic test-array
+TESTS := test-fact test-comments test-inc test-class test-error test-logic test-array
 SX := ../bin/scriptix
 
 all: $(TESTS) 
@@ -8,10 +8,6 @@ all: $(TESTS)
 
 test-fact: fact.sx $(SX)
 	$(SX) fact.sx 1000 | grep -q 720 || /bin/false
-	touch $@
-
-test-scope: scope.sx $(SX)
-	$(SX) scope.sx > /dev/null
 	touch $@
 
 test-comments: comments.sx $(SX)

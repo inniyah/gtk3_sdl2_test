@@ -34,23 +34,6 @@
 #include "scriptix.h"
 #include "system.h"
 
-/* internal array stuff */
-SX_VALUE *
-_sx_array_new (SX_SYSTEM *system, SX_CLASS *klass) {
-	SX_ARRAY *value = (SX_ARRAY *)sx_malloc (system, sizeof (SX_ARRAY));
-	if (value == NULL) {
-		return NULL;
-	}
-
-	value->count = 0;
-	value->size = 0;
-	value->list = NULL;
-
-	sx_clear_value (system, &value->header, klass);
-
-	return (SX_VALUE *)value;
-}
-
 void
 _sx_array_print (SX_SYSTEM *system, SX_ARRAY *value) {
 	unsigned long i;
@@ -173,7 +156,6 @@ sx_init_array (SX_SYSTEM *system) {
 		return NULL;
 	}
 
-	klass->core->fnew = (sx_class_new)_sx_array_new;
 	klass->core->fprint = (sx_class_print)_sx_array_print;
 	klass->core->fmark = (sx_class_mark)_sx_array_mark;
 	klass->core->fdel = (sx_class_del)_sx_array_del;
