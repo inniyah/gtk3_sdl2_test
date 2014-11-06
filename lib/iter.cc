@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -32,18 +32,22 @@
 
 using namespace Scriptix;
 
-Iterator::Iterator(const System* system) :
-	Value(system, system->GetIteratorType())
+Iterator::Iterator() : Value()
 {}
 
+const TypeInfo*
+Iterator::GetType () const {
+	return GetSystem()->GetIteratorType();
+}
+
 Value*
-Iterator::MethodNext(Thread* thread, Value* self, size_t argc, Value** argv)
+Iterator::MethodNext(size_t argc, Value** argv)
 {
-	Iterator* iter = (Iterator*)self;
+	Iterator* iter = (Iterator*)argv[0];
 
 	// so long as we have a value...
 	Value* ret;
-	while (iter->Next(thread->GetSystem(), ret))
+	while (iter->Next(ret))
 		// skip nil values, those signify end
 		if (ret != NULL)
 			return ret;
@@ -52,13 +56,12 @@ Iterator::MethodNext(Thread* thread, Value* self, size_t argc, Value** argv)
 	return NULL;
 }
 
-// Define type parameters
-SX_TYPEIMPL(Iterator, "Iterator", Value, SX_TYPECREATENONE(Iterator))
-
 // Our methods
 SX_BEGINMETHODS(Iterator)
-	SX_DEFMETHOD(MethodNext, "next", 0, 0)
+	SX_DEFMETHOD(Iterator::MethodNext, "next", 0, 0)
 SX_ENDMETHODS
 
-// Our static methods
-SX_NOSMETHODS(Iterator)
+// Define type parameters
+namespace Scriptix {
+	SX_TYPEIMPL(Iterator, "Iterator", Value, SX_TYPECREATENONE(Iterator))
+}

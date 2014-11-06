@@ -33,11 +33,16 @@
 	#include <gc/gc.h>
 
 	#include "scriptix.h"
+	#include "compiler.h"
+
 	using namespace Scriptix;
-	#include "parser.h"
+	using namespace Scriptix::Compiler;
+
 	#include "grammar.hh"
 
 	#define SX_LEX_STR_MAX 1024
+
+	#define YY_NO_UNPUT
 
 	#define LEX_NAME(name,value) if (!strcmp (yytext, name)) { return value; } else 
 
@@ -46,13 +51,14 @@
 	static void sx_lex_str_escape (char esc);
 	static void sx_lex_str_push (char c);
 
-	#define YY_INPUT(b,r,m) sxp_parser_input((b),&(r),(m))
+	#define YY_INPUT(b,r,m) sxp_compiler_input((b),&(r),(m))
 
-	const char *sxp_parser_inbuf = NULL;
-	static void sxp_parser_input (char *buf, int *result, int max);
+	const char *sxp_compiler_inbuf = NULL;
+	static void sxp_compiler_input (char *buf, int *result, int max);
 
-	#define malloc GC_MALLOC_UNCOLLECTABLE
-	#define free GC_FREE
+	#define malloc(size) GC_MALLOC(size)
+	#define realloc(ptr,size) GC_REALLOC(ptr,size)
+	#define free(ptr)
 %}
 
 %x BCOMMENT
@@ -63,26 +69,27 @@
 %%
 
 <BCOMMENT>[^*\n]+ { /* IGNORE */ }
-<BCOMMENT>[\n] { parser->LineIncr(); }
+<BCOMMENT>[\n] { compiler->LineIncr(); }
 <BCOMMENT>"*"+[^*/\n]	{ /* IGNORE */ }
 <BCOMMENT>"*/" { BEGIN INITIAL; }
 
 <LCOMMENT>[^\n]+ { /* IGNORE */ }
-<LCOMMENT>[\n] { parser->LineIncr(); BEGIN INITIAL; }
+<LCOMMENT>[\n] { compiler->LineIncr(); BEGIN INITIAL; }
 
 <SSTRING,DSTRING>\\. { sx_lex_str_escape (yytext[1]); }
 <SSTRING>[^'\n] { sx_lex_str_push (yytext[0]); }
 <DSTRING>[^"\n] { sx_lex_str_push (yytext[0]); }
-<SSTRING,DSTRING>[\n] { parser->LineIncr(); sx_lex_str_push ('\n'); }
-<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = new String(parser->GetSystem(), sx_lex_str); return STRING; } 
-<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = new String(parser->GetSystem(), sx_lex_str); return STRING; } 
+<SSTRING,DSTRING>[\n] { compiler->LineIncr(); sx_lex_str_push ('\n'); }
+<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = new String(sx_lex_str); return STRING; } 
+<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = new String(sx_lex_str); return STRING; } 
 
 [ \t]+ { /* IGNORE */ }
 "/*"  { BEGIN BCOMMENT; }
 "//"  { BEGIN LCOMMENT; }
 # { BEGIN LCOMMENT; }
-[\n] { parser->LineIncr(); }
+[\n] { compiler->LineIncr(); }
 [a-zA-Z_][a-zA-Z0-9_]* { 
+		LEX_NAME("var", TVAR)
 		LEX_NAME("if", IF)
 		LEX_NAME("else", ELSE)
 		LEX_NAME("while", WHILE)
@@ -98,12 +105,10 @@
 		LEX_NAME("yield", TYIELD)
 		LEX_NAME("new", TNEW)
 		LEX_NAME("public", TPUBLIC)
-		LEX_NAME("extend", TEXTEND)
-		LEX_NAME("static", TSTATIC)
 		{
-			Type* type;
+			TypeInfo* type;
 			yylval.id = NameToID (yytext);
-			if ((type = parser->GetType(yylval.id)) != NULL) {
+			if ((type = compiler->GetType(yylval.id)) != NULL) {
 				yylval.type = type;
 				return TYPE;
 			} else {
@@ -115,12 +120,14 @@
 [>]= { return TGTE; }
 [<]= { return TLTE; }
 == { return TEQUALS; }
+"." { return TDEREFERENCE; }
 "+=" { return TADDASSIGN; }
 "-=" { return TSUBASSIGN; }
 "*=" { return TMULASSIGN; }
 "/=" { return TDIVASSIGN; }
 "++" { return TINCREMENT; }
 "--" { return TDECREMENT; }
+"::" { return TCONCAT; }
 "||" { return OR; }
 "&&" { return AND; }
 != { return TNE; }
@@ -158,15 +165,15 @@ sx_lex_str_push (char c) {
 	
 static
 void
-sxp_parser_input (char *buf, int *result, int max_size) {
-	if (sxp_parser_inbuf != NULL) {
-		int len = strlen (sxp_parser_inbuf);
+sxp_compiler_input (char *buf, int *result, int max_size) {
+	if (sxp_compiler_inbuf != NULL) {
+		int len = strlen (sxp_compiler_inbuf);
 		if (max_size > len) {
 			max_size = len;
 		}
 
-		memcpy (buf, sxp_parser_inbuf, max_size);
-		sxp_parser_inbuf += max_size;
+		memcpy (buf, sxp_compiler_inbuf, max_size);
+		sxp_compiler_inbuf += max_size;
 
 		*result = max_size;
 	} else {

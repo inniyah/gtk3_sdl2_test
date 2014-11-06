@@ -1,12 +1,12 @@
 public
 main () {
-	a = 10;
+	var a = 10;
 
 	a += 10;
 	a -= 5;
 
-	c = a --;
-	b = --a;
+	var c = a --;
+	var b = --a;
 
 	printl ('a: ', a);
 	printl ('b: ', b);

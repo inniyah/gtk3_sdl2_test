@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -32,64 +32,47 @@
 
 namespace Scriptix {
 
-/**
- * String value.
- * Stores a string of text.
- * @note Cannot sub-class.
- */
-class String : public Value {
-	SX_TYPEDEF
+typedef std::basic_string<char, std::char_traits<char>, gc_allocator<char> > BaseString;
 
-	private:
-	std::string data;
+class String : public Value {
+	public:
+	String (const char* src, size_t len);
+	String (const char* src);
+	String (const BaseString& src);
+
+	virtual const TypeInfo* GetType () const;
 
 	// Methods
-	private:
-	static Value* MethodLength (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodToint (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodUpper (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodLower (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodSplit (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodSubstr (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodTrim (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodLtrim (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodRtrim (Thread* thread, Value* self, size_t argc, Value** argv);
-
-	static Value* SMethodConcat (Thread* thread, size_t argc, Value** argv);
-
 	public:
-	String (const System* system, const char* src, size_t len);
-	String (const System* system, const char* src);
-	String (const System* system, const std::string& src);
+	static Value* MethodLength (size_t argc, Value** argv);
+	static Value* MethodUpper (size_t argc, Value** argv);
+	static Value* MethodLower (size_t argc, Value** argv);
+	static Value* MethodSplit (size_t argc, Value** argv);
+	static Value* MethodSubstr (size_t argc, Value** argv);
+	static Value* MethodTrim (size_t argc, Value** argv);
+	static Value* MethodLtrim (size_t argc, Value** argv);
+	static Value* MethodRtrim (size_t argc, Value** argv);
+	static Value* MethodToInt (size_t argc, Value** argv);
+
+	static Value* SMethodConcat (size_t argc, Value** argv);
 
 	// Query data
 	public:
-	/**
-	 * Get length of string.
-	 * @return Length of the string.
-	 */
 	inline size_t GetLen (void) const { return data.length(); }
-	/**
-	 * Get C string.
-	 * Returns a pointer type to be used in C/C++ code.
-	 * @return A pointer to an array of the ctypeacter type.
-	 */
 	inline const char* GetCStr (void) const { return data.c_str(); }
-	/**
-	 * Get C++ string.
-	 * Returns a reference of the C++ string member.
-	 * @return const reference of data.
-	 */
-	inline const std::string& GetStr (void) const { return data; }
+	inline const BaseString& GetStr (void) const { return data; }
 
 	// Operations
 	protected:
-	virtual void Print (System* system) const;
-	virtual bool Equal (const System* system, const Value* other) const;
-	virtual int Compare (const System* system, const Value* other) const;
-	virtual bool True (const System* system) const;
-	virtual Value* GetIndex (const System* system, const Value* index) const;
-	virtual bool Has (const System* system, const Value* value) const;
+	virtual void Print () const;
+	virtual bool Equal (const Value* other) const;
+	virtual int Compare (const Value* other) const;
+	virtual bool True () const;
+	virtual Value* GetIndex (Value* index) const;
+	virtual bool Has (const Value* value) const;
+
+	private:
+	BaseString data;
 };
 
 } // namespace Scriptix

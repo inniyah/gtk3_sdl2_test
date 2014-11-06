@@ -1,5 +1,4 @@
 attempt (a,b) {
-	# cheat - do add to make num
 	return Int(a) > Int(b);
 }
 fail () {

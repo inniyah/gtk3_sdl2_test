@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -31,29 +31,33 @@
 using namespace Scriptix;
 
 // constructors
-Struct::Struct (const System* system) :
-	Value(system, system->GetStructType()), data()
-{}
-Struct::Struct (const System* system, const Type* type) :
-	Value(system, type), data()
+Struct::Struct () : Value(), data()
 {}
 
-SX_TYPEIMPL(Struct, "Struct", Value, SX_TYPECREATE(Struct));
+const TypeInfo*
+Struct::GetType () const {
+	return GetSystem()->GetStructType();
+}
 
 SX_NOMETHODS(Struct);
 
-// Our static methods
-SX_NOSMETHODS(Struct)
+SX_NOMETHODS(ScriptClass);
+
+// type definition
+namespace Scriptix {
+SX_TYPEIMPL(Struct, "Struct", Value, SX_TYPECREATE(Struct));
+SX_TYPEIMPL(ScriptClass, "ScriptClass", Struct, SX_TYPECREATESCRIPT(ScriptClass));
+}
 
 // Default undefined member operations
 void
-Struct::SetUndefMember (const System* system, NameID id, Value* value)
+Struct::SetUndefMember (NameID id, Value* value)
 {
 	data[id] = value;
 }
 
 Value*
-Struct::GetUndefMember (const System*, NameID) const
+Struct::GetUndefMember (NameID) const
 {
 	// no-op
 	return NULL;
@@ -61,7 +65,7 @@ Struct::GetUndefMember (const System*, NameID) const
 
 // Member operations
 void
-Struct::SetMember (const System* system, NameID id, Value* value)
+Struct::SetMember (NameID id, Value* value)
 {
 	// try to set value
 	datalist::iterator i = data.find(id);
@@ -71,11 +75,11 @@ Struct::SetMember (const System* system, NameID id, Value* value)
 	}
 
 	// undefined - set that way then
-	SetUndefMember (system, id, value);
+	SetUndefMember (id, value);
 }
 
 Value*
-Struct::GetMember (const System* system, NameID id) const
+Struct::GetMember (NameID id) const
 {
 	// try to find member
 	datalist::const_iterator i = data.find(id);
@@ -84,5 +88,5 @@ Struct::GetMember (const System* system, NameID id) const
 	}
 
 	// undefined - get that way then
-	return GetUndefMember (system, id);
+	return GetUndefMember (id);
 }

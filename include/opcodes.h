@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -39,10 +39,11 @@ typedef enum {
 	OP_DIVIDE,
 	OP_NEGATE,
 	OP_INVOKE,
+	OP_CONCAT,
 	OP_GT,
 	OP_LT,
-	OP_GTE,
-	OP_LTE = 10,
+	OP_GTE = 10,
+	OP_LTE,
 	OP_EQUAL,
 	OP_NEQUAL,
 	OP_NOT,
@@ -51,26 +52,22 @@ typedef enum {
 	OP_INDEX,
 	OP_NEWARRAY,
 	OP_TYPECAST,
-	OP_STRINGCAST,
-	OP_INTCAST = 20,
+	OP_STRINGCAST = 20,
+	OP_INTCAST,
 	OP_SETINDEX,
 	OP_METHOD,
-	OP_SETFILE,
-	OP_SETLINE,
-	OP_NEXTLINE,
 	OP_JUMP,
 	OP_POP,
 	OP_TEST,
 	OP_TJUMP,
-	OP_FJUMP = 30,
-	OP_STATIC_METHOD,
+	OP_FJUMP,
 	OP_YIELD,
-	OP_IN,
+	OP_IN = 30,
 	OP_SET_MEMBER,
 	OP_GET_MEMBER,
 	OP_ITER,
 	OP_NEW,
-	OP_COPY = 38,
+	OP_COPY = 35,
 } sx_op_type;
 
 // Define opcodes

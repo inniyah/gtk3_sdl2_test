@@ -1,7 +1,7 @@
 #!/bin/sh
 
-BASE_VERSION=`sed -n 's/^BASE_VERSION=\(.*\)$/\1/p' configure.in`
-CURVER=`sed -n 's/^VERSION=\(.*\)$/\1/p' configure.in`
+BASE_VERSION=`sed -n 's/^BASE_VERSION=\(.*\)$/\1/p' configure.ac`
+CURVER=`sed -n 's/^VERSION=\(.*\)$/\1/p' configure.ac`
 
 if [ -n "$1" ] ; then
 	NEWVER="$1"
@@ -15,21 +15,21 @@ echo "New version:     $NEWVER"
 
 if ! echo "$NEWVER" | grep -q -E "^$BASE_VERSION" ; then
 	echo
-	read -p "Different version base - update configure.in base version? (Y/n) " DOBASE
+	read -p "Different version base - update configure.ac base version? (Y/n) " DOBASE
 	echo
 else
 	DOBASE='n'
 fi
 
 if [ "x$NEWVER" != "x$CURVER" ] ; then
-	echo "Updating configure.in..."
-	sed "/BASE_VERSION/!s/$CURVER/$NEWVER/" configure.in > configure.new
+	echo "Updating configure.ac..."
+	sed "/BASE_VERSION/!s/$CURVER/$NEWVER/" configure.ac > configure.new
 
 	if [ "x$DOBASE" != "xn" ] ; then
-		sed "s/^BASE_VERSION=.*$/BASE_VERSION=$NEWVER/" configure.new > configure.in
+		sed "s/^BASE_VERSION=.*$/BASE_VERSION=$NEWVER/" configure.new > configure.ac
 		rm -f configure.new
 	else
-		mv -f configure.new configure.in
+		mv -f configure.new configure.ac
 	fi
 
 	echo "Running autoconf..."

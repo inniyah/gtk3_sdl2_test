@@ -8,8 +8,8 @@
 #  you are ready to commit, run ./tools/commit.sh (which will
 #  also call this script one last time before committing).
 
-if [ -f self.info ] ; then
-  . self.info
+if [ -f ~/.self.info ] ; then
+  . ~/.self.info
 fi
 
 if [ -z "$FULLNAME" ] ; then

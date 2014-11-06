@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -29,16 +29,9 @@
 
 using namespace Scriptix;
 
-Type::Type (System* system, const TypeDef* base)
+TypeInfo::TypeInfo (const TypeDef* base, const TypeInfo* s_parent) : parent(s_parent)
 {
 	name = NameToID(base->name);
-
-	if (base->parent) {
-		NameID pname = NameToID(base->parent->name);
-		parent = system->GetType(pname);
-	} else {
-		parent = NULL;
-	}
 
 	if (base->construct == NULL && parent)
 		construct = parent->construct;
@@ -46,24 +39,16 @@ Type::Type (System* system, const TypeDef* base)
 		construct = base->construct;
 
 	for (size_t i = 0; base->methods[i].name != NULL; ++i) {
-		Function* method = new Function(system,
+		Function* method = new Function(
 			NameToID(base->methods[i].name),
-			base->methods[i].argc,
+			base->methods[i].argc + 1,
 			base->methods[i].varg,
-			(sx_cmethod)base->methods[i].method);
+			(sx_cfunc)base->methods[i].method);
 		methods[method->id] = method;
-	}
-	for (size_t i = 0; base->smethods[i].name != NULL; ++i) {
-		Function* method = new Function(system,
-			NameToID(base->smethods[i].name),
-			base->smethods[i].argc,
-			base->smethods[i].varg,
-			(sx_cfunc)base->smethods[i].method);
-		smethods[method->id] = method;
 	}
 }
 
-Type::Type (System* system, NameID s_name, const Type* s_parent, sx_construct s_construct)
+TypeInfo::TypeInfo (NameID s_name, const TypeInfo* s_parent, sx_construct s_construct)
 {
 	name = s_name;
 	parent = s_parent;
@@ -74,19 +59,24 @@ Type::Type (System* system, NameID s_name, const Type* s_parent, sx_construct s_
 		construct = s_construct;
 }
 
-Type*
+TypeInfo*
 System::AddType (const TypeDef* typed)
 {
 	// generate name
 	NameID tname = NameToID(typed->name);
 
 	// have we the type already?
-	Type* type;
+	TypeInfo* type;
 	if ((type = GetType(tname)) != NULL)
 		return type;
 
+	// get parent
+	TypeInfo* parent = NULL;
+	if (typed->parent)
+		parent= GetType(NameToID(typed->parent->name));
+
 	// copy type
-	type = new Type(this, typed);
+	type = new TypeInfo(typed, parent);
 	if (type == NULL) {
 		return NULL;
 	}
@@ -97,7 +87,7 @@ System::AddType (const TypeDef* typed)
 	return type;
 }
 
-const Type* 
+const TypeInfo* 
 System::GetType (NameID id) const
 {
 	// search
@@ -109,7 +99,7 @@ System::GetType (NameID id) const
 	return NULL;
 }
 
-Type* 
+TypeInfo* 
 System::GetType (NameID id)
 {
 	// search
@@ -122,24 +112,9 @@ System::GetType (NameID id)
 }
 
 Function*
-Type::GetStaticMethod (NameID id) const
+TypeInfo::GetMethod (NameID id) const
 {
-	const Type* type = this;
-	while (type != NULL) {
-		// search
-		MethodList::const_iterator i = type->smethods.find(id);
-		if (i != type->smethods.end())
-			return i->second;
-		type = type->parent;
-	}
-
-	return NULL;
-}
-
-Function*
-Type::GetMethod (NameID id) const
-{
-	const Type* type = this;
+	const TypeInfo* type = this;
 	while (type != NULL) {
 		// search
 		MethodList::const_iterator i = type->methods.find(id);
@@ -152,49 +127,71 @@ Type::GetMethod (NameID id) const
 }
 
 int
-Type::AddMethod (Function* method)
+TypeInfo::AddMethod (NameID id, Function* method)
 {
 	if (method == NULL)
 		return SXE_INVALID;
 	
-	methods[method->id] = method;
+	methods[id] = method;
 
 	return SXE_OK;
 }
 
-int
-Type::AddStaticMethod (Function* method)
+TypeValue::TypeValue(TypeInfo* s_type) : Value(), type(s_type) {}
+
+const TypeInfo*
+TypeValue::GetType () const
 {
-	if (method == NULL)
-		return SXE_INVALID;
-	
-	smethods[method->id] = method;
-
-	return SXE_OK;
+	return GetSystem()->GetTypeValueType();
 }
-
-TypeValue::TypeValue(System* system, const Type* s_type) :
-	Value(system, system->GetTypeValueType()), type(s_type)
-{}
-
-SX_TYPEIMPL(TypeValue, "Type", Value, SX_TYPECREATENONE(TypeValue))
 
 SX_BEGINMETHODS(TypeValue)
-	SX_DEFMETHOD(MethodName, "name", 0, 0)
+	SX_DEFMETHOD(TypeValue::MethodName, "name", 0, 0)
+	SX_DEFMETHOD(TypeValue::MethodAddMethod, "addMethod", 2, 0)
 SX_ENDMETHODS
 
-SX_NOSMETHODS(TypeValue)
+namespace Scriptix {
+	SX_TYPEIMPL(TypeValue, "TypeInfo", Value, SX_TYPECREATENONE(TypeValue))
+}
 	
 Value*
-TypeValue::MethodName (Thread* thread, Value* self, size_t argc, Value** argv)
+TypeValue::MethodName (size_t argc, Value** argv)
 {
-	return new String (thread->GetSystem(), IDToName(((TypeValue*)self)->type->GetName()));
+	TypeValue* self = (TypeValue*)argv[0];
+	return new String (IDToName(self->type->GetName()));
+}
+
+Value*
+TypeValue::MethodAddMethod (size_t argc, Value** argv)
+{
+	TypeValue* self = (TypeValue*)argv[0];
+	TypeInfo* type = self->GetTypePtr();
+
+	if (!Value::IsA<String>(argv[1])) {
+		GetSystem()->RaiseError(SXE_BADARGS, "Argument 1 to Type::add_method() is not a string");
+		return NULL;
+	}
+	if (!Value::IsA<Function>(argv[2])) {
+		GetSystem()->RaiseError(SXE_BADARGS, "Argument 2 to Type::add_method() is not a function");
+		return NULL;
+	}
+
+	NameID id = NameToID(((String*)argv[1])->GetCStr());
+
+	Function* func = type->GetMethod(id);
+	if (func != NULL) {
+		GetSystem()->RaiseError(SXE_EXISTS, "Method named %s already exists on type %s", IDToName(id), IDToName(type->GetName()));
+	}
+
+	type->AddMethod(id, (Function*)argv[2]);
+
+	return argv[2];
 }
 
 bool
-TypeValue::Equal (System* system, Value* other)
+TypeValue::Equal (Value* other)
 {
-	if (Value::TypeOf (system, other) != TypeValue::GetType())
+	if (Value::TypeOf (other) != TypeValue::GetType())
 		return false;
 
 	return ((TypeValue*)other)->type == type;

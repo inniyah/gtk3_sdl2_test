@@ -7,22 +7,16 @@ lib_LTLIBRARIES=libscriptix-@INTERFACE_VERSION@.la libsxparse-@INTERFACE_VERSION
 
 libscriptix_@INTERFACE_VERSION@_la_SOURCES=\
 	array.cc \
-	assoc.cc \
-	collectable.cc \
 	error.cc \
 	eval.cc \
 	function.cc \
 	global.cc \
 	iter.cc \
-	list.cc \
 	name.cc \
 	number.cc \
-	schedule.cc \
-	stdlib.cc \
 	string.cc \
 	struct.cc \
 	system.cc \
-	thread.cc \
 	type.cc \
 	value.cc
 libscriptix_@INTERFACE_VERSION@_la_LDFLAGS=-version-info @SO_VERSION@
@@ -33,7 +27,6 @@ libsxparse_@INTERFACE_VERSION@_la_SOURCES=\
 	compiler.cc \
 	optimize.cc 
 libsxparse_@INTERFACE_VERSION@_la_LDFLAGS=-version-info @SO_VERSION@
-
 
 grammar.cc grammar.hh: grammar.yy
 	@PATH_BISON@ -y -d -o grammar.cc grammar.yy

@@ -1,7 +1,7 @@
 public main()
 {
 	// length check
-	string = '1234567890';
+	var string = '1234567890';
 	if (string.length() != 10) {
 		printl ('Failure: length check');
 		return 1;
@@ -31,23 +31,23 @@ public main()
 	}
 
 	// concat check
-	string1 = 'This ';
-	string2 = 'is ';
-	string3 = 'a ';
-	string4 = 'test';
-	if (String.concat(string1 + string2, string3 + string4) != 'This is a test') {
+	var string1 = 'This ';
+	var string2 = 'is ';
+	var string3 = 'a ';
+	var string4 = 'test';
+	if (string1 :: string2 :: string3 :: string4 != 'This is a test') {
 		printl('Failure: concatenation');
 		return 1;
 	}
 
 	// split method
 	string = 'Happy fishy thoughts';
-	array = string.split(' ');
+	var array = string.split(' ');
 	if (array.length() != 3 || array[1] != 'fishy') {
 		printl ('Failure: split() method');
 		return 1;
 	}
 
 	printl ('Success');
-	exit(0);
+	return 0;
 }

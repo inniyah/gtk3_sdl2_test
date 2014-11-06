@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -36,24 +36,27 @@ using namespace std;
 using namespace Scriptix;
 
 Value*
-Array::MethodLength (Thread* thread, Value* self, size_t argc, Value** argv)
+Array::MethodLength (size_t argc, Value** argv)
 {
-	return Number::Create(((Array*)self)->count);
+	Array* self = (Array*)argv[0];
+	return Number::Create(self->count);
 }
 
 Value*
-Array::MethodAppend (Thread* thread, Value* self, size_t argc, Value** argv)
+Array::MethodAppend (size_t argc, Value** argv)
 {
-	return ((Array*)self)->Append (thread->GetSystem(), argv[0]);
+	Array* self = (Array*)argv[0];
+	return self->Append (argv[1]);
 }
 
 Value*
-Array::MethodRemove (Thread* thread, Value* self, size_t argc, Value** argv)
+Array::MethodRemove (size_t argc, Value** argv)
 {
-	for (size_t i = 0; i < ((Array*)self)->count; ++ i) {
-		if (Value::Equal (thread->GetSystem(), argv[0], ((Array*)self)->list[i])) {
-			memmove (&((Array*)self)->list[i], &((Array*)self)->list[i + 1], (((Array*)self)->count - i - 1) * sizeof (Value* ));
-			-- ((Array*)self)->count;
+	Array* self = (Array*)argv[0];
+	for (size_t i = 0; i < self->count; ++ i) {
+		if (Value::Equal (argv[1], self->list[i])) {
+			memmove (&self->list[i], &self->list[i + 1], (self->count - i - 1) * sizeof (Value* ));
+			-- self->count;
 			return Number::Create(1);
 		}
 	}
@@ -62,26 +65,28 @@ Array::MethodRemove (Thread* thread, Value* self, size_t argc, Value** argv)
 }
 
 Value*
-Array::MethodIter (Thread* thread, Value* self, size_t argc, Value** argv)
+Array::MethodIter (size_t argc, Value** argv)
 {
-	return ((Array*)self)->GetIter(thread->GetSystem());
+	Array* self = (Array*)argv[0];
+	return self->GetIter();
 }
-
-// Define type parameters
-SX_TYPEIMPL(Array, "Array", List, SX_TYPECREATEFINAL(Array))
 
 // Our methods
 SX_BEGINMETHODS(Array)
-	SX_DEFMETHOD(MethodLength, "length", 0, 0)
-	SX_DEFMETHOD(MethodAppend, "append", 1, 0)
-	SX_DEFMETHOD(MethodRemove, "remove", 1, 0)
-	SX_DEFMETHOD(MethodIter, "iter", 0, 0)
+	SX_DEFMETHOD(Array::MethodLength, "length", 0, 0)
+	SX_DEFMETHOD(Array::MethodAppend, "append", 1, 0)
+	SX_DEFMETHOD(Array::MethodRemove, "remove", 1, 0)
+	SX_DEFMETHOD(Array::MethodIter, "iter", 0, 0)
 SX_ENDMETHODS
-SX_NOSMETHODS(Array)
 
-Array::Array (const System* system) : List(system, system->GetArrayType()), size(0), count(0), list(NULL) { }
+// Define type parameters
+namespace Scriptix {
+	SX_TYPEIMPL(Array, "Array", Value, SX_TYPECREATE(Array))
+}
 
-Array::Array (const System* system, size_t n_size, Value** n_list) : List(system, system->GetArrayType())
+Array::Array () : Value(), size(0), count(0), list(NULL) { }
+
+Array::Array (size_t n_size, Value** n_list) : Value()
 {
 	list = NULL;
 	size = n_size;
@@ -96,39 +101,38 @@ Array::Array (const System* system, size_t n_size, Value** n_list) : List(system
 	}
 };
 
+const TypeInfo*
+Array::GetType () const
+{
+	return GetSystem()->GetArrayType();
+}
+
 void
-Array::Print (System* system) const
+Array::Print () const
 {
 	cout << "[";
 	size_t i;
 	if (count > 0)
-		Value::Print(system, list[0]);
+		Value::Print(list[0]);
 	for (i = 1; i < count; ++i) {
 		cout << ",";
-		Value::Print(system, list[i]);
+		Value::Print(list[i]);
 	}
 	cout << "]";
 }
 
 bool
-Array::True (const System* system) const
+Array::True () const
 {
 	return count > 0;
 }
 
 Value*
-Array::GetIndex (const System* system, const Value* vindex) const
+Array::GetIndex (long index) const
 {
-	long index;
-
 	// no data items?
 	if (count == 0)
 		return NULL;
-
-	// must be numeric index
-	if (!Value::IsA<Number>(system, vindex))
-		return NULL;
-	index = Number::ToInt(vindex);
 
 	// wrap negative index
 	if (index < 0) {
@@ -147,18 +151,11 @@ Array::GetIndex (const System* system, const Value* vindex) const
 }
 
 Value*
-Array::SetIndex (const System* system, const Value* vindex, Value* value)
+Array::SetIndex (long index, Value* value)
 {
-	long index;
-
 	// no data items?
 	if (count == 0)
 		return NULL;
-
-	// must be numeric index
-	if (!Value::IsA<Number>(system, vindex))
-		return NULL;
-	index = Number::ToInt(vindex);
 
 	// wrap negative index
 	if (index < 0) {
@@ -177,17 +174,17 @@ Array::SetIndex (const System* system, const Value* vindex, Value* value)
 }
 
 Value*
-Array::Append (const System* system, Value* value)
+Array::Append (Value* value)
 {
 	Value** nlist;
 
 	if (count == size) {
-		nlist = (Value* *)GC_REALLOC (list, (size + system->GetArrayChunk()) * sizeof (Value* ));
+		nlist = (Value* *)GC_REALLOC (list, (size + GetSystem()->GetArrayChunk()) * sizeof (Value* ));
 		if (nlist == NULL) {
 			return NULL;
 		}
 		list = nlist;
-		size += system->GetArrayChunk();
+		size += GetSystem()->GetArrayChunk();
 	}
 
 	list[count ++] = value;
@@ -196,23 +193,23 @@ Array::Append (const System* system, Value* value)
 }
 
 bool
-Array::Has (const System* system, const Value* value) const
+Array::Has (Value* value) const
 {
 	size_t i;
 	for (i = 0; i < count; ++ i)
-		if (Value::Equal(system, value, list[i]))
+		if (Value::Equal(value, list[i]))
 			return true;
 	return false;
 }
 
 Iterator*
-Array::GetIter (const System* system)
+Array::GetIter ()
 {
-	return new ArrayIterator(system, this);
+	return new ArrayIterator(this);
 }
 
 bool
-Array::ArrayIterator::Next(const System* system, Value*& value)
+Array::ArrayIterator::Next(Value*& value)
 {
 	if (index >= array->GetCount()) {
 		return false;

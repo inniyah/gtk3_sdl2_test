@@ -1,8 +1,8 @@
 test (a) {
-	msg = 'In - ';
-	foreach (i in a) {
+	var msg = 'In - ';
+	foreach (var i in a) {
 		printl ('--', i);
-		for (n = 3; n <= 9; n += 3) {
+		for (var n = 3; n <= 9; n += 3) {
 			printl (msg, n, ':', i);
 		}
 	}
@@ -10,7 +10,7 @@ test (a) {
 
 public
 main () {
-	a = ['abc','def','ghi'];
+	var a = ['abc','def','ghi'];
 	a.append('jkl');
 
 	printl(a);
@@ -31,5 +31,5 @@ main () {
 		printl ('Correct - foo !in array');
 	}
 
-	print ('Success');
+	printl ('Success');
 }

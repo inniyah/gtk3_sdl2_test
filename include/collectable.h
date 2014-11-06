@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -39,37 +39,28 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <set>
 
 namespace Scriptix {
 namespace GC {
 
-/* Provide a base class for GC objects.  Very similar to the GC's normal
- * Collectable class, except it uses the no_order variant of the finalizer
- * registration; this allows us to have destructors even when we've cyclic
- * links of objects.  Destructors should never use pointers to GC'd data,
- * only free non-GC'd resources, like strings and file handles.
- */
-
-class Collectable : virtual public ::gc
-{
-	public:
-	Collectable (void);
-	inline virtual ~Collectable (void) {}
-	private:
-	static void cleanup(void* obj, void* data);
-};
+typedef ::gc Collectable;
 
 // GC traced version of std::map
 template <typename K, typename T>
-struct map : public std::map<K, T, std::less<K>, traceable_allocator<std::pair<K, T> > > { };
+struct map : public std::map<const K, T, std::less<const K>, gc_allocator<std::pair<const K, T> > >, public Collectable { };
+
+// GC traced version of std::set
+template <typename K>
+struct set : public std::set<K, std::less<K>, gc_allocator<K> >, public Collectable { };
 
 // GC traced version of std::list
 template <typename T>
-struct list : public std::list<T, traceable_allocator<T> > { };
+struct list : public std::list<T, gc_allocator<T> >, public Collectable { };
 
 // GC traced version of std::vector
 template <typename T>
-struct vector : public std::vector<T, traceable_allocator<T> > { };
+struct vector : public std::vector<T, gc_allocator<T> >, public Collectable { };
 
 } // namespace GC
 } // namespace Scriptix

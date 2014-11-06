@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -28,14 +28,7 @@
 #ifndef SCRIPTIX_SYSTEM_H
 #define SCRIPTIX_SYSTEM_H
 
-#include <vector>
-#include <map>
-
 namespace Scriptix {
-
-// hook types
-typedef void (*sx_gc_hook)(System* system);
-typedef void (*sx_error_hook)(const char *file, unsigned int line, const char *str);
 
 // System options
 typedef enum {
@@ -55,83 +48,41 @@ const int DEF_BLOCK_CHUNK = 10;
 const int DEF_ARRAY_CHUNK = 5;
 const int DEF_RUN_LENGTH = 1000;
 
+class CompilerHandler : public GC::Collectable {
+	public:
+	// return false to generate a compilation error
+	virtual bool HandleFunction (Function* function, bool is_public) { return true; }
+	virtual bool HandleGlobal (NameID id, Value* value, bool is_public) { return true; }
+	virtual bool HandleExtend (TypeInfo* type, Function* method) { return true; }
+	virtual bool HandleClass (TypeInfo* type) { return true; }
+
+	virtual ~CompilerHandler () {}
+};
+
 class System : public GC::Collectable {
-	private:
-	// global data
-	typedef GC::map<NameID,Value*> GlobalList;
-	GlobalList globals;
-
-	// public functions
-	typedef GC::map<NameID,Function*> FunctionList;
-	FunctionList funcs;
-
-	// tags feature
-	typedef std::vector<NameID> TagList;
-	TagList tags;
-
-	// types
-	typedef GC::map<NameID,Type*> TypeList;
-	TypeList types;
-
-	// threads/scheduler
-	Thread* threads;
-	Thread* cur_thread;
-
-	// options
-	size_t data_chunk;
-	size_t context_chunk;
-	size_t block_chunk;
-	size_t gc_thresh;
-	size_t array_chunk;
-	std::string script_path;
-
-	// options
-	size_t valid_threads;
-	size_t run_length;
-
-	// built-in types
-	const Type* t_number;
-	const Type* t_string;
-	const Type* t_array;
-	const Type* t_assoc;
-	const Type* t_function;
-	const Type* t_type;
-	const Type* t_list;
-	const Type* t_struct;
-	const Type* t_iterator;
-
-	// helper functions
-	int InitStdlib (void);
-
-	// manager threads
-	void AddThread (Thread* thread);
-	void EndThread (Thread* thread);
-
 	public:
 	// Constructor/Destructor
 	System (void);
 	virtual ~System (void) {}
 
-	// Hooks
-	sx_error_hook error_hook;
+	// Handle an error
+	virtual void HandleError (const BaseString& file, size_t lineno, const BaseString& msg);
 
 	// Add/check types
-	Type* AddType (const TypeDef* type);
-	const Type* GetType (NameID id) const;
-	Type* GetType (NameID id);
+	TypeInfo* AddType (const TypeDef* type);
+	const TypeInfo* GetType (NameID id) const;
+	TypeInfo* GetType (NameID id);
 
-	inline const Type* GetNumberType (void) const { return t_number; }
-	inline const Type* GetStringType (void) const { return t_string; }
-	inline const Type* GetStructType (void) const { return t_struct; }
-	inline const Type* GetListType (void) const { return t_list; }
-	inline const Type* GetIteratorType (void) const { return t_iterator; }
-	inline const Type* GetArrayType (void) const { return t_array; }
-	inline const Type* GetAssocType (void) const { return t_assoc; }
-	inline const Type* GetFunctionType (void) const { return t_function; }
-	inline const Type* GetTypeValueType (void) const { return t_type; }
+	inline const TypeInfo* GetNumberType (void) const { return t_number; }
+	inline const TypeInfo* GetStringType (void) const { return t_string; }
+	inline const TypeInfo* GetStructType (void) const { return t_struct; }
+	inline const TypeInfo* GetIteratorType (void) const { return t_iterator; }
+	inline const TypeInfo* GetArrayType (void) const { return t_array; }
+	inline const TypeInfo* GetFunctionType (void) const { return t_function; }
+	inline const TypeInfo* GetTypeValueType (void) const { return t_type; }
+	inline const TypeInfo* GetScriptClassType (void) const { return t_script_class; }
 
 	// Query information
-	inline size_t GetValidThreads (void) const { return valid_threads; }
 	inline size_t GetRunLength (void) const { return run_length; }
 	inline size_t GetDataChunk (void) const { return data_chunk; }
 	inline size_t GetContextChunk (void) const { return context_chunk; }
@@ -140,7 +91,7 @@ class System : public GC::Collectable {
 
 	// Set options
 	int SetOption (sx_option_type op, long value);
-	int SetOption (sx_option_type op, const std::string& value);
+	int SetOption (sx_option_type op, const BaseString& value);
 
 	// Functions
 	int AddFunction (Function* function);
@@ -150,33 +101,103 @@ class System : public GC::Collectable {
 	int AddGlobal (NameID id, Value* value);
 	Value* GetGlobal (NameID id) const;
 
-	// Threads
-	Thread* CreateThread (Function* func, size_t argc, Value* array[], SecurityLevel sl = SEC_DEFAULTS, int flags = 0);
+	// Invoke a function
+	int Invoke (Function* func, size_t argc, Value* argv[], Value** retval);
 
-	// Running threads
-	int Run (void);
-	int WaitOn (ThreadID id, Value** retval);
-	int NestedRun (Thread* thread, Value** retval);
+	// Invoke a method
+	int Invoke (Value* self, NameID method, size_t argc, Value* argv[], Value** retval);
 
-	// Function tags
-	int AddFunctionTag (NameID tag);
-	bool ValidFunctionTag (NameID tag);
-	virtual void HandleFunctionTag (NameID tag, Function* func) {} // over-ride to handle
+	// Raise an error condition
+	int RaiseError (int err, const char *format, ...); // automatic file/line
+	int RaiseArgError (const char* func, const char* arg, const char* type);
+	int RaiseSecurityError (const char* func);
 
 	// Load/compile scripts
-	int LoadFile (const std::string& filepath, SecurityLevel sl = SEC_DEFAULTS);
-	int LoadString (const std::string& buffer, const std::string& name, size_t lineno = 1, SecurityLevel sl = SEC_DEFAULTS);
+	int LoadFile (const BaseString& filepath, SecurityLevel sl = SEC_DEFAULTS, CompilerHandler* handler = NULL);
+	int LoadString (const BaseString& buffer, const BaseString& name, size_t lineno = 1, SecurityLevel sl = SEC_DEFAULTS, CompilerHandler* handler = NULL);
 
-	// FIXME: hacks
-	friend Value::Value (const System* system, const Type* type);
+	private:
+	// Fetch stack item from end (args) - INLINE for speed
+	inline Value* GetValue (size_t index) { return data_stack[data_stack.size() - index]; }
+	// Same as GetValue(1):
+	inline Value* GetValue (void) { return data_stack.back(); }
+
+	// Fetch item from frame stack for op atrgs; "eats" arg
+	inline int GetOpArg (void) { return GetFrame().func->nodes[GetFrame().op_ptr++]; }
+
+	// Manipulate data stack - INLINE for speed
+	inline int
+	PushValue (Value* value) {
+		data_stack.push_back(value);
+		return SXE_OK;
+	}
+	inline void PopValue (size_t len = 1) { data_stack.resize(data_stack.size() - len); }
+
+	// Manipulate data stack
+	int PushFrame (Function* func, size_t argc, Value* argv[]);
+	void PopFrame (void);
+	inline Frame& GetFrame (void) { return frames.back(); }
+	inline const Frame& GetFrame (void) const { return frames.back(); }
+
+	// Security level
+	inline SecurityLevel GetSecurity (void) const { return GetFrame().access; }
+	inline bool HasAccess (SecurityLevel access) const { return GetFrame().access & access; }
+
+	// runtime state
+	int state;
+
+	// function frame stack
+	typedef GC::vector<Frame> FrameStack;
+	FrameStack frames;
+
+	// data stack
+	typedef GC::vector<Value*> DataStack;
+	DataStack data_stack;
+
+	// global data
+	typedef GC::map<NameID,Value*> GlobalList;
+	GlobalList globals;
+
+	// public functions
+	typedef GC::map<NameID,Function*> FunctionList;
+	FunctionList funcs;
+
+	// types
+	typedef GC::map<NameID,TypeInfo*> TypeList;
+	TypeList types;
+
+	// options
+	size_t data_chunk;
+	size_t context_chunk;
+	size_t block_chunk;
+	size_t gc_thresh;
+	size_t array_chunk;
+	BaseString script_path;
+
+	// options
+	size_t run_length;
+
+	// built-in types
+	const TypeInfo* t_value;
+	const TypeInfo* t_number;
+	const TypeInfo* t_string;
+	const TypeInfo* t_array;
+	const TypeInfo* t_function;
+	const TypeInfo* t_type;
+	const TypeInfo* t_struct;
+	const TypeInfo* t_iterator;
+	const TypeInfo* t_script_class;
 };
 
-/**
- * Scriptix version
- * Returns version of Scriptix library.
- * @return version.
- */
 const char *Version (void);
+
+System* Initialize (System*);
+
+namespace _internal {
+	extern System* _System;
+}
+
+inline System* GetSystem (void) { return _internal::_System; }
 
 } // namespace Scriptix
 

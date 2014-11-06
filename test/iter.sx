@@ -1,18 +1,18 @@
 public
 main () {
-	a = ['abc','def','ghi'];
-	b = [1, 2, 3];
+	var a = ['abc','def','ghi'];
+	var b = [1, 2, 3];
 
 	printl(a);
 	printl(b);
 
-	str = '';
-	foreach(i in a)
-		str = str + i;
+	var str = '';
+	foreach(var i in a)
+		str = str :: i;
 	printl(str);
 
-	num = 0;
-	foreach(i in b)
+	var num = 0;
+	foreach(var i in b)
 		num += i;
 	printl(num);
 
@@ -22,9 +22,9 @@ main () {
 	}
 
 	str = '';
-	iter = a.iter();
+	var iter = a.iter();
 	while (i = iter.next())
-		str = str + i;
+		str = str :: i;
 	printl (str);
 
 	num = 0;

@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -37,15 +37,17 @@
 using namespace Scriptix;
 
 Value*
-Number::MethodTostr (Thread* thread, Value* self, size_t argc, Value** argv)
+Number::MethodToString (size_t argc, Value** argv)
 {
 	char buf[20];
-	snprintf (buf, 20, "%d", Number::ToInt (self));
-	return new String(thread->GetSystem(), buf);
+	snprintf (buf, 20, "%d", Number::ToInt(argv[0]));
+	return new String(buf);
 }
 
-SX_TYPEIMPL(Number, "Int", Value, SX_TYPECREATENONE(Number))
 SX_BEGINMETHODS(Number)
-	SX_DEFMETHOD(MethodTostr, "to_str", 0, 0)
+	SX_DEFMETHOD(Number::MethodToString, "toString", 0, 0)
 SX_ENDMETHODS
-SX_NOSMETHODS(Number)
+
+namespace Scriptix {
+	SX_TYPEIMPL(Number, "Int", Value, SX_TYPECREATENONE(Number))
+}

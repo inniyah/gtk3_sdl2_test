@@ -34,10 +34,10 @@
 
 	#include "scriptix.h"
 	#include "system.h"
+	#include "compiler.h"
 	
 	using namespace Scriptix;
-	
-	#include "parser.h"
+	using namespace Scriptix::Compiler;
 
 	#define COMP_STACK_SIZE 20
 	#define NAME_LIST_SIZE 20
@@ -46,7 +46,7 @@
 	extern int yylex (void);
 	int yyparse (void);
 
-	Scriptix::ParserState* parser = NULL;
+	Scriptix::Compiler::Compiler* compiler = NULL;
 
 	#define YYERROR_VERBOSE 1
 	#define SXERROR_VERBOSE 1
@@ -54,39 +54,66 @@
 	/* stupid BISON fix */
 	#define __attribute__(x)
 
-	#define malloc GC_MALLOC_UNCOLLECTABLE
-	#define free GC_FREE
+	#define malloc(size) GC_MALLOC(size)
+	#define realloc(ptr,size) GC_REALLOC(ptr,size)
+	#define free(ptr)
 %}
 
 %union {
-	ParserNode* node;
+	CompilerNode* node;
 	Value* value;
-	Type* type;
+	TypeInfo* type;
 	NameID id;
 	NameList* names;
-	struct ParserArgList args;
+	struct CompilerArgList args;
 }
 
-%token<value> NUMBER STRING
+%token<value> NUMBER
+%token<value> STRING
 %token<id> IDENTIFIER
 %token<type> TYPE
-%token<tag> TAG
-%token IF ELSE WHILE DO AND OR TGTE TLTE TNE TFOREACH TEXTEND
-%token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT TNEW TSTATIC
-%token TUNTIL TNIL TRESCUE TIN TFOR TCONTINUE TYIELD TPUBLIC
-%token TMULASSIGN TDIVASSIGN
+%token IF "if"
+%token ELSE "else"
+%token WHILE "while"
+%token DO "do"
+%token AND "&&"
+%token OR "||"
+%token TGTE ">="
+%token TLTE "<="
+%token TNE "!="
+%token TFOREACH "foreach"
+%token TADDASSIGN "+="
+%token TSUBASSIGN "-="
+%token TINCREMENT "++"
+%token TDECREMENT "--"
+%token TNEW "new"
+%token TUNTIL "until"
+%token TNIL "nil"
+%token TIN "in"
+%token TFOR "for"
+%token TCONTINUE "continue"
+%token TYIELD "yield"
+%token TPUBLIC "public"
+%token TMULASSIGN "*="
+%token TDIVASSIGN "/="
+%token TVAR "var"
+%token TDEREFERENCE "."
+%token TCONCAT "::"
+%token TBREAK "break"
+%token TRETURN "return"
 
 %nonassoc TBREAK TRETURN 
 %right '=' TADDASSIGN TSUBASSIGN TMULASSIGN TDIVASSIGN
 %left AND OR
 %left '>' '<' TGTE TLTE TIN
 %left TNE TEQUALS
-%left '+' '-' TINCREMENT TDECREMENT '@'
+%left '+' '-' TCONCAT
 %left '*' '/'
-%nonassoc TLENGTH WHILE TUNTIL DO
+%nonassoc WHILE TUNTIL DO
 %nonassoc '!' CUNARY
+%nonassoc TINCREMENT TDECREMENT
 %left TCAST
-%left '.' ':' '[' '^' TNEW
+%left TDEREFERENCE ':' '[' TNEW
 %left '('
 
 %nonassoc IF
@@ -104,42 +131,27 @@ program:
 	| program function
 	| program global
 	| program error
-	| program extend
 	| program new
 	;
 
-function: name '(' arg_names ')' '{' block '}' { parser->AddFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, 0, false); }
-	| TPUBLIC name '(' arg_names ')' '{' block '}' { parser->AddFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, 0, true); }
-	| name name { 
-		if (!parser->GetSystem()->ValidFunctionTag($1)) {
-			yyerror ("Error: Unrecognized function tag");
-			YYERROR;
-		}
-		$<id>1 = $1;
-		$<id>2 = $2;
-	} '(' arg_names ')' '{' block '}' { parser->AddFunc($<id>2, ($5.args ? *$5.args : NameList()), $5.varg, $8, $<id>1, false); }
+function: name '(' arg_names ')' '{' block '}' { compiler->AddFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, false); }
+	| TPUBLIC name '(' arg_names ')' '{' block '}' { compiler->AddFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, true); }
 	;
 
-global: name '=' data ';' { parser->SetGlobal($1, $3); }
+global: TVAR name '=' data ';' { compiler->SetGlobal($2, $4); }
+	| TVAR name ';' { compiler->SetGlobal($2, NULL); }
 	;
 
-extend: TEXTEND type { if (!parser->AddExtend ($2)) YYERROR; } '{' extend_methods '}'
+method: name '(' arg_names ')' '{' block '}' { compiler->AddMethod($1, ($3.args ? *$3.args : NameList()), $3.varg, $6); }
+	| TNEW '(' arg_names ')' '{' block '}' { compiler->AddMethod(NameToID("new"), ($3.args ? *$3.args : NameList()), $3.varg, $6); }
 	;
 
-extend_method: name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, false); }
-	| TSTATIC name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, true); }
+methods: method
+	| methods method
 	;
 
-extend_methods: extend_method
-	| extend_methods extend_method
-	;
-
-construct_method:
-	| TNEW '(' arg_names ')' '{' block '}' { parser->AddExtendFunc(NameToID("new"), ($3.args ? *$3.args : NameList()), $3.varg, $6, false); }
-	;
-
-new: TNEW name { if (!parser->AddType ($2, parser->GetSystem()->GetStructType())) YYERROR; } '{' construct_method extend_methods '}'
-	| TNEW name ':' type { if (!parser->AddType ($2, $4)) YYERROR; } '{' construct_method extend_methods '}'
+new: TNEW name { if (!compiler->AddType ($2, GetSystem()->GetScriptClassType())) YYERROR; } '{' methods '}'
+	| TNEW name ':' type { if (!compiler->AddType ($2, $4)) YYERROR; } '{' methods '}'
 	;
 
 block: { $$ = NULL; }
@@ -151,22 +163,23 @@ stmts:	stmt { $$ = $1; }
 	;
 
 stmt:	node ';' { $$ = $1; }
-	| TRETURN expr ';' { $$ = sxp_new_return (parser, $2); }
-	| TRETURN ';' { $$ = sxp_new_return (parser, NULL); }
-	| TBREAK ';' { $$ = sxp_new_break (parser); }
-	| TCONTINUE ';' { $$ = sxp_new_continue (parser); }
-	| TYIELD ';' { $$ = sxp_new_yield (parser); }
+	| TRETURN expr ';' { $$ = sxp_new_return (compiler, $2); }
+	| TRETURN ';' { $$ = sxp_new_return (compiler, NULL); }
+	| TBREAK ';' { $$ = sxp_new_break (compiler); }
+	| TCONTINUE ';' { $$ = sxp_new_continue (compiler); }
+	| TYIELD ';' { $$ = sxp_new_yield (compiler); }
 
-	| IF '(' expr ')' stmt %prec IF { $$ = sxp_new_if (parser, $3, $5, NULL); }
-	| IF '(' expr ')' stmt ELSE stmt %prec ELSE { $$ = sxp_new_if (parser, $3, $5, $7); }
-	| WHILE '(' expr ')' stmt { $$ = sxp_new_loop (parser, SXP_LOOP_WHILE, $3, $5); }
-	| TUNTIL '(' expr ')' stmt { $$ = sxp_new_loop (parser, SXP_LOOP_UNTIL, $3, $5); }
-	| DO stmt WHILE '(' expr ')' ';' { $$ = sxp_new_loop (parser, SXP_LOOP_DOWHILE, $5, $2); }
-	| DO stmt TUNTIL '(' expr ')' ';' { $$ = sxp_new_loop (parser, SXP_LOOP_DOUNTIL, $5, $2); }
-	| DO stmt { $$ = sxp_new_loop (parser, SXP_LOOP_FOREVER, NULL, $2); }
+	| IF '(' expr ')' stmt %prec IF { $$ = sxp_new_if (compiler, $3, $5, NULL); }
+	| IF '(' expr ')' stmt ELSE stmt %prec ELSE { $$ = sxp_new_if (compiler, $3, $5, $7); }
+	| WHILE '(' expr ')' stmt { $$ = sxp_new_loop (compiler, SXP_LOOP_WHILE, $3, $5); }
+	| TUNTIL '(' expr ')' stmt { $$ = sxp_new_loop (compiler, SXP_LOOP_UNTIL, $3, $5); }
+	| DO stmt WHILE '(' expr ')' ';' { $$ = sxp_new_loop (compiler, SXP_LOOP_DOWHILE, $5, $2); }
+	| DO stmt TUNTIL '(' expr ')' ';' { $$ = sxp_new_loop (compiler, SXP_LOOP_DOUNTIL, $5, $2); }
+	| DO stmt { $$ = sxp_new_loop (compiler, SXP_LOOP_FOREVER, NULL, $2); }
 	
-	| TFOR '(' node ';' expr ';' node ')' stmt { $$ = sxp_new_for (parser, $3, $5, $7, $9); }
-	| TFOREACH '(' name TIN expr ')' stmt { $$ = sxp_new_foreach (parser, $3, $5, $7); }
+	| TFOR '(' node ';' expr ';' node ')' stmt { $$ = sxp_new_for (compiler, $3, $5, $7, $9); }
+/*	| TFOREACH '(' name TIN expr ')' stmt { $$ = sxp_new_foreach (compiler, $3, $5, $7); } */
+	| TFOREACH '(' TVAR name TIN expr ')' stmt { $$ = sxp_new_foreach (compiler, $4, $6, $8); }
 
 	| '{' block '}' { $$ = $2; }
 
@@ -174,7 +187,7 @@ stmt:	node ';' { $$ = $1; }
 	;
 
 node:	{ $$ = NULL; }
-	| expr { $$ = sxp_new_statement (parser, $1); }
+	| expr { $$ = sxp_new_statement (compiler, $1); }
 	;
 
 args:	expr { $$ = $1; }
@@ -187,77 +200,76 @@ arg_names: { $$.args = NULL; $$.varg = 0; }
 	| '&' name { $$.args = NULL; $$.varg = $2; }
 	;
 
-arg_names_list: name { $$ = new NameList(); $$->push_back($1); }
+arg_names_list: name { $$ = new (UseGC) NameList(); $$->push_back($1); }
 	| arg_names_list ',' name { $$->push_back($3); }
 	;
 
-func_args: '(' args ')' { $$ = $2; }
-	| '(' ')' { $$ = NULL; }
+func_args: args { $$ = $1; }
+	| { $$ = NULL; }
 	;
 
-lval: name { $$ = sxp_new_lookup(parser, $1); }
-	| expr '[' expr ']' { $$ = sxp_new_getindex(parser, $1, $3); }
-	| expr '.' name { $$ = sxp_new_get_member(parser, $1, $3); }
-	| '.' name { $$ = sxp_new_get_member(parser, sxp_new_lookup(parser, NameToID("self")), $2); }
+lval: name { $$ = sxp_new_lookup(compiler, $1); }
+	| expr '[' expr ']' { $$ = sxp_new_getindex(compiler, $1, $3); }
+	| expr TDEREFERENCE name { $$ = sxp_new_get_member(compiler, $1, $3); }
 	;
 
-expr: expr '+' expr { $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
-	| expr '-' expr { $$ = sxp_new_math (parser, OP_SUBTRACT, $1, $3); }
-	| expr '*' expr { $$ = sxp_new_math (parser, OP_MULTIPLY, $1, $3); }
-	| expr '/' expr { $$ = sxp_new_math (parser, OP_DIVIDE, $1, $3); }
-	| expr '@' expr { yyerror("Warning: use of '@' concatenation operator is deprecrated; please use '+'"); $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
+expr: expr '+' expr { $$ = sxp_new_math (compiler, OP_ADD, $1, $3); }
+	| expr '-' expr { $$ = sxp_new_math (compiler, OP_SUBTRACT, $1, $3); }
+	| expr '*' expr { $$ = sxp_new_math (compiler, OP_MULTIPLY, $1, $3); }
+	| expr '/' expr { $$ = sxp_new_math (compiler, OP_DIVIDE, $1, $3); }
+	| expr TCONCAT expr { $$ = sxp_new_concat (compiler, $1, $3); }
 	| '(' expr ')' { $$ = $2; }
 
-	| expr TIN expr { $$ = sxp_new_in (parser, $1, $3); }
+	| expr TIN expr { $$ = sxp_new_in (compiler, $1, $3); }
 
 	| '-' expr %prec CUNARY {
-			if ($2->type == SXP_DATA && Value::IsA<Number>(parser->system, $2->parts.value))
-				$$ = sxp_new_data(parser,Number::Create(-Number::ToInt($2->parts.value)));
+			if ($2->type == SXP_DATA && Value::IsA<Number>($2->parts.value))
+				$$ = sxp_new_data(compiler,Number::Create(-Number::ToInt($2->parts.value)));
 			else
-				$$ = sxp_new_negate (parser, $2); 
+				$$ = sxp_new_negate (compiler, $2); 
 		}
 
-	| '!' expr { $$ = sxp_new_not (parser, $2); }
-	| expr AND expr { $$ = sxp_new_and (parser, $1, $3); }
-	| expr OR expr { $$ = sxp_new_or (parser, $1, $3); }
+	| '!' expr { $$ = sxp_new_not (compiler, $2); }
+	| expr AND expr { $$ = sxp_new_and (compiler, $1, $3); }
+	| expr OR expr { $$ = sxp_new_or (compiler, $1, $3); }
 
-	| expr '>' expr { $$ = sxp_new_math (parser, OP_GT, $1, $3); }
-	| expr '<' expr { $$ = sxp_new_math (parser, OP_LT, $1, $3); }
-	| expr TNE expr { $$ = sxp_new_math (parser, OP_NEQUAL, $1, $3); }
-	| expr TGTE expr { $$ = sxp_new_math (parser, OP_GTE, $1, $3); }
-	| expr TLTE expr { $$ = sxp_new_math (parser, OP_LTE, $1, $3); }
-	| expr TEQUALS expr { $$ = sxp_new_math (parser, OP_EQUAL, $1, $3); }
+	| expr '>' expr { $$ = sxp_new_math (compiler, OP_GT, $1, $3); }
+	| expr '<' expr { $$ = sxp_new_math (compiler, OP_LT, $1, $3); }
+	| expr TNE expr { $$ = sxp_new_math (compiler, OP_NEQUAL, $1, $3); }
+	| expr TGTE expr { $$ = sxp_new_math (compiler, OP_GTE, $1, $3); }
+	| expr TLTE expr { $$ = sxp_new_math (compiler, OP_LTE, $1, $3); }
+	| expr TEQUALS expr { $$ = sxp_new_math (compiler, OP_EQUAL, $1, $3); }
 
-	| name '=' expr { $$ = sxp_new_assign (parser, $1, $3); }
-	| expr '[' expr ']' '=' expr %prec '=' { $$ = sxp_new_setindex (parser, $1, $3, $6); }
-	| expr '.' name '=' expr { $$ = sxp_new_set_member(parser, $1, $3, $5); }
-	| '.' name '=' expr { $$ = sxp_new_set_member(parser, sxp_new_lookup(parser, NameToID("self")), $2, $4); }
+	| TVAR name { $$ = sxp_new_declare (compiler, $2, NULL); }
+	| TVAR name '=' expr { $$ = sxp_new_declare (compiler, $2, $4); }
+	| name '=' expr { $$ = sxp_new_assign (compiler, $1, $3); }
+	| expr '[' expr ']' '=' expr %prec '=' { $$ = sxp_new_setindex (compiler, $1, $3, $6); }
+	| expr TDEREFERENCE name '=' expr { $$ = sxp_new_set_member(compiler, $1, $3, $5); }
 
-	| expr TADDASSIGN expr { $$ = sxp_new_preop (parser, $1, OP_ADD, $3); }
-	| expr TSUBASSIGN expr { $$ = sxp_new_preop (parser, $1, OP_SUBTRACT, $3); }
-	| expr TMULASSIGN expr { $$ = sxp_new_preop (parser, $1, OP_MULTIPLY, $3); }
-	| expr TDIVASSIGN expr { $$ = sxp_new_preop (parser, $1, OP_DIVIDE, $3); }
-	| expr TINCREMENT { $$ = sxp_new_postop (parser, $1, OP_ADD, sxp_new_data (parser, Number::Create (1))); }
-	| TINCREMENT expr { $$ = sxp_new_preop (parser, $2, OP_ADD, sxp_new_data (parser, Number::Create (1))); }
-	| expr TDECREMENT { $$ = sxp_new_postop (parser, $1, OP_SUBTRACT, sxp_new_data (parser, Number::Create (1))); }
-	| TDECREMENT expr { $$ = sxp_new_preop (parser, $2, OP_SUBTRACT, sxp_new_data (parser, Number::Create (1))); }
+	| lval TADDASSIGN expr { $$ = sxp_new_preop (compiler, $1, OP_ADD, $3); }
+	| lval TSUBASSIGN expr { $$ = sxp_new_preop (compiler, $1, OP_SUBTRACT, $3); }
+	| lval TMULASSIGN expr { $$ = sxp_new_preop (compiler, $1, OP_MULTIPLY, $3); }
+	| lval TDIVASSIGN expr { $$ = sxp_new_preop (compiler, $1, OP_DIVIDE, $3); }
+	| lval TINCREMENT { $$ = sxp_new_postop (compiler, $1, OP_ADD, sxp_new_data (compiler, Number::Create (1))); }
+	| lval TDECREMENT { $$ = sxp_new_postop (compiler, $1, OP_SUBTRACT, sxp_new_data (compiler, Number::Create (1))); }
+
+	// FIXME: problem lines: reduce/reduce errors, can't figure out why or out to fix
+	| TINCREMENT lval { $$ = sxp_new_preop (compiler, $2, OP_ADD, sxp_new_data (compiler, Number::Create (1))); }
+	| TDECREMENT lval { $$ = sxp_new_preop (compiler, $2, OP_SUBTRACT, sxp_new_data (compiler, Number::Create (1))); }
 	
-	| '(' type ')' expr %prec TCAST { yyerror("Warning: use of '(type)expr' casting is deprecrated; please use 'type(expr)'"); $$ = sxp_new_cast (parser, $2, $4); }
-	| type '(' expr ')' %prec TCAST { $$ = sxp_new_cast (parser, $1, $3); }
+	| type '(' expr ')' %prec TCAST { $$ = sxp_new_cast (compiler, $1, $3); }
 
-	| name func_args { $$ = sxp_new_invoke (parser, sxp_new_lookup(parser, $1), $2); }
-	| '(' expr ')' func_args { $$ = sxp_new_invoke (parser, $2, $4); }
+	| name '(' func_args ')' { $$ = sxp_new_invoke (compiler, sxp_new_lookup(compiler, $1), $3); }
+	| '(' expr ')' '(' func_args ')' { $$ = sxp_new_invoke (compiler, $2, $5); }
 
-	| TNEW type { $$ = sxp_new_new (parser, $2, NULL, false); }
-	| TNEW type func_args { $$ = sxp_new_new (parser, $2, $3, true); }
-	| expr '.' name func_args { $$ = sxp_new_method (parser, $1, $3, $4); }
-	| '.' name func_args { $$ = sxp_new_method (parser, sxp_new_lookup(parser, NameToID("self")), $2, $3); }
-	| type '.' name func_args { $$ = sxp_new_smethod (parser, $1, $3, $4); }
+	| TNEW type { $$ = sxp_new_new (compiler, $2, NULL, false); }
+	| TNEW type '(' func_args ')' { $$ = sxp_new_new (compiler, $2, $4, true); }
+	| expr TDEREFERENCE name '(' func_args ')' { $$ = sxp_new_method (compiler, $1, $3, $5); }
 
-	| '[' args ']' { $$ = sxp_new_array (parser, $2); }
-	| '[' ']' { $$ = sxp_new_array (parser, NULL); }
+	| '[' args ']' { $$ = sxp_new_array (compiler, $2); }
+	| '[' ']' { $$ = sxp_new_array (compiler, NULL); }
 
-	| data { $$ = sxp_new_data (parser, $1); }
+	| data { $$ = sxp_new_data (compiler, $1); }
 
 	| lval { $$ = $1; }
 	;
@@ -266,6 +278,7 @@ expr: expr '+' expr { $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
 data:	NUMBER { $$ = $1;  }
 	| STRING { $$ = $1; }
 	| TNIL { $$ = NULL; }
+	| type { $$ = new TypeValue($1); }
 	;
 
 name:	IDENTIFIER { $$ = $1; }
@@ -278,7 +291,7 @@ type:	TYPE { $$ = $1; }
 
 int
 yyerror (const char *str) {
-	parser->Error(str);
+	compiler->Error(str);
 	return 1;
 }
 
@@ -289,7 +302,7 @@ yywrap (void) {
 }
 
 int
-Scriptix::System::LoadFile(const std::string& file, SecurityLevel access) {
+Scriptix::System::LoadFile(const BaseString& file, SecurityLevel access, CompilerHandler* handler) {
 	int ret;
 
 	if (file.empty()) {
@@ -302,18 +315,19 @@ Scriptix::System::LoadFile(const std::string& file, SecurityLevel access) {
 		}
 	}
 
-	parser = new ParserState(this);
-	if (parser == NULL) {
+	compiler = new Scriptix::Compiler::Compiler();
+	if (compiler == NULL) {
 		if (!file.empty())
 			fclose (yyin);
 		std::cerr << "Failed to create Compiler context" << std::endl;
 		return SXE_INTERNAL;
 	}
 	if (!file.empty())
-		parser->SetFile(file);
-	parser->SetAccess(access);
+		compiler->SetFile(file);
+	compiler->SetAccess(access);
+	compiler->SetHandler(handler);
 
-	sxp_parser_inbuf = NULL;
+	sxp_compiler_inbuf = NULL;
 
 	ret = yyparse ();
 	if (yynerrs > 0)
@@ -323,36 +337,37 @@ Scriptix::System::LoadFile(const std::string& file, SecurityLevel access) {
 		fclose (yyin);
 
 	if (!ret)
-		ret = parser->Compile();
+		ret = compiler->Compile();
 
 	return ret;
 }
 
 int
-Scriptix::System::LoadString(const std::string& buf, const std::string& name, size_t lineno, SecurityLevel access) {
+Scriptix::System::LoadString(const BaseString& buf, const BaseString& name, size_t lineno, SecurityLevel access, CompilerHandler* handler) {
 	int ret;
 
 	if (buf.empty())
 		return SXE_INVALID;
 
-	parser = new ParserState(this);
-	if (parser == NULL) {
+	compiler = new Scriptix::Compiler::Compiler();
+	if (compiler == NULL) {
 		std::cerr << "Failed to create Compiler context" << std::endl;
 		return SXE_INTERNAL;
 	}
-	parser->SetAccess(access);
-	parser->SetFile(name);
-	parser->SetLine(lineno);
+	compiler->SetAccess(access);
+	compiler->SetFile(name);
+	compiler->SetLine(lineno);
+	compiler->SetHandler(handler);
 
 	yyin = NULL;
-	sxp_parser_inbuf = buf.c_str();
+	sxp_compiler_inbuf = buf.c_str();
 
 	ret = yyparse ();
 	if (yynerrs > 0)
 		ret = SXE_INVALID;
 
 	if (!ret)
-		ret = parser->Compile();
+		ret = compiler->Compile();
 
 	return ret;
 }

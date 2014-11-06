@@ -1,6 +1,203 @@
-2004-07-02 02:25:26  Sean Middleditch <elanthis@home.awesomeplay.com>
+2005-08-30 13:40:40  Sean Middleditch <elanthis@localdomain>
 
-  * Version 0.30.
+  * Remove the scriptix.pc files, as we don't use them.
+
+2005-08-26 01:44:04  Sean Middleditch <elanthis@localdomain>
+
+  * Reverted dereference operator to . (period), as -> is just
+    too damn ugly.
+  * Change the string concatenation operator from .. to :: to avoid
+    bugs from typos between .. and .; yes this conflicts with the
+    very recently removed scope operator, and no I don't care.
+
+2005-08-26 01:26:34  Sean Middleditch <elanthis@localdomain>
+
+  * Change the default script methods to use camelCase.
+    That only affects to_int, to_string, and the very recently
+    added add_method.
+
+2005-08-26 01:09:59  smiddle <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Remove static methods.
+  * Remove type extends.
+  * Clean up grammer to remove errors, although two reduce/reduce
+    conflicts are left due to the pre-increment and pre-decrement
+    operators.
+  * Improved error reporting, only works with Bison 2.0 (we may
+    have to revert this if not enough people have it).
+
+2005-08-24 20:10:40  smiddle <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Removed function tags.
+  * Added CompilerHandler type which can be used to customize
+    behavior of declared functions, types, extends, and globals
+    (only functions and extends right now) during compilation.
+    This replaces and extends the functionality provided with
+    function tags.
+
+2005-07-27 04:35:23  Sean Middleditch <elanthis@localdomain>
+
+  * Corrected line-number calculation, used in error reports.
+
+2005-07-27 04:34:45  Sean Middleditch <elanthis@localdomain>
+
+  * Removed Value::Print() in preference of just using
+    Value::ToString().
+  * Added a to_string method for Array.
+
+2005-07-18 20:46:21  Sean Middleditch <elanthis@localdomain>
+
+  * Removed ccdoc comments from header files.
+  * Moved most of the inline static Value methods to the value.cc
+    file, as they shouldn't be inline.
+  * Got rid of the util functions I just added, made them static
+    methods on Value like they should be.
+  * Fixed bug in evaluation engine where the frame pointer was
+    not recalculated in each loop, causing potential crashes when
+    the frame stack was reallocated; just removed frame pointer
+    altogether and use GetFrame() now, which hopefully will be
+    subject to common sub-expression elimination from the compiler.
+  * Added the .. string concatenation operator.
+  * The + addition operator no longer does string concatenation.
+  * The @ string concatenation operator has been removed.  (It was
+    just an alias for + that printed out a deprecation warning.)
+
+2005-07-17 21:13:44  Sean Middleditch <elanthis@localdomain>
+
+  * Removed the doc/ sub-directory, since the auto-generated APIs
+    aren't very useful and the tutorial was completely out-of-date
+    and useless.
+
+2005-07-17 20:59:12  Sean Middleditch <elanthis@localdomain>
+
+  * Require that new local variables be declared before they are
+    assigned, using a 'var <name> [= <value>]' format.  i.e.,
+    'var a;' or 'var i = 0;'.
+  * Change dereference operator from . to ->
+  * Change scoping operator from . to ::
+  * Added a concat opcode, although there is no operator for it yet.
+  * Remove System::Initialize().
+  * Value no longer has a type member, but uses a virtual GetType()
+    method.
+  * Added a ScriptClass sub-class of Struct for classes/types
+    created in Scriptix code.
+
+2005-07-01 01:27:18  Sean Middleditch <elanthis@localdomain>
+
+  * The old embedded debugging op-codes are removed in favor of a
+    debugging meta-data block.  This is just used to record which
+    lines each opcode came from in the function's source file.
+
+2005-04-19 19:29:34  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * When allocating the items array for C functions, use
+    argc*sizeof(Value*) bytes instead of just argc bytes.
+
+2005-04-19 15:18:38  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Varargs to C functions work correctly again.
+  * C methods no longer have a separate self argument; the self
+    object is the first argument in argv now.
+
+2005-04-18 03:52:48  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Handling of call frames has been revamped to work using the
+    shared frame/data stack.
+  * Fixed examples of custom classes and extends to not include
+    a redundant self argument.
+
+2005-04-17 02:59:22  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * STL containers, while using GC for their own internal memory
+    usage, were not using the GC when the entire container itself
+    was dynamically allocated.  Now fixed.  This is a LONG standing
+    bug that's been haunting me for a year or two.  Yay me for
+    finally finding it!
+
+2005-04-16 15:08:02  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Fixes to GC usage.  There's still a GC bug lurking in the
+    compiler somewhere I tink.
+
+2005-04-15 23:44:57  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Get rid of finalizers on all types, so we don't need
+    destructors to be invoked.  Also make strings GC'd, which
+    makes them incompatible (type-wise) with std::string, but I
+    don't really care.
+
+2005-04-15 19:34:28  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Array set/get operations always work on a long now, since only
+    Arrays use them.
+  * Massively cleaned up type creation code.
+
+2005-04-15 02:14:40  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Removed the Thread class, simplified function execution API,
+    made life wonderful and full of sunshine.
+
+2005-04-14 21:57:49  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * There is now only ever one thread, since I never used
+    multi-threading, and don't plan to.
+
+2005-04-14 20:00:17  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Removed associative arrays, I don't use them.
+  * Removed the List type, it just abstracted between Array
+    and Assoc.
+  * Removed the stdlib as I didn't use any of it, but added printl()
+    to the scriptix binary for testing.
+
+2005-03-02 19:49:49  smiddle <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Make Function::AddOpcode a real function on its own - useful
+    for debugging.
+  * Define YY_NO_UNPUT in lexer.ll so we can compile with -Werror
+    (unused function).
+  * Make key types in GC allocator always be const, since GCC
+    4.0 seems to implicitly force that in its version of the STL,
+    and the type differences would result in the internal map pair
+    type being different than the explicit pair type used in the
+    GC allocator.  Stupid C++.
+  * Fixup the JUMP operators to not call GetOpArg while modifying
+    op_ptr; in GCC 4.0 the resulting code moving the op_ptr++
+    causing the math to be different than in GCC 3.x.  No, that's
+    not a compiler bug, it's entirely my fault for assuming
+    something that I shouldn't have in inline code.
+
+2005-01-12 02:11:54  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * OS X doesn't support TLS, and I don't feel like using POSIX
+    thread variable functions all over the place.  Quite simply,
+    I feel that the cleaner API is more valuable than a thread-safe
+    library.  The use-case for Scriptix simply doesn't make much
+    sense for multiple threads at this point in time.  If an app
+    does have multiple threads that need scripts, the app will
+    simply need to lock all access to the script engine with a
+    mutex, or modify the library to use TLS.  I may or may not
+    decide to fix this before the next release.  If you don't like
+    this change, let me know, and we can discuss alternatives.
+
+2005-01-09 02:20:27  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Associate array now uses STL map.  Note that it has lost
+    the ability to lookup a value by index number or use the
+    in operator.  No, I don't really care.
+  * Struct member fields are now protected, not private.
+  * Various const Value pointers are now non-const, since having
+    them const in a script system that doesn't understand const
+    is pretty daft.
+  * Added Scriptix::Initialize() and Scriptix::GetSystem(), which
+    set and receive a thread-local System object.
+  * Added System::CurrentThread() for retrieving the currently
+    running thread from the System object.
+  * Removed *all* spurious System* and Thread* paramaters to just
+    about every function and method, since that information is
+    now found with GetSystem().
+  * Rename configure.in to configure.ac like all the other cool
+    kids are doing
 
 2004-06-11 17:42:29  Sean Middleditch <elanthis@home.awesomeplay.com>
 

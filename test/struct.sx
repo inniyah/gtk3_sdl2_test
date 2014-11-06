@@ -1,7 +1,7 @@
 public
 main () {
 	// create test struct
-	struct = new Struct;
+	var struct = new Struct;
 	struct.test = 'hi';
 	struct.test2 = 'blah';
 

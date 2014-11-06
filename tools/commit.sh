@@ -13,6 +13,9 @@ COMMIT=". src include tools doc scripts data test"
 # do changelog
 CHANGELOG="yes"
 
+# do version
+VERSION="yes"
+
 # remove data dir if asked
 while [ -n "$1" ] ; do
   case "$1" in
@@ -22,9 +25,17 @@ while [ -n "$1" ] ; do
     -c)
       CHANGELOG="no"
       ;;
+    -v)
+      VERSION="no"
+      ;;
   esac
   shift
 done
+
+# new version
+if [ "x$VERSION" = 'xyes' ] ; then
+	./tools/new-version
+fi
 
 # load settings
 if [ -f self.info ] ; then

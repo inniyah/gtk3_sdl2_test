@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -27,42 +27,20 @@
 
 namespace Scriptix {
 
-/**
- * Iterator base type.
- * Iterators provide a language-based feature for iterating thru any
- * sort of list or collection.  Iterators can be used with the foreach()
- * language construct, or on their own uses normal method calls.
- */
 class Iterator : public Value {
-	SX_TYPEDEF // Implemented in iter.cc
-
 	// operations
 	public:
-	/**
-	 * Fetch next item in the collection.
-	 * This is the main part of an iterator.  Each call to this method
-	 * returns the next item in the collection, until the end of the
-	 * collection is reached.
-	 * @note Over-ride in your derived iterator to provide functionality.
-	 * @param system System the value should be in.
-	 * @param value A value if true is returned, undefined otherwise.
-	 * @return false if there are no more items, true if there are.
-	 */
-	virtual bool Next (const System* system, Value*& value) = 0;
+	virtual bool Next (Value*& value) = 0;
 
 	// Methods
-	private:
-	/**
-	 * Method: Get next item.
-	 * Get next item from collection.  Skips nil items due to implementation
-	 *   details.
-	 * @return Next item, or nil if there are no more.
-	 */
-	static Value* MethodNext (Thread* thread, Value* self, size_t argc, Value** argv);
+	public:
+	static Value* MethodNext (size_t argc, Value** argv);
 
 	// Constructor
 	public:
-	Iterator (const System* system);
+	Iterator ();
+
+	virtual const TypeInfo* GetType () const;
 };
 
 } // namespace Scriptix

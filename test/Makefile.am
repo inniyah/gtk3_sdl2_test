@@ -1,10 +1,10 @@
 TARGET_TESTS=\
 	test-fact test-comments test-inc test-logic test-array \
-	test-assoc test-thread test-global test-struct test-iter \
+	test-global test-struct test-iter \
 	test-string test-extend test-types test-big
 SCRIPT_TESTS=\
 	fact.sx comments.sx inc.sx logic.sx array.sx \
-	assoc.sx thread.sx global.sx struct.sx iter.sx \
+	global.sx struct.sx iter.sx \
 	string.sx extend.sx types.sx big.sx
 
 EXTRA_DIST=$(SCRIPT_TESTS)
@@ -37,14 +37,6 @@ test-array: array.sx $(SX)
 test-iter: iter.sx $(SX)
 	echo '>> iter.sx:' >> test.log
 	$(SX) $< 2>&1 | tee -a test.log | grep Success > /dev/null && touch $@
-
-test-thread: thread.sx $(SX)
-	echo '>> thread.sx:' >> test.log
-	$(SX) $< >> test.log && touch $@
-
-test-assoc: assoc.sx $(SX)
-	echo '>> assoc.sx:' >> test.log
-	$(SX) $< 2>&1 | tee -a test.log | grep 'My name is Assoc!' > /dev/null && touch $@
 
 test-global: global.sx $(SX)
 	echo '>> global.sx:' >> test.log

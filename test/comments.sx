@@ -4,10 +4,10 @@
 
 public
 main () {
-	a = 1; #set a to 1
+	var a = 1; #set a to 1
 
 	# hmm, weird
-	/* something */ b = /* else */ 2; /* to think about */
+	var /* something */ b = /* else */ 2; /* to think about */
 
 	printl ('Success');
 

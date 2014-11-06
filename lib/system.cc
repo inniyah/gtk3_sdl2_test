@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -32,39 +32,38 @@
 
 using namespace Scriptix;
 
-static
-void
-_sx_default_error_hook (const char *file, unsigned int line, const char *str) {
-	std::cerr << "Scriptix: " << file << ':' << line << ": " << str << std::endl;
+namespace Scriptix {
+	extern const TypeDef String_Type;
+	extern const TypeDef Number_Type;
+	extern const TypeDef Iterator_Type;
+	extern const TypeDef Function_Type;
+	extern const TypeDef Array_Type;
+	extern const TypeDef TypeValue_Type;
 }
 
-System::System (void) : globals(), funcs(), tags(), types(), script_path()
+System::System (void) : globals(), funcs(), types(), script_path()
 {
-	threads = NULL;
-	cur_thread = NULL;
-
 	data_chunk = DEF_DATA_CHUNK;
 	context_chunk = DEF_CONTEXT_CHUNK;
 	block_chunk = DEF_BLOCK_CHUNK;
 	array_chunk = DEF_ARRAY_CHUNK;
 
-	error_hook = _sx_default_error_hook;
-
-	valid_threads = 0;
 	run_length = DEF_RUN_LENGTH;
 
-	t_string = AddType (String::GetTypeDef());
-	t_number = AddType (Number::GetTypeDef());
-	t_function = AddType (Function::GetTypeDef());
-	t_iterator = AddType (Iterator::GetTypeDef());
-	t_list = AddType (List::GetTypeDef());
-	t_array = AddType (Array::GetTypeDef());
-	t_assoc = AddType (Assoc::GetTypeDef());
-	t_type = AddType (TypeValue::GetTypeDef());
-	t_struct = AddType (Struct::GetTypeDef());
+	t_value = AddType(&Value_Type);
+	t_string = AddType(&String_Type);
+	t_number = AddType(&Number_Type);
+	t_function = AddType(&Function_Type);
+	t_iterator = AddType(&Iterator_Type);
+	t_array = AddType(&Array_Type);
+	t_type = AddType(&TypeValue_Type);
+	t_struct = AddType(&Scriptix::Struct_Type);
+	t_script_class = AddType(&Scriptix::ScriptClass_Type);
+}
 
-	// FIXME: error checking
-	InitStdlib();
+void
+System::HandleError (const BaseString& file, size_t line, const BaseString& msg) {
+	std::cerr << "Scriptix: " << file << ':' << line << ": " << msg << std::endl;
 }
 
 int
@@ -92,7 +91,7 @@ System::SetOption (sx_option_type opt, long value) {
 }
 
 int
-System::SetOption (sx_option_type opt, const std::string& value) {
+System::SetOption (sx_option_type opt, const BaseString& value) {
 	switch (opt) {
 		case OPT_PATH:
 			script_path = value;
@@ -110,18 +109,24 @@ Scriptix::Version (void)
 	return SX_VERSION;
 }
 
-Thread*
-System::CreateThread (Function* function, size_t argc, Value* argv[], SecurityLevel sl, int flags)
-{
-	Thread* thread = new Thread(this, sl, flags);
-	if (thread == NULL) {
-		// SXE_NOMEM
-		return NULL;
+// NON-THREAD-LOCAL SYSTEM OBJECT 
+namespace Scriptix {
+	namespace _internal {
+		System* _System = NULL;
 	}
+}
 
-	if (thread->PushFrame(function, argc, argv, 0) != SXE_OK)
-		return NULL;
+// INITIALIZE SCRIPTIX
+System*
+Scriptix::Initialize (System* s_system)
+{
+	// delete current system
+	delete _internal::_System;
+	// use default if necessary
+	if (s_system == NULL)
+		s_system = new System();
+	// set as system
+	_internal::_System = s_system;
 
-	AddThread(thread);
-	return thread;
+	return _internal::_System;
 }

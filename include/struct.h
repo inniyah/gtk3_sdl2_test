@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -32,68 +32,41 @@
 
 namespace Scriptix {
 
-/**
- * Struct value.
- * An structure is similar to a C structure.  Structs contain member values,
- * which can be read or modified.  Unlike C, Structs' member lists are
- * dynamic, like an associate array type.
- */
 class Struct : public Value {
-	SX_TYPEDEF
-
 	// member data
-	private:
+	protected:
 	typedef GC::map<NameID, Value*> datalist;
 	datalist data;
 
 	// Method implementations
 	protected:
-	/**
-	 * Set an unset member.
-	 * If an attempt is made to set a member value that does not
-	 * exist in the member list, this method is called.
-	 * @param system The system the structure exists in.
-	 * @param id The ID of the member to be set.
-	 * @param value The value to set the member to.
-	 */
-	virtual void SetUndefMember (const System* system, NameID id, Value* value);
-	/**
-	 * Get an undefined member.
-	 * If an attempt is made to lookup the value of an undefined
-	 * member, this method is called to return a value.
-	 * @param system The system the structure exists in.
-	 * @param id The ID of the member to be retrieved.
-	 */
-	virtual Value* GetUndefMember (const System* system, NameID id) const;
+	virtual void SetUndefMember (NameID id, Value* value);
+	virtual Value* GetUndefMember (NameID id) const;
 
 	// Constructor
 	public:
-	/**
-	 * Initialize structure.
-	 * @param system System that the structure will be created in.
-	 * @return The initialized structure instance.
-	 */
-	Struct (const System* system, const Type* type);
-	Struct (const System* system);
+	Struct ();
 
-	/**
-	 * Set member value.
-	 * Will set the given member to the given value.
-	 * @param System System structure exists in.
-	 * @param id The ID of the member to be set.
-	 * @param value The value to set the member to.
-	 */
-	void SetMember (const System* system, NameID id, Value* value);
+	virtual const TypeInfo* GetType () const;
 
-	/**
-	 * Get member value.
-	 * Get the value of the given member.
-	 * @param System System structure exists in.
-	 * @param id The ID of the member to be retrieved.
-	 * @return The value of the member, or NULL on error.
-	 */
-	Value* GetMember (const System* system, NameID id) const;
+	void SetMember (NameID id, Value* value);
+
+	Value* GetMember (NameID id) const;
 };
+
+class ScriptClass : public Struct {
+	public:
+	inline ScriptClass (const TypeInfo* s_type) : Struct(), type(s_type) {}
+
+	virtual const TypeInfo* GetType () const { return type; }
+
+	private:
+	const TypeInfo* type;
+};
+
+// Used for custom types
+extern const TypeDef Struct_Type;
+extern const TypeDef ScriptClass_Type;
 
 } // namespace Scriptix
 

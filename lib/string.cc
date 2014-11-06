@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -33,48 +33,50 @@
 
 using namespace Scriptix;
 
-SX_TYPEIMPL(String, "String", Value, SX_TYPECREATENONE(String))
-
 SX_BEGINMETHODS(String)
-	SX_DEFMETHOD(MethodLength, "length", 0, 0)
-	SX_DEFMETHOD(MethodToint, "to_num", 0, 0)
-	SX_DEFMETHOD(MethodToint, "to_int", 0, 0)
-	SX_DEFMETHOD(MethodUpper, "upper", 0, 0)
-	SX_DEFMETHOD(MethodLower, "lower", 0, 0)
-	SX_DEFMETHOD(MethodSubstr, "substr", 2, 0)
-	SX_DEFMETHOD(MethodSplit, "split", 1, 0)
-	SX_DEFMETHOD(MethodTrim, "trim", 0, 0)
-	SX_DEFMETHOD(MethodLtrim, "ltrim", 0, 0)
-	SX_DEFMETHOD(MethodRtrim, "rtrim", 0, 0)
+	SX_DEFMETHOD(String::MethodLength, "length", 0, 0)
+	SX_DEFMETHOD(String::MethodToInt, "toInt", 0, 0)
+	SX_DEFMETHOD(String::MethodUpper, "upper", 0, 0)
+	SX_DEFMETHOD(String::MethodLower, "lower", 0, 0)
+	SX_DEFMETHOD(String::MethodSubstr, "substr", 2, 0)
+	SX_DEFMETHOD(String::MethodSplit, "split", 1, 0)
+	SX_DEFMETHOD(String::MethodTrim, "trim", 0, 0)
+	SX_DEFMETHOD(String::MethodLtrim, "ltrim", 0, 0)
+	SX_DEFMETHOD(String::MethodRtrim, "rtrim", 0, 0)
 SX_ENDMETHODS
 
-SX_BEGINSMETHODS(String)
-	SX_DEFMETHOD(SMethodConcat, "concat", 2, 0)
-SX_ENDMETHODS
+namespace Scriptix {
+	SX_TYPEIMPL(String, "String", Value, SX_TYPECREATENONE(String))
+}
 
-String::String (const System* system, const char* src, size_t size) : Value(system, system->GetStringType()), data(src, size) {}
-String::String (const System* system, const char* src) : Value(system, system->GetStringType()), data(src) {}
-String::String (const System* system, const std::string& src) : Value(system, system->GetStringType()), data(src) {}
+String::String (const char* src, size_t size) : Value(), data(src, size) {}
+String::String (const char* src) : Value(), data(src) {}
+String::String (const BaseString& src) : Value(), data(src) {}
+
+const TypeInfo*
+String::GetType () const {
+	return GetSystem()->GetStringType();
+}
 
 void
-String::Print (System* system) const
+String::Print () const
 {
 	std::cout << data;
 }
 
 bool
-String::Equal (const System* system, const Value* other) const
+String::Equal (const Value* other) const
 {
-	if (!Value::IsA<String>(system, other))
+	if (!Value::IsA<String>(other))
 		return false;
 
 	return data == ((String*)other)->data;
 }
 
 int
-String::Compare (const System* system, const Value* other) const
+String::Compare (const Value* other) const
 {
-	if (!Value::IsA<String>(system, other))
+	if (!Value::IsA<String>(other))
 		return -1;
 
 	if (GetLen() < ((String*)other)->GetLen()) {
@@ -88,17 +90,17 @@ String::Compare (const System* system, const Value* other) const
 }
 
 bool
-String::True (const System* system) const
+String::True () const
 {
 	return !data.empty();
 }
 
 bool
-String::Has (const System* system, const Value* value) const
+String::Has (const Value* value) const
 {
 	const char *c;
 
-	if (!Value::IsA<String>(system, value))
+	if (!Value::IsA<String>(value))
 		return false;
 
 	// blank test - always in
@@ -118,11 +120,11 @@ String::Has (const System* system, const Value* value) const
 }
 
 Value* 
-String::GetIndex (const System* system, const Value* vindex) const
+String::GetIndex (Value* vindex) const
 {
 	long index;
 
-	if (!Value::IsA<Number>(system, vindex))
+	if (!Value::IsA<Number>(vindex))
 		return NULL;
 	
 	index = Number::ToInt(vindex);
@@ -140,110 +142,95 @@ String::GetIndex (const System* system, const Value* vindex) const
 		index = GetLen() - 1;
 	}
 	
-	return new String (system, GetCStr() + index, 1);
+	return new String (GetCStr() + index, 1);
 }
 
 Value*
-String::MethodLength (Thread* thread, Value* self, size_t argc, Value** argv)
+String::MethodLength (size_t argc, Value** argv)
 {
-	return Number::Create (((String*)self)->GetLen());
+	String* self = (String*)argv[0];
+	return Number::Create (self->GetLen());
 }
 
 Value*
-String::MethodToint (Thread* thread, Value* self, size_t argc, Value** argv)
+String::MethodToInt(size_t argc, Value** argv)
 {
-	return Number::Create (atoi (((String*)self)->GetCStr()));
-}
-
-// methods
-Value*
-String::SMethodConcat (Thread* thread, size_t argc, Value** argv)
-{
-	std::string ret;
-
-	// do concat
-	for (size_t i = 0; i < argc; ++ i)
-		if (Value::IsA<String>(thread->GetSystem(), argv[i]))
-			ret += ((String*)argv[i])->data;
-
-	// allocate string
-	String* strret = new String (thread->GetSystem(), ret);
-	if (strret == NULL) {
-		thread->RaiseError(SXE_NOMEM, "Out of memory");
-		return NULL;
-	}
-	return strret;
+	String* self = (String*)argv[0];
+	return Number::Create (atoi (self->GetCStr()));
 }
 
 Value*
-String::MethodSplit (Thread* thread, Value* self, size_t argc, Value** argv)
+String::MethodSplit (size_t argc, Value** argv)
 {
+	String* self = (String*)argv[0];
 	const char *c, *needle, *haystack;
 	size_t nlen;
 
-	if (!Value::IsA<String>(thread->GetSystem(), argv[0])) {
-		thread->RaiseError(SXE_BADARGS, "Argument 1 to String::split() is not a string");
+	if (!Value::IsA<String>(argv[1])) {
+		GetSystem()->RaiseError(SXE_BADARGS, "Argument 1 to String::split() is not a string");
 		return NULL;
 	}
 
-	haystack = ((String*)self)->GetCStr();
-	needle = ((String*)argv[0])->GetCStr();
+	haystack = self->GetCStr();
+	needle = ((String*)argv[1])->GetCStr();
 	nlen = strlen (needle);
 
-	Array* array = new Array(thread->GetSystem());
+	Array* array = new Array();
 	if (array == NULL) {
 		return NULL;
 	}
 
 	// no needle
 	if (nlen == 0) {
-		List::Append (thread->GetSystem(), array, self);
+		Array::Append (array, self);
 		return array;
 	}
 
 	// find substr
 	for (c = haystack; *c != '\0'; ++ c) {
 		if (!strncasecmp (c, needle, strlen (needle))) {
-			List::Append (thread->GetSystem(), array, new String (thread->GetSystem(), haystack, c - haystack));
+			Array::Append (array, new String (haystack, c - haystack));
 			haystack = c + nlen;
 		}
 	}
 
 	// append last
 	if (*haystack != '\0') {
-		List::Append (thread->GetSystem(), array, new String (thread->GetSystem(), haystack, strlen(haystack)));
+		Array::Append (array, new String (haystack, strlen(haystack)));
 	}
 
 	return array;
 }
 
 Value*
-String::MethodSubstr (Thread* thread, Value* self, size_t argc, Value** argv)
+String::MethodSubstr (size_t argc, Value** argv)
 {
+	String* self = (String*)argv[0];
 	int start, len;
 
-	start = Number::ToInt(argv[0]);
-	len = Number::ToInt(argv[1]);
+	start = Number::ToInt(argv[1]);
+	len = Number::ToInt(argv[2]);
 
 	// valid starting location?
-	if (start < 0 || (size_t)start >= ((String*)self)->GetLen()) {
+	if (start < 0 || (size_t)start >= self->GetLen()) {
 		// FIXME: perhaps an error?
 		return NULL;
 	}
 
 	// trim len
-	if ((size_t)(start + len) > ((String*)self)->GetLen()) {
-		len = ((String*)self)->GetLen() - start;
+	if ((size_t)(start + len) > self->GetLen()) {
+		len = self->GetLen() - start;
 	}
 
 	// return value
-	return new String (thread->GetSystem(), ((String*)self)->GetCStr() + start, len);
+	return new String (self->GetCStr() + start, len);
 }
 
 Value*
-String::MethodLower (Thread* thread, Value* self, size_t argc, Value** argv)
+String::MethodLower (size_t argc, Value** argv)
 {
-	String* ret = new String (thread->GetSystem(), ((String*)self)->GetStr());
+	String* self = (String*)argv[0];
+	String* ret = new String (self->GetStr());
 	if (ret)
 		for (size_t i = 0; i < ((String*)ret)->GetLen(); ++ i)
 			((String*)ret)->data[i] = tolower (((String*)ret)->data[i]);
@@ -251,9 +238,10 @@ String::MethodLower (Thread* thread, Value* self, size_t argc, Value** argv)
 }
 
 Value*
-String::MethodUpper (Thread* thread, Value* self, size_t argc, Value** argv)
+String::MethodUpper (size_t argc, Value** argv)
 {
-	String* ret = new String (thread->GetSystem(), ((String*)self)->GetStr());
+	String* self = (String*)argv[0];
+	String* ret = new String (self->GetStr());
 	if (ret)
 		for (size_t i = 0; i < ((String*)ret)->GetLen(); ++ i)
 			((String*)ret)->data[i] = toupper (((String*)ret)->data[i]);
@@ -261,31 +249,34 @@ String::MethodUpper (Thread* thread, Value* self, size_t argc, Value** argv)
 }
 
 Value*
-String::MethodTrim (Thread* thread, Value* self, size_t argc, Value** argv)
+String::MethodTrim (size_t argc, Value** argv)
 {
-	size_t left = ((String*)self)->GetStr().find_first_not_of(" \t\n");
-	if (left == std::string::npos)
-		return new String(thread->GetSystem(), "");
-	size_t right = ((String*)self)->GetStr().find_last_not_of(" \t\n");
-	if (right == std::string::npos)
-		return new String(thread->GetSystem(), "");
-	return new String(thread->GetSystem(), ((String*)self)->GetStr().substr(left, right - left + 1));
+	String* self = (String*)argv[0];
+	size_t left = self->GetStr().find_first_not_of(" \t\n");
+	if (left == BaseString::npos)
+		return new String("");
+	size_t right = self->GetStr().find_last_not_of(" \t\n");
+	if (right == BaseString::npos)
+		return new String("");
+	return new String(self->GetStr().substr(left, right - left + 1));
 }
 
 Value*
-String::MethodLtrim (Thread* thread, Value* self, size_t argc, Value** argv)
+String::MethodLtrim (size_t argc, Value** argv)
 {
-	size_t left = ((String*)self)->GetStr().find_first_not_of(" \t\n");
-	if (left == std::string::npos)
-		return new String(thread->GetSystem(), "");
-	return new String(thread->GetSystem(), ((String*)self)->GetStr().substr(left, std::string::npos));
+	String* self = (String*)argv[0];
+	size_t left = self->GetStr().find_first_not_of(" \t\n");
+	if (left == BaseString::npos)
+		return new String("");
+	return new String(self->GetStr().substr(left, BaseString::npos));
 }
 
 Value*
-String::MethodRtrim (Thread* thread, Value* self, size_t argc, Value** argv)
+String::MethodRtrim (size_t argc, Value** argv)
 {
-	size_t right = ((String*)self)->GetStr().find_last_not_of(" \t\n");
-	if (right == std::string::npos)
-		return new String(thread->GetSystem(), "");
-	return new String(thread->GetSystem(), ((String*)self)->GetStr().substr(0, right + 1));
+	String* self = (String*)argv[0];
+	size_t right = self->GetStr().find_last_not_of(" \t\n");
+	if (right == BaseString::npos)
+		return new String("");
+	return new String(self->GetStr().substr(0, right + 1));
 }

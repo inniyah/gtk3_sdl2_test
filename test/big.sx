@@ -1,19 +1,19 @@
-TEST_A = 1;
-TEST_B = 2;
-TEST_C = 3;
+var TEST_A = 1;
+var TEST_B = 2;
+var TEST_C = 3;
 
 new Custom {
 	test1 () {
-		.test2('test');
-		.test3();
+		self.test2('test');
+		self.test3();
 		return new Custom;
 	}
 	test2 (str) {
 		printl(str);
-		.str = str.upper();
+		self.str = str.upper();
 	}
 	test3 () {
-		printl('Upper:',.str);
+		printl('Upper:',self.str);
 	}
 }
 
@@ -23,7 +23,7 @@ public main ()
 	function2();
 	function3();
 
-	obj = new Custom;
+	var obj = new Custom;
 	printl(obj.test1());
 
 	printl('Success');
@@ -31,7 +31,7 @@ public main ()
 
 function1 ()
 {
-	a = TEST_A;
+	var a = TEST_A;
 	if (a == 1)
 		printl('OK');
 	else if (a == 2)
@@ -409,7 +409,7 @@ function1 ()
 	else
 		printl('NoD');
 
-	b = TEST_B;
+	var b = TEST_B;
 	if (b == 1)
 		printl('No1');
 	else if (b == 2)
@@ -787,7 +787,7 @@ function1 ()
 	else
 		printl('NoD');
 
-	c = TEST_C;
+	var c = TEST_C;
 	if (c == 1)
 		printl('No1');
 	else if (c == 2)
@@ -1168,16 +1168,16 @@ function1 ()
 
 function2 ()
 {
-	self = "test string";
+	var self = "test string";
 
-	printl(.length());
-	printl(.substr(1,2));
-	printl(.upper());
+	printl(self.length());
+	printl(self.substr(1,2));
+	printl(self.upper());
 }
 
 function3 ()
 {
-	foreach (i in ['one','two','three']) {
+	foreach (var i in ['one','two','three']) {
 		if (i == 'one')
 			printl(i, ':', 'one');
 		if (i == 'two')

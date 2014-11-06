@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -28,22 +28,20 @@
 #include <stdio.h>
 
 #include "scriptix.h"
+#include "compiler.h"
 
 using namespace Scriptix;
+using namespace Scriptix::Compiler;
 
-#include "parser.h"
-
-static void sxp_transform_node (ParserNode** node);
+static void sxp_transform_node (CompilerNode** node);
 
 static
 void
-sxp_do_transform (ParserNode** node_ptr)
+sxp_do_transform (CompilerNode** node_ptr)
 {
-	ParserNode* node = *node_ptr;
+	CompilerNode* node = *node_ptr;
 	if (node == NULL)
 		return;
-
-	System* system = node->info->system;
 
 	// part transformations
 	sxp_transform_node(&node->parts.nodes[0]);
@@ -56,9 +54,9 @@ sxp_do_transform (ParserNode** node_ptr)
 		case SXP_MATH:
 			// numeric math
 			if (node->parts.nodes[0]->type == SXP_DATA &&
-					Value::IsA<Number>(system, node->parts.nodes[0]->parts.value) &&
+					Value::IsA<Number>(node->parts.nodes[0]->parts.value) &&
 					node->parts.nodes[1]->type == SXP_DATA &&
-					Value::IsA<Number>(system, node->parts.nodes[1]->parts.value)) {
+					Value::IsA<Number>(node->parts.nodes[1]->parts.value)) {
 				int left = Number::ToInt(node->parts.nodes[0]->parts.value);
 				int right = Number::ToInt(node->parts.nodes[1]->parts.value);
 				switch (node->parts.op) {
@@ -91,11 +89,21 @@ sxp_do_transform (ParserNode** node_ptr)
 			// string concat
 			if (node->parts.op == OP_ADD &&
 					node->parts.nodes[0]->type == SXP_DATA &&
-					Value::IsA<String>(system, node->parts.nodes[0]->parts.value) &&
+					Value::IsA<String>(node->parts.nodes[0]->parts.value) &&
 					node->parts.nodes[1]->type == SXP_DATA &&
-					Value::IsA<String>(system, node->parts.nodes[1]->parts.value)) {
+					Value::IsA<String>(node->parts.nodes[1]->parts.value)) {
 				node->type = SXP_DATA;
-				node->parts.value = new String(system, ((String*)(node->parts.nodes[0]->parts.value))->GetStr() + ((String*)(node->parts.nodes[1]->parts.value))->GetStr());
+				node->parts.value = new String(((String*)(node->parts.nodes[0]->parts.value))->GetStr() + ((String*)(node->parts.nodes[1]->parts.value))->GetStr());
+			}
+			break;
+		/* string concatenation */
+		case SXP_CONCAT:
+			if (node->parts.nodes[0]->type == SXP_DATA &&
+					Value::IsA<String>(node->parts.nodes[0]->parts.value) &&
+					node->parts.nodes[1]->type == SXP_DATA &&
+					Value::IsA<String>(node->parts.nodes[1]->parts.value)) {
+				node->type = SXP_DATA;
+				node->parts.value = new String(((String*)(node->parts.nodes[0]->parts.value))->GetStr() + ((String*)(node->parts.nodes[1]->parts.value))->GetStr());
 			}
 			break;
 		/* breaks, returns, and continues have nothing afterwards */
@@ -108,9 +116,9 @@ sxp_do_transform (ParserNode** node_ptr)
 		/* if - turn into a block if true, or cut if false */
 		case SXP_IF:
 			if (node->parts.nodes[0]->type == SXP_DATA) {
-				ParserNode* block = NULL;
+				CompilerNode* block = NULL;
 				/* is always true */
-				if (Value::True (system, node->parts.nodes[0]->parts.value)) {
+				if (Value::True (node->parts.nodes[0]->parts.value)) {
 					block = node->parts.nodes[1];
 				} else {
 					block = node->parts.nodes[2];
@@ -128,7 +136,7 @@ sxp_do_transform (ParserNode** node_ptr)
 			if (node->parts.op != SXP_LOOP_FOREVER) {
 				if (node->parts.nodes[0]->type == SXP_DATA) {
 					/* is always true */
-					if (Value::True (system, node->parts.nodes[0]->parts.value)) {
+					if (Value::True (node->parts.nodes[0]->parts.value)) {
 						node->parts.op = SXP_LOOP_FOREVER;
 					/* always false */
 					} else {
@@ -139,16 +147,16 @@ sxp_do_transform (ParserNode** node_ptr)
 			break;
 		/* specialize casts */
 		case SXP_CAST:
-			if (node->parts.type == system->GetStringType()) {
+			if (node->parts.type == GetSystem()->GetStringType()) {
 				node->type = SXP_STRINGCAST;
 				if (node->parts.nodes[0]->type == SXP_DATA) {
-					if ((node->parts.value = Value::ToString(system, node->parts.nodes[0]->parts.value)) != NULL)
+					if ((node->parts.value = Value::ToString(node->parts.nodes[0]->parts.value)) != NULL)
 						node->type = SXP_DATA;
 				}
-			} else if (node->parts.type == system->GetNumberType()) {
+			} else if (node->parts.type == GetSystem()->GetNumberType()) {
 				node->type = SXP_INTCAST;
 				if (node->parts.nodes[0]->type == SXP_DATA) {
-					if ((node->parts.value = Value::ToInt(system, node->parts.nodes[0]->parts.value)) != NULL)
+					if ((node->parts.value = Value::ToInt(node->parts.nodes[0]->parts.value)) != NULL)
 						node->type = SXP_DATA;
 				}
 			}
@@ -161,17 +169,17 @@ sxp_do_transform (ParserNode** node_ptr)
 
 static
 void
-sxp_transform_node (ParserNode** node)
+sxp_transform_node (CompilerNode** node)
 {
-	ParserNode* ret = sxp_transform(*node);
+	CompilerNode* ret = sxp_transform(*node);
 	*node = ret;
 }
 
-ParserNode*
-Scriptix::sxp_transform (ParserNode* node)
+CompilerNode*
+Scriptix::Compiler::sxp_transform (CompilerNode* node)
 {
-	ParserNode* last = NULL;
-	ParserNode* ret = NULL;
+	CompilerNode* last = NULL;
+	CompilerNode* ret = NULL;
 
 	while (node != NULL) {
 		/* do transform */

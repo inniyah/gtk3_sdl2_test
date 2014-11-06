@@ -7,13 +7,14 @@ fact (arg) {
 
 public
 main (&argv) {
+	var max;
 	if (argv.length () != 1)
 		max = 10000;
 	else
-		max = argv[0].to_num ();
+		max = Int(argv[0]);
 
-	num = 0;
-	while ((f = fact (num + 1)) <= max)
+	var num = 0;
+	while ((var f = fact (num + 1)) <= max)
 		num ++;
 
 	printl ('Smallest factorial within ', max, ': fact(', num, ') = ', fact (num));

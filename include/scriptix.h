@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -35,25 +35,21 @@
 #ifndef __SCRIPTIX_H__
 #define __SCRIPTIX_H__
 
+#include "scriptix/collectable.h"
 #include "scriptix/error.h"
 #include "scriptix/access.h"
 #include "scriptix/opcodes.h"
 #include "scriptix/name.h"
-#include "scriptix/collectable.h"
-#include "scriptix/type.h"
 #include "scriptix/value.h"
+#include "scriptix/type.h"
 #include "scriptix/number.h"
 #include "scriptix/sxstring.h"
 #include "scriptix/iterator.h"
 #include "scriptix/struct.h"
-#include "scriptix/list.h"
 #include "scriptix/array.h"
-#include "scriptix/assoc.h"
-#include "scriptix/typevalue.h"
 #include "scriptix/function.h"
 #include "scriptix/thread.h"
 #include "scriptix/system.h"
 #include "scriptix/vimpl.h"
-#include "scriptix/util.h"
 
 #endif

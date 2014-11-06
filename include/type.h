@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -31,14 +31,9 @@
 namespace Scriptix {
 
 // type def for callbacks
-typedef class Value* (*sx_cmethod)(class Thread* thread, class Value* self, size_t argc, class Value** argv);
-typedef class Value* (*sx_cfunc)(class Thread* thread, size_t argc, class Value** argv);
-typedef class Value* (*sx_construct)(const class System* system, const class Type* type);
+typedef class Value* (*sx_cfunc)(size_t argc, class Value** argv);
+typedef class Value* (*sx_construct)(const class TypeInfo* type);
 
-/**
- * Method definition.
- * Contains template information on a Scriptix type method.
- */
 class MethodDef {
 	public:
 	const char* name;
@@ -47,120 +42,78 @@ class MethodDef {
 	void* method;
 };
 
-/**
- * Type definition.
- * Contains template information on a Scriptix type.
- */
 class TypeDef {
 	public:
 	const char* name;		///< Name of type.
 	const TypeDef* parent;		///< Parent type.
 	const MethodDef* methods;	///< Array of methods.
-	const MethodDef* smethods;	///< Array of static methods.
-	const sx_construct construct;	///< Create a new class Value of our Type.
+	const sx_construct construct;	///< Create a new class Value of our TypeInfo.
 };
 
-/**
- * Type information.
- * Contains actual information on a Scriptix type.
- */
-class Type : public GC::Collectable {
+class TypeInfo : public GC::Collectable {
+	public:
+	TypeInfo (const TypeDef* base, const TypeInfo* parent);
+
+	TypeInfo (NameID name, const TypeInfo* parent, sx_construct s_construct);
+
+	NameID GetName (void) const { return name; }
+	const TypeInfo* GetParent (void) const { return parent; }
+	class Function* GetMethod (NameID id) const;
+	int AddMethod (NameID id, class Function* method);
+	class Value* Construct () const { return construct(this); }
+
 	private:
 	NameID name;			///< Name of type.
-	const Type* parent;		///< Parent type.
+	const TypeInfo* parent;		///< Parent type.
 	typedef GC::map<NameID, class Function*> MethodList;
 	MethodList methods;	///< List of methods.
-	MethodList smethods;	///< List of static methods.
-	sx_construct construct;	///< Make a new value of our Type.
-
-	public:
-	/**
-	 * Craft a Type from a TypeDef
-	 */
-	Type (class System* system, const TypeDef* base);
-
-	/**
-	 * Craft custom Type
-	 */
-	Type (class System* system, NameID name, const Type* parent, sx_construct s_construct);
-
-	/**
-	 * Return name.
-	 * Return the name of the type.
-	 * @return The type's name.
-	 */
-	NameID GetName (void) const { return name; }
-	/**
-	 * Return parent.
-	 * Return the parent type of the type.
-	 * @return The parent type, or NULL if there is no parent.
-	 */
-	const Type* GetParent (void) const { return parent; }
-	/**
-	 * Locate a method.
-	 * Searches the instance's class ancestory for a method.
-	 * @param id The ID of the method to be found.
-	 * @return The method if it exists, or NULL otherwise.
-	 */
-	class Function* GetMethod (NameID id) const;
-	/**
-	 * Lookup a static method.
-	 * Finds a static method with the given name.  Traverses ancestory.
-	 * @param id ID of the method to find.
-	 * @return A Method if exists, or NULL if not found.
-	 */
-	class Function* GetStaticMethod (NameID id) const;
-	/**
-	 * Register a new method.
-	 * Add a method to the method list.
-	 * @param method to add.
-	 * @return SXE_OK on success, or error code on failure.
-	 */
-	int AddMethod (class Function* method);
-	/**
-	 * Register a new static method.
-	 * Add a static method to the static method list.
-	 * @param method to add.
-	 * @return SXE_OK on success, or error code on failure.
-	 */
-	int AddStaticMethod (class Function* method);
-	/**
-	 * Create a new value of our Type.
-	 * Creates a new value, of our Type.
-	 * @param system System the value will exist in.
-	 * @return A value of our Type on success, NULL on failure.
-	 */
-	inline class Value* Construct (class System* system) const { return construct(system, this); }
+	sx_construct construct;	///< Make a new value of our TypeInfo.
 };
 
+class TypeValue : public Value
+{
+	// Methods
+	public:
+	static Value* MethodName (size_t argc, Value** argv);
+	static Value* MethodAddMethod (size_t argc, Value** argv);
+
+	// Operators
+	protected:
+	bool Equal (Value* other);
+
+	public:
+	TypeValue (TypeInfo* our_type);
+
+	virtual const TypeInfo* GetType () const;
+
+	inline TypeInfo* GetTypePtr (void) const { return type; } // silly name from conflict
+
+	// Data
+	private:
+	TypeInfo* type;
+};
+
+// Root typedef
+extern const TypeDef Value_Type;
+
 // Creating new types
-#define SX_TYPEDEF \
-	protected: \
-	static Scriptix::TypeDef _MyType; \
-	static Scriptix::MethodDef _MyMethods[]; \
-	static Scriptix::MethodDef _MyStaticMethods[]; \
-	public: \
-	static const Scriptix::TypeDef* GetTypeDef (void) { return &_MyType; }
 #define SX_TYPECREATE(CPPNAME) \
 	Scriptix::_CreateNew<CPPNAME>
-#define SX_TYPECREATEFINAL(CPPNAME) \
-	Scriptix::_CreateNewFinal<CPPNAME>
+#define SX_TYPECREATESCRIPT(CPPNAME) \
+	Scriptix::_CreateNewScript<CPPNAME>
 #define SX_TYPECREATENONE(CPPNAME) \
 	Scriptix::_CreateNewNull
 #define SX_TYPEIMPL(CPPNAME, SXNAME, CPPPARENT, CREATE) \
-	Scriptix::TypeDef CPPNAME::_MyType = { \
+	extern const Scriptix::TypeDef CPPNAME ## _Type; \
+	const Scriptix::TypeDef CPPNAME ## _Type = { \
 		SXNAME , \
-		CPPPARENT::GetTypeDef(), \
-		CPPNAME::_MyMethods, \
-		CPPNAME::_MyStaticMethods, \
+		&CPPPARENT ## _Type, \
+		CPPNAME ## _Methods, \
 		CREATE \
 	}; 
-#define SX_NOMETHODS(CPPNAME) Scriptix::MethodDef CPPNAME::_MyMethods[] = { { NULL, 0, 0, NULL } };
-#define SX_NOSMETHODS(CPPNAME) Scriptix::MethodDef CPPNAME::_MyStaticMethods[] = { { NULL, 0, 0, NULL } };
-#define SX_BEGINMETHODS(CPPNAME) Scriptix::MethodDef CPPNAME::_MyMethods[] = {
-#define SX_ENDMETHODS { NULL, 0, 0, NULL } };
-#define SX_BEGINSMETHODS(CPPNAME) Scriptix::MethodDef CPPNAME::_MyStaticMethods[] = {
-#define SX_ENDSMETHODS { NULL, 0, 0, NULL } };
+#define SX_NOMETHODS(CPPNAME) namespace { Scriptix::MethodDef CPPNAME ## _Methods[] = { { NULL, 0, 0, NULL } }; }
+#define SX_BEGINMETHODS(CPPNAME) namespace { Scriptix::MethodDef CPPNAME ## _Methods[] = {
+#define SX_ENDMETHODS { NULL, 0, 0, NULL } }; }
 #define SX_DEFMETHOD(CPPNAME, SXNAME, ARGC, VARARG) { SXNAME, ARGC, VARARG, (void*)CPPNAME }, 
 
 } // namespace Scriptix

@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -33,61 +33,153 @@
 
 using namespace Scriptix;
 
-// Methods
-MethodDef Value::_MyStaticMethods[] = { { NULL, 0, 0, NULL } };
-MethodDef Value::_MyMethods[] = { { NULL, 0, 0, NULL } };
+// Root typedef
+namespace { const MethodDef Value_Methods[] = { { NULL, 0, 0, } }; }
+const TypeDef Scriptix::Value_Type = { "Value", NULL, Value_Methods, NULL };
+
+// STATIC FUNCTIONS
+
+const TypeInfo*
+Value::TypeOf (const Value* value)
+{
+	if (value == NULL)
+		return NULL;
+
+	if ((intptr_t)value & 0x01)
+		return GetSystem()->GetNumberType();
+
+	return value->GetType();
+}
+
+bool
+Value::IsA (const Value* value, const TypeInfo* type)
+{
+	const TypeInfo* my_type = Value::TypeOf (value);
+
+	while (my_type != NULL) {
+		if (my_type == type)
+			return true;
+		my_type = my_type->GetParent();
+	}
+
+	return false;
+}
+
+void
+Value::Print (const Value* self)
+{
+	if (self != NULL && !IsA<Number>(self))
+		self->Print();
+	else if (IsA<Number>(self))
+		std::cout << Number::ToInt(self);
+	else
+		std::cout << "(nil)";
+}
+
+bool
+Value::Equal (const Value* self, const Value* other)
+{
+	if (self == other)
+		return true;
+
+	if (self != NULL && !IsA<Number>(self))
+		return self->Equal(other);
+	else
+		return false;
+}
+
+int
+Value::Compare (const Value* self, const Value* other)
+{
+	if (self == other)
+		return 0;
+
+	// handle nil values somewhat gracefully
+	if (self == NULL)
+		return -1; // non-nil bigger than nil
+	else if (other == NULL)
+		return 1; // non-nil bigger than nil
+
+	// do compare
+	if (self != NULL && !IsA<Number>(self))
+		return self->Compare(other);
+	else if (IsA<Number>(self)) {
+		if (Number::ToInt(self) < Number::ToInt(other))
+			return -1;
+		else
+			return 1;
+	} else
+		return 1; // default
+}
+
+bool
+Value::True (const Value* self)
+{
+	if (self == NULL)
+		return false;
+	else if (IsA<Number>(self))
+		return Number::ToInt(self);
+	else
+		return self->True();
+}
+
 
 // DEFAULT IMPLEMENTATIONS
 void
-Value::Print (System* system) const
+Value::Print () const
 {
 	std::cout << this;
 }
 
 bool
-Value::Equal (const System* system, const Value* other) const
+Value::Equal (const Value* other) const
 {
 	return this == other;
 }
 
 int
-Value::Compare (const System* system, const Value* other) const
+Value::Compare (const Value* other) const
 {
 	return !(this == other);
 }
 
 bool
-Value::True (const System* system) const
+Value::True () const
 {
 	return true;
 }
 
 // COMPLEX WRAPPERS
 Value*
-Value::ToString(const System* system, const Value* self)
+Value::ToString(Value* value)
 {
-	if (self == NULL) {
+	if (Value::IsA(value, GetSystem()->GetStringType()))
+		return value;
+
+	Value* ret;
+	static NameID to_string_id = NameToID("toString");
+	if (GetSystem()->Invoke(value, to_string_id, 0, NULL, &ret))
 		return NULL;
-	} else if (IsA<String>(system, self)) {
-		// safe to un-const-ify because strings are immutable anyway
-		return const_cast<Value*>(self);
-	} else if (IsA<Number>(system, self)) {
-		char buf[20];
-		snprintf (buf, 20, "%d", Number::ToInt (self));
-		return new String(system, buf);
-	} else {
-		return self->ToString(system);
-	}
+
+	if (Value::IsA(ret, GetSystem()->GetStringType()))
+		return ret;
+
+	return NULL;
 }
 
 Value*
-Value::DoToInt(const System* system, const Value* self)
+Value::ToInt(Value* value)
 {
-	if (self == NULL) {
+	if (Number::IsNumber(value))
+		return value;
+
+	Value* ret;
+	static NameID to_int_id = NameToID("toInt");
+	if (GetSystem()->Invoke(value, to_int_id, 0, NULL, &ret))
 		return NULL;
-	} else if (IsA<String>(system, self)) {
-		return Number::Create(atoi(((String*)self)->GetCStr()));
-	} else {
-		return self->ToInt(system);
-	}
+
+	if (Number::IsNumber(ret))
+		return ret;
+
+	return NULL;
 }

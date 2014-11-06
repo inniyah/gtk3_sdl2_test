@@ -1,6 +1,6 @@
 // global1 variable
-global1 = 10;
-global2 = 10;
+var global1 = 10;
+var global2 = 10;
 
 // math function
 math ()
@@ -12,7 +12,7 @@ math ()
 public main ()
 {
 	// total result of calls to global1
-	total = 0;
+	var total = 0;
 
 	// first call -> global1 = 10, global2 = 10, math() = 100 : 0 + 100 = 100
 	total += math();

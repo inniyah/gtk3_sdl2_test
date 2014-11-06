@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -35,133 +35,42 @@
 namespace Scriptix {
 
 template <typename TTYPE>
-inline const Type* _GetType(const System* system);
+inline const TypeInfo* _GetType();
 
-template<> inline const Type* _GetType<String>(const System* system) { return system->GetStringType(); }
-template<> inline const Type* _GetType<List>(const System* system) { return system->GetListType(); }
-template<> inline const Type* _GetType<Iterator>(const System* system) { return system->GetIteratorType(); }
-template<> inline const Type* _GetType<Array>(const System* system) { return system->GetArrayType(); }
-template<> inline const Type* _GetType<Assoc>(const System* system) { return system->GetAssocType(); }
-template<> inline const Type* _GetType<Function>(const System* system) { return system->GetFunctionType(); }
-template<> inline const Type* _GetType<TypeValue>(const System* system) { return system->GetTypeValueType(); }
-template<> inline const Type* _GetType<Struct>(const System* system) { return system->GetStructType(); }
+template<> inline const TypeInfo* _GetType<String>() { return GetSystem()->GetStringType(); }
+template<> inline const TypeInfo* _GetType<Iterator>() { return GetSystem()->GetIteratorType(); }
+template<> inline const TypeInfo* _GetType<Array>() { return GetSystem()->GetArrayType(); }
+template<> inline const TypeInfo* _GetType<Function>() { return GetSystem()->GetFunctionType(); }
+template<> inline const TypeInfo* _GetType<TypeValue>() { return GetSystem()->GetTypeValueType(); }
+template<> inline const TypeInfo* _GetType<Struct>() { return GetSystem()->GetStructType(); }
 
 template <typename TTYPE>
 inline
 bool
-Value::_TypeCheck<TTYPE>::Check(const System* system, const Value* value)
+Value::_TypeCheck<TTYPE>::Check(const Value* value)
 {
-	return Value::IsA(system, value, _GetType<TTYPE>(system));
+	return Value::IsA(value, _GetType<TTYPE>());
 }
 
 template <>
 inline
 bool
-Value::_TypeCheck<Number>::Check(const System* system, const Value* value)
+Value::_TypeCheck<Number>::Check(const Value* value)
 {
 	return ((intptr_t)value) & 0x01;
-}
-
-const Type*
-Value::TypeOf (const System* system, const Value* value)
-{
-	if (value == NULL)
-		return NULL;
-
-	if ((intptr_t)value & 0x01)
-		return system->GetNumberType();
-
-	return value->GetType();
-}
-
-inline
-bool
-Value::IsA (const System* system, const Value* value, const Type* type)
-{
-	const Type* my_type = Value::TypeOf (system, value);
-
-	while (my_type != NULL) {
-		if (my_type == type)
-			return true;
-		my_type = my_type->GetParent();
-	}
-
-	return false;
-}
-
-inline
-void
-Value::Print (System* system, const Value* self)
-{
-	if (self != NULL && !IsA<Number>(system, self))
-		self->Print(system);
-	else if (IsA<Number>(system, self))
-		std::cout << Number::ToInt(self);
-	else
-		std::cout << "(nil)";
-}
-
-inline
-bool
-Value::Equal (const System* system, const Value* self, const Value* other)
-{
-	if (self == other)
-		return true;
-
-	if (self != NULL && !IsA<Number>(system, self))
-		return self->Equal(system, other);
-	else
-		return false;
-}
-
-inline
-int
-Value::Compare (const System* system, const Value* self, const Value* other)
-{
-	if (self == other)
-		return 0;
-
-	// handle nil values somewhat gracefully
-	if (self == NULL)
-		return -1; // non-nil bigger than nil
-	else if (other == NULL)
-		return 1; // non-nil bigger than nil
-
-	// do compare
-	if (self != NULL && !IsA<Number>(system, self))
-		return self->Compare(system, other);
-	else if (IsA<Number>(system, self)) {
-		if (Number::ToInt(self) < Number::ToInt(other))
-			return -1;
-		else
-			return 1;
-	} else
-		return 1; // default
-}
-
-inline
-bool
-Value::True (const System* system, const Value* self)
-{
-	if (self == NULL)
-		return false;
-	else if (IsA<Number>(system, self))
-		return Number::ToInt(self);
-	else
-		return self->True(system);
 }
 
 template <typename CTYPE>
 inline
 Value*
-_CreateNew (const System* system, const Type* type)
+_CreateNewScript (const TypeInfo* type)
 {
-	return new CTYPE(system, type);
+	return new CTYPE(type);
 }
 
 inline
 Value*
-_CreateNewNull (const System* system, const Type* type)
+_CreateNewNull (const TypeInfo* type)
 {
 	return NULL;
 }
@@ -169,9 +78,9 @@ _CreateNewNull (const System* system, const Type* type)
 template <typename CTYPE>
 inline
 Value*
-_CreateNewFinal (const System* system, const Type* type)
+_CreateNew(const TypeInfo* type)
 {
-	return new CTYPE(system);
+	return new CTYPE();
 }
 
 } // namespace Scriptix

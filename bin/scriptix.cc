@@ -35,10 +35,19 @@
 using namespace std;
 using namespace Scriptix;
 
+static
+Value*
+printl (size_t argc, Value** argv)
+{
+	for (unsigned int i = 0; i < argc; i ++)
+		Value::Print (argv[i]);
+	std::cout << "\n";
+	return NULL;
+}
+
 int
 main (int argc, const char **argv) {
 	// variables
-	System* system;
 	Function* func;
 	Value** sargv;
 	struct timeval start, end;
@@ -46,33 +55,35 @@ main (int argc, const char **argv) {
 	// initialize GC
 	GC_INIT();
 
-	// create a system context
-	system = new System();
-	if (system == NULL) { // check success
-		cerr << "sx_create_system() failed." << endl;
+	// initialize Scriptix
+	if (Initialize(NULL) == NULL) { // check success
+		cerr << "Scriptix::Initialize() failed." << endl;
 		return 1;
 	}
+
+	if (GetSystem()->AddFunction (new Function (NameToID("printl"), 0, 1, printl)))
+		return 1;
 
 	// have we any command-line arguments?
 	if (argc > 1) {
 		// if first arg is -, read from stdin
 		if (strcmp (argv[1], "-")) {
 			// load the file name fiven
-			if (system->LoadFile (argv[1]))
+			if (GetSystem()->LoadFile (argv[1]))
 				return 1;
 		} else {
 			// read from stdin
-			if (system->LoadFile(""))
+			if (GetSystem()->LoadFile(""))
 				return 1;
 		}
 	} else {
 		// no args - use stdin
-		if (system->LoadFile(""))
+		if (GetSystem()->LoadFile(""))
 			return 1;
 	}
 
 	// find the exported main function
-	func = system->GetFunction(NameToID("main"));
+	func = GetSystem()->GetFunction(NameToID("main"));
 	if (func == NULL) { // not found?
 		cerr << "Fatal error: No main() function defined." << endl;
 	} else {
@@ -83,7 +94,7 @@ main (int argc, const char **argv) {
 			// copy in values
 			for (int i = 2; i < argc; ++i) {
 				// crate String for each arguments
-				sargv[i - 2] = new String(system, argv[i]);
+				sargv[i - 2] = new String(argv[i]);
 			}
 		} else {
 			// no args, empty
@@ -93,12 +104,9 @@ main (int argc, const char **argv) {
 		// get time
 		gettimeofday(&start, NULL);
 
-		// create new thread
-		Thread* thread = system->CreateThread (func, argc > 2 ? argc - 2 : 0, sargv);
-
 		// run 
 		Value* retval = NULL;
-		if (system->WaitOn(thread->GetID(), &retval) == SXE_OK) {
+		if (GetSystem()->Invoke(func, argc > 2 ? argc - 2 : 0, sargv, &retval) == SXE_OK) {
 			// calc run time
 			gettimeofday(&end, NULL);
 			cout << "Runtime: ";
@@ -110,13 +118,10 @@ main (int argc, const char **argv) {
 
 			// return value
 			cout << "Return: ";
-			Value::Print(system, retval);
+			Value::Print(retval);
 			cout << endl;
 		}
 	}
-
-	// free system context
-	system = NULL;
 
 	return 0;
 }

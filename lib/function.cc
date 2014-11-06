@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting longerface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -50,16 +50,17 @@ System::GetFunction (NameID id)
 }
 
 // FUNCTION IMPLEMENTATION
-SX_TYPEIMPL(Function, "Function", Value, SX_TYPECREATENONE(Function))
 SX_NOMETHODS(Function)
-SX_NOSMETHODS(Function)
 
-Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg) : Value(system, system->GetFunctionType())
+namespace Scriptix {
+	SX_TYPEIMPL(Function, "Function", Value, SX_TYPECREATENONE(Function))
+}
+
+Function::Function (NameID s_id, size_t s_argc, bool s_varg) : Value()
 {
 	cfunc = NULL;
-	cmethod = NULL;
 	varg = s_varg;
-	varc = 0;
+	varc = s_argc + (s_varg ? 1 : 0);
 	nodes = NULL;
 	count = 0;
 	size = 0;
@@ -68,12 +69,11 @@ Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg) : V
 	access = SEC_DEFAULTS; // just defaults
 }
 
-Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_cfunc s_cfunc) : Value(system, system->GetFunctionType())
+Function::Function (NameID s_id, size_t s_argc, bool s_varg, sx_cfunc s_cfunc) : Value()
 {
 	cfunc = s_cfunc;
-	cmethod = NULL;
 	varg = s_varg;
-	varc = 0;
+	varc = s_argc + (s_varg ? 1 : 0);
 	nodes = NULL;
 	count = 0;
 	size = 0;
@@ -82,31 +82,22 @@ Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_
 	access = ~0; // all privs; it's a C func
 }
 
-Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_cmethod s_cmethod) : Value(system, system->GetFunctionType())
-{
-	cfunc = NULL;
-	cmethod = s_cmethod;
-	varg = s_varg;
-	varc = 0;
-	nodes = NULL;
-	count = 0;
-	size = 0;
-	argc = s_argc;
-	id = s_id;
-	access = ~0; // all privs; it's a C method
+const TypeInfo*
+Function::GetType () const {
+	return GetSystem()->GetFunctionType();
 }
 
 int
-Function::AddValue (System* system, Value* value) {
+Function::AddValue (Value* value) {
 	intptr_t* sx_new_nodes;
 
 	/* need at least two open places */
 	if (size == 0 || count >= size - 1) {
-		sx_new_nodes = (intptr_t*)GC_REALLOC (nodes, sizeof (long) * (size + system->GetBlockChunk()));
+		sx_new_nodes = (intptr_t*)GC_REALLOC (nodes, sizeof (long) * (size + GetSystem()->GetBlockChunk()));
 		if (sx_new_nodes == NULL)
 			return SXE_NOMEM;
 		nodes = sx_new_nodes;
-		size += system->GetBlockChunk();
+		size += GetSystem()->GetBlockChunk();
 	}
 	nodes[count++] = OP_PUSH;
 	nodes[count++] = (long)value;
@@ -115,18 +106,52 @@ Function::AddValue (System* system, Value* value) {
 }
 
 int
-Function::AddOparg (System* system, long value) {
+Function::AddOpcode (sx_op_type value) {
 	intptr_t* sx_new_nodes;
 
 	/* need at least two open places */
 	if (size == 0 || count >= size - 1) {
-		sx_new_nodes = (intptr_t*)GC_REALLOC (nodes, sizeof (long) * (size + system->GetBlockChunk()));
+		sx_new_nodes = (intptr_t*)GC_REALLOC (nodes, sizeof (long) * (size + GetSystem()->GetBlockChunk()));
 		if (sx_new_nodes == NULL)
 			return SXE_NOMEM;
 		nodes = sx_new_nodes;
-		size += system->GetBlockChunk();
+		size += GetSystem()->GetBlockChunk();
 	}
 	nodes[count++] = value;
 
 	return SXE_OK;
+}
+
+int
+Function::AddOparg (long value) {
+	intptr_t* sx_new_nodes;
+
+	/* need at least two open places */
+	if (size == 0 || count >= size - 1) {
+		sx_new_nodes = (intptr_t*)GC_REALLOC (nodes, sizeof (long) * (size + GetSystem()->GetBlockChunk()));
+		if (sx_new_nodes == NULL)
+			return SXE_NOMEM;
+		nodes = sx_new_nodes;
+		size += GetSystem()->GetBlockChunk();
+	}
+	nodes[count++] = value;
+
+	return SXE_OK;
+}
+
+size_t
+Function::GetLineOf (size_t op_ptr) {
+	// no function body?
+	if (count == 0)
+		return 0;
+
+	// bounds-check
+	if (op_ptr >= count)
+		op_ptr = count - 1;
+
+	// loop until we find op code's line
+	DebugMetaData* d_ptr = debug;
+	for (size_t c_op = d_ptr->span; op_ptr >= c_op; c_op += d_ptr->span)
+		++d_ptr;
+	return d_ptr->line;
 }

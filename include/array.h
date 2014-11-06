@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -27,85 +27,32 @@
 
 namespace Scriptix {
 
-/**
- * Store a list of values.
- * Your basic array type.
- * @note Cannot sub-class.
- */
-class Array : public List {
-	SX_TYPEDEF
-
-	// Methods
-	protected:
-	static Value* MethodLength (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodAppend (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodRemove (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodIter (Thread* thread, Value* self, size_t argc, Value** argv);
-
-	protected:
-	size_t size;
-	size_t count;
-	Value** list;
-
+class Array : public Value {
 	public:
-	Array (const System* system);
-	Array (const System* system, size_t n_size, Value** n_list);
+	Array ();
+	Array (size_t n_size, Value** n_list);
+
+	virtual const TypeInfo* GetType () const;
 
 	// Value Operations
 	protected:
-	virtual void Print (System* system) const;
-	virtual bool True (const System* system) const;
+	virtual void Print () const;
+	virtual bool True () const;
 
-	// List Operations
+	// Array Operations
 	public:
-	/**
-	 * Fetch an item at a given index.
-	 * Given an index, return the item at that index.  Used to implement
-	 * any kind of multi-value property, such as arrays or data members.
-	 * @note Over-ride in your derived class to customize behaviour.
-	 * @param system System that the instance exists in.
-	 * @param index The index to look at.
-	 * @return The value at the given index, or NULL if the index is
-	 *   invalid.
-	 */
-	virtual Value* GetIndex (const System* system, const Value* index) const;
-	/**
-	 * Set an item at a given index.
-	 * Set the value of an item at a given index.
-	 * @note Over-ride in your derived class to customize behaviour.
-	 * @param system System that the instance exists in.
-	 * @param index The index value to use.
-	 * @param set The value to set.
-	 * @return The value of set if successful, or NULL on failure.
-	 */
-	virtual Value* SetIndex (const System* system, const Value* index, Value* set);
-	/**
-	 * Append an item.
-	 * Used mainly in array types, it should append an item to the
-	 * instance's internal list.
-	 * @note Over-ride in your derived class to customize behaviour.
-	 * @param system System that the instance exists in.
-	 * @param value The value to append.
-	 * @return The value appended on success, or NULL otherwise.
-	 */
-	virtual Value* Append (const System* system, Value* value);
-	/**
-	 * Check if a list has a value or key.
-	 * Use this to check if a certain value exists in a list, or if a
-	 * particular key is set.
-	 * @note Over-ride in your derived class to customize behaviour.
-	 * @param system System that the instance exists in.
-	 * @param value The value or key to look for.
-	 * @return True if the value/key exists, or false otherwise.
-	 */
-	virtual bool Has (const System* system, const Value* value) const;
-	/**
-	 * Get an iterator.
-	 * Create an iterator for the list.
-	 * @param system System iterator is in.
-	 * @return An iterator, or NULL on error.
-	 */
-	virtual Iterator* GetIter (const System* system);
+	virtual Value* GetIndex (long index) const;
+	virtual Value* SetIndex (long index, Value* set);
+	virtual Value* Append (Value* value);
+	virtual bool Has (Value* value) const;
+	virtual Iterator* GetIter ();
+
+	// Methods
+	public:
+	static Value* MethodLength (size_t argc, Value** argv);
+	static Value* MethodAppend (size_t argc, Value** argv);
+	static Value* MethodRemove (size_t argc, Value** argv);
+	static Value* MethodIter (size_t argc, Value** argv);
 
 	// Custom
 	public:
@@ -125,13 +72,40 @@ class Array : public List {
 
 		// Next iterator
 		public:
-		virtual bool Next (const System* system, Value*& value);
+		virtual bool Next (Value*& value);
 
 		// Constructor
 		public:
-		inline ArrayIterator (const System* system, Array* s_arr) :
-			Scriptix::Iterator(system), array(s_arr), index(0) {}
+		inline ArrayIterator (Array* s_arr) :
+			Scriptix::Iterator(), array(s_arr), index(0) {}
 	};
+
+	public:
+	inline static Value* GetIndex (const Array* array, long index)
+	{
+		return array->GetIndex(index);
+	}
+	inline static Value* SetIndex (Array* array, long index, Value* set)
+	{
+		return array->SetIndex(index, set);
+	}
+	inline static Value* Append (Array* array, Value* value)
+	{
+		return array->Append(value);
+	}
+	inline static bool Has (const Array* array, Value* value)
+	{
+		return array->Has(value);
+	}
+	inline static Iterator* GetIter (Array* array)
+	{
+		return array->GetIter();
+	}
+
+	protected:
+	size_t size;
+	size_t count;
+	Value** list;
 };
 
 } // namespace Scriptix

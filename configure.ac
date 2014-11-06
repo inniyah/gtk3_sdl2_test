@@ -1,10 +1,10 @@
-AC_INIT([Scriptix], 0.30, [http://www.awemud.net/bugs/submit.php])
+AC_INIT([Scriptix], 0.31rc1, [http://www.awemud.net/bugs/submit.php])
 AC_CONFIG_SRCDIR(bin/scriptix.cc)
-AM_INIT_AUTOMAKE(scriptix, "$PACKAGE_VERSION")
+AM_INIT_AUTOMAKE([1.8])
 AM_CONFIG_HEADER(include/config.h)
 
-BASE_VERSION=0.30
-VERSION=0.30
+BASE_VERSION=0.31
+VERSION=0.31rc1
 INTERFACE_VERSION=0
 SO_VERSION="0:2:0"
 
@@ -21,9 +21,6 @@ AC_PROG_CC
 AC_HEADER_STDC
 AC_PROG_CXX
 AM_PROG_LIBTOOL
-
-AC_PATH_PROG(PATH_CCDOC,ccdoc)
-AC_SUBST(PATH_CCDOC)
 
 # expansion for sysdep.h...
 if test "x$ac_cv_header_stdint_h" ; then
@@ -59,27 +56,15 @@ AC_CHECK_LIB(gc,GC_malloc,,[AC_MSG_ERROR([Could not find suitable libgc])])
 AC_SUBST(LDFLAGS)
 AC_SUBST(GC_CFLAGS)
 
-# Docbook tools
-AC_ARG_ENABLE(docs,[  --disable-docs          Disable building of documentation],BUILD_DOCS="$enableval",BUILD_DOCS=yes)
-AC_ARG_ENABLE(docs,[  --enable-pdf            Enable building of PDF documentation],BUILD_PDFDOCS="$enableval",BUILD_PDFDOCS=no)
-AC_PATH_PROG(PATH_XMLTO,xmlto)
-if test "x$BUILD_DOCS" = "xyes" && test "x$PATH_XMLTO" = "x" ; then
-	BUILD_DOCS=no
-fi
-AM_CONDITIONAL(BUILD_DOCS, test "x$BUILD_DOCS" = "xyes")
-AM_CONDITIONAL(BUILD_PDF, test "x$BUILD_PDF" = "xyes")
-
 AC_OUTPUT(
 	Makefile
 	lib/Makefile
 	include/Makefile
 	include/sysdep.h
 	bin/Makefile
-	doc/Makefile
 	test/Makefile
 	tools/Makefile
 	scriptix.spec
-	scriptix.pc
 )
 
 # make symlink

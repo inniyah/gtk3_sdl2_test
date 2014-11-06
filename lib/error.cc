@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -56,20 +56,17 @@ const char *sx_error_names[] =
 };
 
 int
-Thread::RaiseError (int err, const char *format, ...) {
+System::RaiseError (int err, const char *format, ...) {
 	char buf[256]; /* big enough */
 	va_list va;
 
 	va_start (va, format);
 	vsnprintf (buf, sizeof(buf), format, va);
 	va_end (va);
-	if (system->error_hook != NULL) {
-		if (!frames.empty()) {
-			system->error_hook (GetFrame().file ? GetFrame().file->GetCStr(): "n/a", GetFrame().line, buf);
-		} else {
-			system->error_hook ("n/a", 0, buf);
-		}
-	}
+	if (!frames.empty())
+		HandleError (GetFrame().GetFile() ? GetFrame().GetFile()->GetCStr(): "n/a", GetFrame().GetLine(), buf);
+	else
+		HandleError ("n/a", 0, buf);
 
 	PushValue(Number::Create(err));
 	state = STATE_FAILED;
@@ -77,15 +74,15 @@ Thread::RaiseError (int err, const char *format, ...) {
 }
 
 int
-Thread::RaiseArgError (const char* func, const char* arg, const char* type)
+System::RaiseArgError (const char* func, const char* arg, const char* type)
 {
 	return RaiseError(SXE_BADARGS, "Argument '%s' to '%s' is not a '%s'", arg, func, type);
 }
 
 int
-Thread::RaiseSecurityError (const char* func)
+System::RaiseSecurityError (const char* func)
 {
-	return RaiseError(SXE_BADARGS, "Thread does not have security access for '%s'", func);
+	return RaiseError(SXE_BADARGS, "System does not have security access for '%s'", func);
 }
 
 const char *

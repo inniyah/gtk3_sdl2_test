@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004, 2005  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -39,12 +39,12 @@
 using namespace Scriptix;
 
 namespace {
-	typedef std::set<std::string> NameMap;
+	typedef Scriptix::GC::set<BaseString> NameMap;
 	NameMap names;
 }
 
 #define NAME_TO_ID(name) ((intptr_t)&(name) >> 2)
-#define ID_TO_NAME(id) (*((std::string*)(id << 2)))
+#define ID_TO_NAME(id) (*((BaseString*)(id << 2)))
 
 NameID
 Scriptix::NameToID(const char *name) {
