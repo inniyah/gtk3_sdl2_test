@@ -88,15 +88,19 @@ main (int argc, const char **argv) {
 		}
 
 		// create new thread
-		new Thread (system, func, 0, argc > 2 ? argc - 2 : 0, sargv);
+		Thread* thread = new Thread (system, func, 0, argc > 2 ? argc - 2 : 0, sargv);
 
 		// delete our temporary array
 		if (sargv)
 			delete[] sargv;
 
-		// run so long as we have open threads
-		while (system->GetValidThreads())
-			system->Run();
+		// run 
+		Value* retval = NULL;
+		if (system->WaitOn(thread->GetID(), &retval) == SXE_OK) {
+			cout << "Return: ";
+			Value::Print(system, retval);
+			cout << endl;
+		}
 	}
 
 	// free system context

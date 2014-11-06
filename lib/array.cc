@@ -83,9 +83,9 @@ SX_BEGINSMETHODS(Array)
 	SX_DEFNEW(Array)
 SX_ENDMETHODS
 
-Array::Array (System* system) : List(system), size(0), count(0), list(NULL) { }
+Array::Array (System* system) : List(system, system->GetArrayType()), size(0), count(0), list(NULL) { }
 
-Array::Array (System* system, size_t n_size, Value** n_list) : List(system)
+Array::Array (System* system, size_t n_size, Value** n_list) : List(system, system->GetArrayType())
 {
 	list = NULL;
 	size = n_size;
@@ -144,7 +144,7 @@ Array::GetIndex (System* system, Value* vindex)
 		return NULL;
 
 	// must be numeric index
-	if (!Value::IsA<Number>(vindex))
+	if (!Value::IsA<Number>(system, vindex))
 		return NULL;
 	index = Number::ToInt(vindex);
 
@@ -174,7 +174,7 @@ Array::SetIndex (System* system, Value* vindex, Value* value)
 		return NULL;
 
 	// must be numeric index
-	if (!Value::IsA<Number>(vindex))
+	if (!Value::IsA<Number>(system, vindex))
 		return NULL;
 	index = Number::ToInt(vindex);
 

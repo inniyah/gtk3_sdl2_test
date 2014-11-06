@@ -62,7 +62,7 @@ static
 Value*
 StdlibLookup (Thread* thread, size_t argc, Value** argv)
 {
-	if (!Value::IsA<String>(argv[0])) {
+	if (!Value::IsA<String>(thread->GetSystem(), argv[0])) {
 		thread->RaiseArgError("lookup", "name", "String");
 		return NULL;
 	}
@@ -74,7 +74,7 @@ static
 Value*
 StdlibFork (Thread* thread, size_t argc, Value** argv) 
 {
-	if (!Value::IsA<Function>(argv[0])) {
+	if (!Value::IsA<Function>(thread->GetSystem(), argv[0])) {
 		thread->RaiseArgError("fork", "name", "Function");
 		return NULL;
 	}
@@ -84,11 +84,17 @@ StdlibFork (Thread* thread, size_t argc, Value** argv)
 	return Number::Create ((long)nthread >> 2);
 }
 
+static
+Value*
+StdlibExit (Thread* thread, size_t argc, Value** argv)
+{
+	thread->Exit(argv[0]);
+	return argv[0];
+}
+
 int
 System::InitStdlib (void)
 {
-	if (AddFunction (new Function (this, NameToID("print"), 0, 1, StdlibPrint)))
-		return SXE_INTERNAL;
 	if (AddFunction (new Function (this, NameToID("print"), 0, 1, StdlibPrint) ))
 		return SXE_INTERNAL;
 	if (AddFunction (new Function (this, NameToID("printl"), 0, 1, StdlibPrintl) ))
@@ -98,6 +104,8 @@ System::InitStdlib (void)
 	if (AddFunction (new Function (this, NameToID("lookup"), 1, 0, StdlibLookup) ))
 		return SXE_INTERNAL;
 	if (AddFunction (new Function (this, NameToID("fork"), 2, 0, StdlibFork) ))
+		return SXE_INTERNAL;
+	if (AddFunction (new Function (this, NameToID("exit"), 1, 0, StdlibExit) ))
 		return SXE_INTERNAL;
 
 	return SXE_OK;

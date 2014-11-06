@@ -1,0 +1,9 @@
+extend String {
+  print_line (self) {
+    printl(self);
+  }
+}
+ 
+public main () {
+	"Success".print_line();
+}

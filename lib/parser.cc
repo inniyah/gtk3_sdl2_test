@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <algorithm>
+
 #include "scriptix.h"
 #include "system.h"
 
@@ -37,94 +39,73 @@ using namespace Scriptix;
 #include "parser.h"
 
 int
-System::AddFunctionTag (const char* name)
+System::AddFunctionTag (NameID name)
 {
 	// allocate
-	Tag* tag = new Tag();
-	if (tag == NULL)
-		return SXE_NOMEM;
-
-	// copy name
-	tag->name = strdup(name);
-	if (tag->name == NULL) {
-		delete tag;
-		return SXE_NOMEM;
-	}
-
-	// add to list
-	tag->next = tags;
-	tags = tag;
-
+	tags.push_back(name);
 	return SXE_OK;
 }
 
 bool
-System::ValidFunctionTag (const char *name) 
+System::ValidFunctionTag (NameID name) 
 {
 	// search tags
-	Tag* tag = tags;
-	while (tag != NULL) {
-		if (!strcmp (name, tag->name))
-			return true;
-		tag = tag->next;
-	}
-
-	return false;
+	return (std::find(tags.begin(), tags.end(), name) != tags.end());
 }
 
 
 void
-ParserState::Error(const char *msg)
+ParserState::Error(const std::string& msg)
 {
 	if (system->error_hook != NULL) {
-		system->error_hook (file ? ((String*)file)->GetCStr(): "<input>", line, msg);
+		system->error_hook (file ? ((String*)file)->GetCStr(): "<input>", line, msg.c_str());
 	}
 }
 
-Scriptix::ParserState::ParserState(System* s_system)
+Scriptix::ParserState::ParserState(System* s_system) : funcs(), returns(), blocks(), gnames()
 {
 	system = s_system;
 	nodes = NULL;
-	funcs = NULL;
-	blocks = NULL;
 	file = new String(system, "<input>");
 	last_file = NULL;
 	last_line = 1;
 	line = 1;
 	globals = NULL;
-	gnames = NULL;
 }
 
 Scriptix::ParserState::~ParserState(void)
 {
 	ParserNode* nnext;
-	ParserFunction *fnext;
 
 	while (nodes != NULL) {
 		nnext = nodes->inext;
-		free (nodes);
+		delete nodes;
 		nodes = nnext;
 	}
 
-	while (funcs != NULL) {
-		fnext = funcs->next;
-		DelFunc (funcs);
-		funcs = fnext;
+	while (!funcs.empty()) {
+		delete funcs.front();
+		funcs.erase(funcs.begin());
+	}
+
+	while (!extends.empty()) {
+		while (!extends.back()->methods.empty()) {
+			delete extends.back()->methods.back();
+			extends.back()->methods.pop_back();
+		}
+		delete extends.back();
+		extends.pop_back();
 	}
 
 	/* free jumps */
-	while (blocks)
+	while (!blocks.empty())
 		PopBlock ();
-
-	/* free global names */
-	if (gnames)
-		sx_free_namelist (gnames);
 }
 
 ParserFunction *
-Scriptix::ParserState::AddFunc(sx_name_id name, sx_name_id* args, sx_name_id varg, ParserNode* body, const char *tag, char pub)
+Scriptix::ParserState::AddFunc(NameID name, const NameList& args, NameID varg, ParserNode* body, NameID tag, bool pub)
 {
-	ParserFunction *func = (ParserFunction*)malloc (sizeof (ParserFunction));
+	ParserFunction *func = new ParserFunction();
 	if (!func)
 		return NULL;
 
@@ -133,24 +114,47 @@ Scriptix::ParserState::AddFunc(sx_name_id name, sx_name_id* args, sx_name_id var
 	func->varg = varg;
 	func->body = body;
 	func->pub = pub;
-	func->tag = NULL;
-	if (tag)
-		func->tag = strdup (tag);
+	func->tag = tag;
 
-	func->next = funcs;
-	funcs = func;
+	funcs.push_back(func);
 
 	return func;
 }
 
-void
-Scriptix::ParserState::DelFunc(ParserFunction* func)
+// add a new type extension
+ParserExtend*
+Scriptix::ParserState::AddExtend(Type* type)
 {
-	if (func->tag)
-		free (func->tag);
-	if (func->vars)
-		free (func->vars);
-	free (func);
+	ParserExtend* extend = new ParserExtend();
+	if (extend == NULL)
+		return NULL;
+
+	extend->type = type;
+
+	extends.push_back(extend);
+	return extend;
+}
+
+// add a function to a typ extension
+ParserFunction*
+Scriptix::ParserState::AddExtendFunc(NameID name, const NameList& args, NameID varg, ParserNode* body)
+{
+	if (extends.empty())
+		return NULL;
+
+	ParserFunction* func = new ParserFunction();
+	if (!func)
+		return NULL;
+
+	func->name = name;
+	func->vars = args; /* arguments become variables... */
+	func->varg = varg;
+	func->body = body;
+	func->pub = false;
+	func->tag = 0;
+
+	extends.back()->methods.push_back(func);
+	return func;
 }
 
 // add block to state
@@ -165,8 +169,7 @@ ParserState::PushBlock (Function* func)
 	block->func = func;
 	block->start = func->count;
 
-	block->next = blocks;
-	blocks = block;
+	blocks.push_back(block);
 
 	return true;
 }
@@ -175,40 +178,36 @@ ParserState::PushBlock (Function* func)
 void
 ParserState::PopBlock (void)
 {
-	ParserBlock *bnext;
-
-	if (!blocks)
+	if (blocks.empty())
 		return;
 
 	// breaks
-	while (!blocks->breaks.empty()) {
-		blocks->func->nodes[blocks->breaks.front()] = (long)blocks->func->count - blocks->breaks.front();
-		blocks->breaks.erase(blocks->breaks.begin());
+	while (!blocks.back()->breaks.empty()) {
+		blocks.back()->func->nodes[blocks.back()->breaks.front()] = (long)blocks.back()->func->count - blocks.back()->breaks.front();
+		blocks.back()->breaks.erase(blocks.back()->breaks.begin());
 	}
 
 	// continues
-	while (!blocks->continues.empty()) {
-		blocks->func->nodes[blocks->continues.front()] = (long)blocks->start - blocks->continues.front();
-		blocks->continues.erase(blocks->continues.begin());
+	while (!blocks.back()->continues.empty()) {
+		blocks.back()->func->nodes[blocks.back()->continues.front()] = (long)blocks.back()->start - blocks.back()->continues.front();
+		blocks.back()->continues.erase(blocks.back()->continues.begin());
 	}
 
-	bnext = blocks->next;
-	delete blocks;
-	blocks = bnext;
+	blocks.pop_back();
 }
 
 // add a break command
 bool
 ParserState::AddBreak (void)
 {
-	if (!blocks) {
+	if (blocks.empty()) {
 		Error("Break outside of loop");
 		return false;
 	}
 	
-	blocks->func->AddOpcode(system, SX_OP_JUMP);
-	blocks->breaks.push_back(blocks->func->count);
-	blocks->func->AddOparg(system, 0);
+	blocks.back()->func->AddOpcode(system, OP_JUMP);
+	blocks.back()->breaks.push_back(blocks.back()->func->count);
+	blocks.back()->func->AddOparg(system, 0);
 
 	return true;
 }
@@ -217,14 +216,14 @@ ParserState::AddBreak (void)
 bool
 ParserState::AddBreakOnTrue (void)
 {
-	if (!blocks) {
+	if (blocks.empty()) {
 		Error("Break outside of loop");
 		return false;
 	}
 	
-	blocks->func->AddOpcode(system, SX_OP_TJUMP);
-	blocks->breaks.push_back(blocks->func->count);
-	blocks->func->AddOparg(system, 0);
+	blocks.back()->func->AddOpcode(system, OP_TJUMP);
+	blocks.back()->breaks.push_back(blocks.back()->func->count);
+	blocks.back()->func->AddOparg(system, 0);
 
 	return true;
 }
@@ -233,14 +232,14 @@ ParserState::AddBreakOnTrue (void)
 bool
 ParserState::AddBreakOnFalse (void)
 {
-	if (!blocks) {
+	if (blocks.empty()) {
 		Error("Break outside of loop");
 		return false;
 	}
 	
-	blocks->func->AddOpcode(system, SX_OP_FJUMP);
-	blocks->breaks.push_back(blocks->func->count);
-	blocks->func->AddOparg(system, 0);
+	blocks.back()->func->AddOpcode(system, OP_FJUMP);
+	blocks.back()->breaks.push_back(blocks.back()->func->count);
+	blocks.back()->func->AddOparg(system, 0);
 
 	return true;
 }
@@ -249,37 +248,32 @@ ParserState::AddBreakOnFalse (void)
 bool
 ParserState::AddContinue (void)
 {
-	if (!blocks) {
+	if (blocks.empty()) {
 		Error("Continue outside of loop");
 		return false;
 	}
 
-	blocks->func->AddOpcode(system, SX_OP_JUMP);
-	blocks->func->AddOparg(system, (long)blocks->start - blocks->func->count);
+	blocks.back()->func->AddOpcode(system, OP_JUMP);
+	blocks.back()->func->AddOparg(system, (long)blocks.back()->start - blocks.back()->func->count);
 
 	return true;
 }
 
 long
-ParserState::AddVar(ParserFunction* func, sx_name_id id)
+ParserState::AddVar(ParserFunction* func, NameID id)
 {
-	if (func->vars == NULL) {
-		func->vars = sx_new_namelist (system, 1, id);
-		return 0;
-	} else {
-		func->vars = sx_namelist_append (system, func->vars, id);
-		return sx_sizeof_namelist(func->vars) - 1;
-	}
+	func->vars.push_back(id);
+	return func->vars.size() - 1;
 }
 
 long
-ParserState::GetVar(ParserFunction* func, sx_name_id id)
+ParserState::GetVar(ParserFunction* func, NameID id)
 {
-	if (func->vars == NULL) {
+	if (func->vars.empty()) {
 		return -1;
 	} else {
-		long index = 0;
-		while (func->vars[index] != 0) {
+		size_t index = 0;
+		while (index < func->vars.size()) {
 			if (func->vars[index] == id)
 				return index;
 			++ index;
@@ -289,7 +283,7 @@ ParserState::GetVar(ParserFunction* func, sx_name_id id)
 }
 
 void
-ParserState::SetGlobal(sx_name_id id, Value* value)
+ParserState::SetGlobal(NameID id, Value* value)
 {
 	if (GetGlobal(id) >= 0) {
 		Error("Redefined global");
@@ -298,18 +292,17 @@ ParserState::SetGlobal(sx_name_id id, Value* value)
 
 	if (globals == NULL) {
 		globals = new Array(system, 1, &value);
-		gnames = sx_new_namelist(system, 1, id);
 	} else {
 		List::Append(system, globals, value);
-		gnames = sx_namelist_append(system, gnames, id);
 	}
+	gnames.push_back(id);
 }
 
 long
-ParserState::GetGlobal(sx_name_id id)
+ParserState::GetGlobal(NameID id)
 {
 	size_t index;
-	for (index = 0; index < sx_sizeof_namelist(gnames); ++ index) {
+	for (index = 0; index < gnames.size(); ++ index) {
 		if (gnames[index] == id) {
 			return index;
 		}
@@ -323,8 +316,8 @@ ParserNode::ParserNode(Scriptix::ParserState* s_info,
 		ParserNode* s_node1,
 		ParserNode* s_node2,
 		ParserNode* s_node3,
-		sx_name_id s_name0,
-		sx_name_id s_name1,
+		NameID s_name0,
+		NameID s_name1,
 		Value* s_value,
 		int s_op)
 {

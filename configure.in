@@ -1,7 +1,7 @@
-BASE_VERSION=0.26
-VERSION=0.26
+BASE_VERSION=0.27
+VERSION=0.27
 
-AC_INIT([Scriptix], 0.26, [http://www.awemud.net/bugs/submit.php])
+AC_INIT([Scriptix], 0.27, [http://www.awemud.net/bugs/submit.php])
 AC_CONFIG_SRCDIR(bin/scriptix.cc)
 AM_INIT_AUTOMAKE(scriptix, "$PACKAGE_VERSION")
 AM_CONFIG_HEADER(include/config.h)
@@ -41,7 +41,7 @@ AC_CHECK_FUNC(snprintf)
 AC_CHECK_FUNC(strcasecmp)
 AC_CHECK_FUNC(strdup)
 
-NEED_LIBSGC=0.20030407
+NEED_LIBSGC=0.20030829
 AC_SUBST(NEED_LIBSGC)
 PKG_CHECK_MODULES(SGC, libsgc = $NEED_LIBSGC)
 

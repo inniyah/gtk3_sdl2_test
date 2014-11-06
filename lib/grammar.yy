@@ -57,15 +57,15 @@
 %union {
 	ParserNode* node;
 	Value* value;
-	sx_name_id id;
-	sx_name_id* name_list;
-	struct _sxp_arg_list args;
+	NameID id;
+	NameList* names;
+	struct ParserArgList args;
 }
 
 %token<value> NUMBER STRING
 %token<id> IDENTIFIER TYPE
 %token<tag> TAG
-%token IF ELSE WHILE DO AND OR TGTE TLTE TNE TFOREACH
+%token IF ELSE WHILE DO AND OR TGTE TLTE TNE TFOREACH TEXTEND
 %token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT  TNEW
 %token TUNTIL TNIL TRESCUE TIN TFOR TCONTINUE TYIELD TPUBLIC
 
@@ -74,19 +74,19 @@
 %left AND OR
 %left '>' '<' TGTE TLTE TIN
 %left TNE TEQUALS
-%left '+' '-' TINCREMENT TDECREMENT
+%left '+' '-' TINCREMENT TDECREMENT '@'
 %left '*' '/'
-%nonassoc TCAST
 %nonassoc TLENGTH WHILE TUNTIL DO
-%left TRANGE
 %nonassoc '!' CUNARY
-%left '.' TSTATMETHOD '[' '(' '^'
+%left TCAST
+%left '.' ':' '[' '^' TNEW
+%left '('
 
 %nonassoc IF
 %nonassoc ELSE
 
 %type<node> node args block stmts stmt expr func_args
-%type<name_list> arg_names_list
+%type<names> arg_names_list
 %type<value> data
 %type<id> name type
 %type<args> arg_names
@@ -96,20 +96,31 @@ program:
 	| program function
 	| program global
 	| program error
+	| program extend
 	;
 
-function: name '(' arg_names ')' '{' block '}' { parser->AddFunc($1, $3.args, $3.varg, $6, NULL, 0); }
-	| TPUBLIC name '(' arg_names ')' '{' block '}' { parser->AddFunc($2, $4.args, $4.varg, $7, NULL, 1); }
+function: name '(' arg_names ')' '{' block '}' { parser->AddFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, 0, false); delete $3.args; }
+	| TPUBLIC name '(' arg_names ')' '{' block '}' { parser->AddFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, 0, true); delete $4.args; }
 	| name { 
-		if (!parser->GetSystem()->ValidFunctionTag(IDToName ($1))) {
+		if (!parser->GetSystem()->ValidFunctionTag($1)) {
 			yyerror ("Unregistered tag");
 			YYERROR;
 		}
 		$<id>$ = $1;
-	} name '(' arg_names ')' '{' block '}' { parser->AddFunc($3, $5.args, $5.varg, $8, IDToName($<id>2), 1); }
+	} name '(' arg_names ')' '{' block '}' { parser->AddFunc($3, ($5.args ? *$5.args : NameList()), $5.varg, $8, $<id>2, false); delete $5.args; }
 	;
 
 global: name '=' data ';' { parser->SetGlobal($1, $3); }
+	;
+
+extend: TEXTEND type { parser->AddExtend (parser->system->GetType($2)); } '{' extend_functions '}'
+	;
+
+extend_function: name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6); delete $3.args; }
+	;
+
+extend_functions: extend_function
+	| extend_functions extend_function
 	;
 
 block: { $$ = NULL; }
@@ -155,25 +166,25 @@ arg_names: { $$.args = NULL; $$.varg = 0; }
 	| '&' name { $$.args = NULL; $$.varg = $2; }
 	;
 
-arg_names_list: name { $$ = sx_new_namelist (parser->GetSystem(), 1, $1); }
-	| arg_names_list ',' name { $$ = sx_namelist_append (parser->GetSystem(), $1, $3); }
+arg_names_list: name { $$ = new NameList(); $$->push_back($1); }
+	| arg_names_list ',' name { $$->push_back($3); }
 	;
 
 func_args: '(' args ')' { $$ = $2; }
 	| '(' ')' { $$ = NULL; }
 	;
 
-expr: expr '+' expr { $$ = sxp_new_math (parser, SX_OP_ADD, $1, $3); }
-	| expr '-' expr { $$ = sxp_new_math (parser, SX_OP_SUBTRACT, $1, $3); }
-	| expr '*' expr { $$ = sxp_new_math (parser, SX_OP_MULTIPLY, $1, $3); }
-	| expr '/' expr { $$ = sxp_new_math (parser, SX_OP_DIVIDE, $1, $3); }
+expr: expr '+' expr { $$ = sxp_new_math (parser, OP_ADD, $1, $3); }
+	| expr '-' expr { $$ = sxp_new_math (parser, OP_SUBTRACT, $1, $3); }
+	| expr '*' expr { $$ = sxp_new_math (parser, OP_MULTIPLY, $1, $3); }
+	| expr '/' expr { $$ = sxp_new_math (parser, OP_DIVIDE, $1, $3); }
 	| expr '@' expr { $$ = sxp_new_concat (parser, $1, $3); }
 	| '(' expr ')' { $$ = $2; }
 
 	| expr TIN expr { $$ = sxp_new_in (parser, $1, $3); }
 
 	| '-' expr %prec CUNARY {
-			if ($2->type == SXP_DATA && Value::IsA<Number>($2->parts.value))
+			if ($2->type == SXP_DATA && Value::IsA<Number>(parser->system, $2->parts.value))
 				$$ = sxp_new_data(parser,Number::Create(-Number::ToInt($2->parts.value)));
 			else
 				$$ = sxp_new_negate (parser, $2); 
@@ -183,12 +194,12 @@ expr: expr '+' expr { $$ = sxp_new_math (parser, SX_OP_ADD, $1, $3); }
 	| expr AND expr { $$ = sxp_new_and (parser, $1, $3); }
 	| expr OR expr { $$ = sxp_new_or (parser, $1, $3); }
 
-	| expr '>' expr { $$ = sxp_new_math (parser, SX_OP_GT, $1, $3); }
-	| expr '<' expr { $$ = sxp_new_math (parser, SX_OP_LT, $1, $3); }
-	| expr TNE expr { $$ = sxp_new_math (parser, SX_OP_NEQUAL, $1, $3); }
-	| expr TGTE expr { $$ = sxp_new_math (parser, SX_OP_GTE, $1, $3); }
-	| expr TLTE expr { $$ = sxp_new_math (parser, SX_OP_LTE, $1, $3); }
-	| expr TEQUALS expr { $$ = sxp_new_math (parser, SX_OP_EQUAL, $1, $3); }
+	| expr '>' expr { $$ = sxp_new_math (parser, OP_GT, $1, $3); }
+	| expr '<' expr { $$ = sxp_new_math (parser, OP_LT, $1, $3); }
+	| expr TNE expr { $$ = sxp_new_math (parser, OP_NEQUAL, $1, $3); }
+	| expr TGTE expr { $$ = sxp_new_math (parser, OP_GTE, $1, $3); }
+	| expr TLTE expr { $$ = sxp_new_math (parser, OP_LTE, $1, $3); }
+	| expr TEQUALS expr { $$ = sxp_new_math (parser, OP_EQUAL, $1, $3); }
 
 	| name '=' expr { $$ = sxp_new_assign (parser, $1, $3); }
 	| expr '[' expr ']' '=' expr %prec '=' { $$ = sxp_new_setindex (parser, $1, $3, $6); }
@@ -254,7 +265,7 @@ Scriptix::System::LoadFile(const char *file) {
 	if (file == NULL) {
 		yyin = stdin;
 	} else {
-		yyin = fopen (file, "r");
+		yyin = fopen (file, "rt");
 		if (yyin == NULL) {
 			std::cerr << "Could not open '" << file << "'" << std::endl;
 			return 1;

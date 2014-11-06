@@ -1,8 +1,8 @@
 fact (arg) {
 	if (!arg || arg <= 1)
 		return 1;
-	else 
-		return arg * fact (arg - 1);
+	else
+		return fact (arg - 1) * arg;
 }
 
 public
@@ -13,7 +13,7 @@ main (&argv) {
 		max = argv[0].to_num ();
 
 	num = 0;
-	while (fact (num + 1) <= max)
+	while ((f = fact (num + 1)) <= max)
 		num ++;
 
 	printl ('Smallest factorial within ', max, ': fact(', num, ') = ', fact (num));

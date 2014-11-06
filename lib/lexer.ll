@@ -94,6 +94,7 @@
 		LEX_NAME("yield", TYIELD)
 		LEX_NAME("new", TNEW)
 		LEX_NAME("public", TPUBLIC)
+		LEX_NAME("extend", TEXTEND)
 		{
 			yylval.id = NameToID (yytext);
 			if (parser->GetSystem()->GetType(yylval.id) != NULL) {

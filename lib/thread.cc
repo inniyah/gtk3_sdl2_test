@@ -68,7 +68,7 @@ Thread::Thread (System* sys, Function* called, unsigned char fl, size_t argc, Va
 	data_size = 0;
 	data = 0;
 	ret = NULL;
-	state = SX_STATE_READY;
+	state = STATE_READY;
 	id = ++_free_id;
 	next = NULL;
 	prev = NULL;
@@ -86,7 +86,7 @@ Thread::Thread (System* sys, Function* called, unsigned char flags, size_t argc,
 	if (argc > 20) {
 		// FIXME: SXE_BOUNDS error
 		Thread (sys, called, flags, 0, NULL);
-		state = SX_STATE_FAILED;
+		state = STATE_FAILED;
 	} else if (argc > 0) {
 		va_start (va, argc);
 		for (i = 0; i <= argc; ++ i) {
@@ -202,7 +202,7 @@ Value*
 Thread::Invoke (Function* called, size_t argc, Value* argv[]) {
 	Value* retval;
 
-	if (PushCall(called, argc, argv, SX_CFLAG_BREAK) != SXE_OK)
+	if (PushCall(called, argc, argv, CFLAG_BREAK) != SXE_OK)
 		return NULL;
 
 	system->NestedRun(this, &retval);
@@ -238,7 +238,7 @@ Thread::Invoke (Function* called, size_t argc, ...)
 		argv = NULL;
 	}
 
-	if (PushCall(called, argc, argv, SX_CFLAG_BREAK) != SXE_OK) {
+	if (PushCall(called, argc, argv, CFLAG_BREAK) != SXE_OK) {
 #ifndef HAVE_ALLOCA
 		if (argv != NULL)
 			free (argv);
@@ -267,8 +267,21 @@ Thread::PopCall (void) {
 
 		// unwind stack 
 		data = call_stack[call].top;
-
-		// push return
-		PushValue(ret);
 	}
+}
+
+int
+Thread::Exit (Value* retval) {
+	// already exited?
+	if (state != STATE_RUNNING && state != STATE_READY) {
+		return SXE_NOTREADY;
+	}
+
+	// push return value
+	PushValue(retval);
+
+	// set state
+	state = STATE_FINISHED;
+
+	return SXE_OK;
 }

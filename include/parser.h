@@ -28,7 +28,9 @@
 #ifndef __SXPARSER_H__
 #define __SXPARSER_H__
 
+#include <string>
 #include <list>
+#include <vector>
 
 enum {
 	SXP_NOOP = 0,
@@ -63,6 +65,8 @@ enum {
 	SXP_GETMEMBER,
 	SXP_FOREACH,
 	SXP_CONCAT,
+	SXP_STRINGCAST,
+	SXP_INTCAST,
 };
 
 enum {
@@ -73,40 +77,47 @@ enum {
 	SXP_LOOP_FOREVER,
 };
 
+namespace Scriptix {
+
+typedef std::vector<NameID> NameList;
+
 struct ParserBlock {
 	Function* func;
 	unsigned long start;
-	std::list<unsigned long> breaks;
-	std::list<unsigned long> continues;
-	ParserBlock* next;
+	std::vector<unsigned long> breaks;
+	std::vector<unsigned long> continues;
 };
 
 struct ParserFunction {
-	sx_name_id name;
-	sx_name_id varg;
-	sx_name_id* vars;
+	NameID name;
+	NameID varg;
+	NameList vars;
 	struct ParserNode* body;
 	Function* func;
-	char* tag;
-	char pub;
-	ParserFunction* next;
+	NameID tag;
+	bool pub;
 };
 
-namespace Scriptix {
+struct ParserExtend {
+	Type* type;
+	std::vector<ParserFunction*> methods;
+};
+
 class ParserState
 {
 	public: // FIXME
 	System* system;
 	ParserNode* nodes;
-	ParserFunction* funcs;
-	std::list<unsigned long> returns;
+	std::list<ParserFunction*> funcs;
+	std::vector<ParserExtend*> extends;
+	std::vector<unsigned long> returns;
 	String* last_file;
 	size_t last_line;
 	String* file;
 	size_t line;
-	ParserBlock* blocks;
+	std::vector<ParserBlock*> blocks;
 	Array* globals;
-	sx_name_id* gnames;
+	NameList gnames;
 
 	// compiler helopers
 	bool CompileNode (ParserFunction* func, ParserNode* node);
@@ -117,7 +128,7 @@ class ParserState
 	bool AddBreakOnFalse (void);
 	bool AddBreakOnTrue (void);
 	bool AddContinue (void);
-	long BlockStart (void) { return blocks->start; }
+	long BlockStart (void) { return blocks.front()->start; }
 
 	public:
 	ParserState (System* s_system);
@@ -127,7 +138,7 @@ class ParserState
 	System* GetSystem(void) const { return system; }
 
 	// building trees/input
-	void SetFile(const char* path) { file = new String(system, path); line = 1; }
+	void SetFile(const std::string& path) { file = new String(system, path); line = 1; }
 	void LineIncr(void) { ++line; }
 	String* GetFile(void) const { return file; }
 	size_t GetLine(void) const { return line; }
@@ -136,21 +147,23 @@ class ParserState
 	int Compile(void);
 
 	// error function
-	void Error(const char* msg);
+	void Error(const std::string& msg);
 
 	// get the index for a variable name (ret -1 on error)
-	long AddVar(ParserFunction* func, sx_name_id id);
-	long GetVar(ParserFunction* func, sx_name_id id);
+	long AddVar(ParserFunction* func, NameID id);
+	long GetVar(ParserFunction* func, NameID id);
 
 	// define global
-	void SetGlobal(sx_name_id id, Value* value);
-	long GetGlobal(sx_name_id id);
+	void SetGlobal(NameID id, Value* value);
+	long GetGlobal(NameID id);
 
 	// add functions
-	ParserFunction* AddFunc(sx_name_id name, sx_name_id* args, sx_name_id varg, ParserNode* body, const char* tag, char pub);
-	void DelFunc(ParserFunction* func);
+	ParserFunction* AddFunc(NameID name, const NameList& args, NameID varg, ParserNode* body, NameID tag, bool pub);
+
+	// type extends
+	ParserExtend* AddExtend(Type* type);
+	ParserFunction* AddExtendFunc(NameID name, const NameList& args, NameID varg, ParserNode* body);
 };
-}
 
 struct ParserNode {
 	int type;
@@ -161,7 +174,7 @@ struct ParserNode {
 	unsigned int line;
 	struct {
 		ParserNode* nodes[4];
-		sx_name_id names[2];
+		NameID names[2];
 		Value* value;
 		int op;
 	} parts;
@@ -173,17 +186,12 @@ struct ParserNode {
 		ParserNode* node2,
 		ParserNode* node3,
 		ParserNode* node4,
-		sx_name_id name1,
-		sx_name_id name2,
+		NameID name1,
+		NameID name2,
 		Value* value,
 		int op);
 	// append a new node to the list
 	ParserNode* Append(ParserNode* node);
-};
-
-struct _sxp_arg_list {
-	sx_name_id* args;
-	sx_name_id varg;
 };
 
 // Node types
@@ -222,18 +230,16 @@ struct _sxp_arg_list {
 // compilation helpers
 extern ParserNode* sxp_transform (ParserNode* node); // optimizer
 
+}
+
 // globals for during compilation - yay stupid yacc/lex
+struct ParserArgList {
+	NameList* args;
+	NameID varg;
+};
+
 extern Scriptix::ParserState* parser;
 extern FILE* yyin;
 extern const char* sxp_parser_inbuf;
-
-// namelists
-namespace Scriptix {
-	sx_name_id* sx_new_namelist (System* system, size_t argc, ...);
-	sx_name_id* sx_namelist_append (System* system, sx_name_id* list, sx_name_id id);
-	sx_name_id* sx_namelist_concat (System* system, sx_name_id* list, sx_name_id* list2);
-	size_t sx_sizeof_namelist (sx_name_id* list);
-	void sx_free_namelist (sx_name_id* list);
-}
 
 #endif

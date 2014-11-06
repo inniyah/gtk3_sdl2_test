@@ -1,3 +1,12 @@
+Version 0.27
+============
+
+  * Added exit() in stdlib, to end current thread.
+  * Dynamic types once again.
+  * New 'extend' syntax for adding methods to existing types.
+  * String and Int casting supports auto-conversion.
+  * Complete Cygwin and Mac OS X support (static linking only).
+
 Version 0.26
 ============
 

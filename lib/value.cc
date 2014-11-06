@@ -29,12 +29,13 @@
 #include "system.h"
 
 #include <iostream>
+#include <string.h>
 
 using namespace Scriptix;
 
 // Methods
-Method Value::_MyStaticMethods[] = { { NULL, 0, 0, NULL } };
-Method Value::_MyMethods[] = { { NULL, 0, 0, NULL } };
+MethodDef Value::_MyStaticMethods[] = { { NULL, 0, 0, NULL } };
+MethodDef Value::_MyMethods[] = { { NULL, 0, 0, NULL } };
 
 // DEFAULT IMPLEMENTATIONS
 void
@@ -59,4 +60,35 @@ bool
 Value::True (System* system)
 {
 	return true;
+}
+
+// COMPLEX WRAPPERS
+Value*
+Value::ToString(System* system, Value* self)
+{
+	if (self == NULL) {
+		return NULL;
+	} else if (IsA<String>(system, self)) {
+		return self;
+	} else if (IsA<Number>(system, self)) {
+		char buf[20];
+		snprintf (buf, 20, "%ld", Number::ToInt (self));
+		return new String(system, buf);
+	} else {
+		return self->ToString(system);
+	}
+}
+
+Value*
+Value::ToInt(System* system, Value* self)
+{
+	if (self == NULL) {
+		return NULL;
+	} else if (IsA<Number>(system, self)) {
+		return self;
+	} else if (IsA<String>(system, self)) {
+		return Number::Create(atoi(((String*)self)->GetCStr()));
+	} else {
+		return self->ToInt(system);
+	}
 }

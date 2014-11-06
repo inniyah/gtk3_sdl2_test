@@ -46,6 +46,6 @@ Number::MethodTostr (Thread* thread, Value* self, size_t argc, Value** argv)
 
 SX_TYPEIMPL(Number, "Int", Value)
 SX_BEGINMETHODS(Number)
-	SX_DEFMETHOD(MethodTostr, 0, 0, "to_str")
+	SX_DEFMETHOD(MethodTostr, "to_str", 0, 0)
 SX_ENDMETHODS
 SX_NOSMETHODS(Number)

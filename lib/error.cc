@@ -74,7 +74,7 @@ Thread::RaiseError (int err, const char *format, ...) {
 	}
 
 	PushValue(Number::Create(err));
-	state = SX_STATE_FAILED;
+	state = STATE_FAILED;
 	return state;
 }
 

@@ -29,54 +29,93 @@
 
 using namespace Scriptix;
 
-int
-System::AddType (const Type* type)
+Type::Type (System* system, const TypeDef* base)
 {
+	name = NameToID(base->name);
+
+	if (base->parent) {
+		NameID pname = NameToID(base->parent->name);
+		parent = system->GetType(pname);
+	} else {
+		parent = NULL;
+	}
+
+	for (size_t i = 0; base->methods[i].name != NULL; ++i) {
+		Method* method = new Method();
+		method->name = NameToID(base->methods[i].name);
+		method->argc = base->methods[i].argc;
+		method->varg = base->methods[i].varg;
+		method->method = base->methods[i].method;
+		method->sxmethod = NULL;
+		methods[method->name] = method;
+	}
+	for (size_t i = 0; base->smethods[i].name != NULL; ++i) {
+		Method* method = new Method();
+		method->name = NameToID(base->smethods[i].name);
+		method->argc = base->smethods[i].argc;
+		method->varg = base->smethods[i].varg;
+		method->method = base->smethods[i].method;
+		method->sxmethod = NULL;
+		smethods[method->name] = method;
+	}
+}
+
+Type*
+System::AddType (const TypeDef* typed)
+{
+	// generate name
+	NameID tname = NameToID(typed->name);
+
 	// have we the type already?
-	for (std::vector<const Type*>::iterator i = types.begin(); i != types.end(); ++i)
-		if (!strcmp (type->name, (*i)->name))
-			return SXE_EXISTS;
+	Type* type;
+	if ((type = GetType(tname)) != NULL)
+		return type;
+
+	// copy type
+	type = new Type(this, typed);
+	if (type == NULL) {
+		return NULL;
+	}
 		
 	// add type
-	types.push_back(type);
+	types[tname] = type;
 	
-	return SXE_OK;
+	return type;
 }
 
 const Type* 
-System::GetType (sx_name_id id) const
+System::GetType (NameID id) const
 {
-	const char* name = IDToName (id);
-
-	// no name?  nope
-	if (name == NULL)
-		return NULL;
-
 	// search
-	for (std::vector<const Type*>::const_iterator i = types.begin(); i != types.end(); ++i)
-		if (!strcmp (name, (*i)->name))
-			return (*i);
+	std::map<NameID,Type*>::const_iterator i = types.find(id);
+	if (i != types.end())
+		return i->second;
+
+	// no have
+	return NULL;
+}
+
+Type* 
+System::GetType (NameID id)
+{
+	// search
+	std::map<NameID,Type*>::iterator i = types.find(id);
+	if (i != types.end())
+		return i->second;
 
 	// no have
 	return NULL;
 }
 
 const Method*
-Type::GetStaticMethod (sx_name_id id) const
+Type::GetStaticMethod (NameID id) const
 {
-	const char* name = IDToName(id);
-	if (name == NULL)
-		return NULL;
-
 	const Type* type = this;
-	const Method* method = NULL;
 	while (type != NULL) {
-		method = type->smethods;
-		while (method->name != NULL) {
-			if (!strcmp (method->name, name))
-				return method;
-			++ method;
-		}
+		// search
+		std::map<NameID,Method*>::const_iterator i = type->smethods.find(id);
+		if (i != type->smethods.end())
+			return i->second;
 		type = type->parent;
 	}
 
@@ -84,34 +123,42 @@ Type::GetStaticMethod (sx_name_id id) const
 }
 
 const Method*
-Value::GetMethod (Value* value, sx_name_id id)
+Type::GetMethod (NameID id) const
 {
-	const char* name = IDToName(id);
-	if (name == NULL)
-		return NULL;
-
-	const Type* type = Value::TypeOf(value);
-	if (type == NULL)
-		return NULL;
-
-	const Method* method = NULL;
+	const Type* type = this;
 	while (type != NULL) {
-		method = type->methods;
-		while (method->name != NULL) {
-			if (!strcmp (method->name, name))
-				return method;
-			++ method;
-		}
-		method = type->smethods;
-		while (method->name != NULL) {
-			if (!strcmp (method->name, name))
-				return method;
-			++ method;
-		}
+		// search
+		std::map<NameID,Method*>::const_iterator i = type->methods.find(id);
+		if (i != type->methods.end())
+			return i->second;
 		type = type->parent;
 	}
 
 	return NULL;
+}
+
+int
+Type::AddMethod (Method* method)
+{
+	if (method == NULL)
+		return SXE_INVALID;
+	
+	methods[method->name] = method;
+	if (method->sxmethod)
+		Value::Mark(method->sxmethod);
+
+	return SXE_OK;
+}
+
+void
+Type::MarkMethods (void)
+{
+	for (std::map<NameID,Method*>::iterator i = methods.begin(); i != methods.end(); ++i)
+		if (i->second->sxmethod)
+			Value::Mark(i->second->sxmethod);
+	for (std::map<NameID,Method*>::iterator i = smethods.begin(); i != smethods.end(); ++i)
+		if (i->second->sxmethod)
+			Value::Mark(i->second->sxmethod);
 }
 
 SX_TYPEIMPL(TypeValue, "Type", Value)
@@ -125,13 +172,13 @@ SX_NOSMETHODS(TypeValue)
 Value*
 TypeValue::MethodName (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	return new String (thread->GetSystem(), ((TypeValue*)self)->type->name);
+	return new String (thread->GetSystem(), IDToName(((TypeValue*)self)->type->GetName()));
 }
 
 bool
 TypeValue::Equal (System* system, Value* other)
 {
-	if (Value::TypeOf (other) != TypeValue::GetType())
+	if (Value::TypeOf (system, other) != TypeValue::GetType())
 		return false;
 
 	return ((TypeValue*)other)->type == type;

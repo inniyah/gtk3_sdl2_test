@@ -1,3 +1,97 @@
+2003-09-12 14:41:57  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * When reading source files, text mode is explicitly set,
+    for Cygwin.
+
+2003-08-29 18:58:42  Sean Middleditch <elanthis@awemud.net>
+
+  * Require newer libsgc.  (*gasp*)
+
+2003-08-11 19:57:46  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Int and String type casting uses automatic conversion.
+
+2003-08-10 02:30:59  Sean Middleditch <elanthis@awemud.net>
+
+  * Fixed IDToName to return the correct name.  (Off-by-error index
+    error.)
+
+2003-08-02 01:28:23  Sean Middleditch <elanthis@awemud.net>
+
+  * Added --add-missing to automake invocation in bootstrap.
+  * More C++-izing.
+
+2003-08-01 18:48:14  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Make the to_str() method on the Int type work.
+
+2003-08-01 18:19:36  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Cleanups to extend code.
+  * Don't allow old methods to be over-ridden.
+  * Added .trim(), .ltrim(), and .rtrim() methods to String.
+
+2003-08-01 16:44:23  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Methods may be Scriptix functions.
+  * The extend syntax works now.
+
+2003-08-01 15:23:57  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * More C++-ization to the compiler.
+  * Added the type 'extend' grammer.  (Not yet working.)
+  * Grammar fixes.
+
+2003-07-31 18:42:16  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Types are once again dynamically registered with the System
+    object.
+
+2003-07-30 04:26:48  Sean Middleditch <elanthis@awemud.net>
+
+  * Slight cleanups to eval() and return values.
+  * Added exit() stdlib call.
+  * Added Thread->Exit() (to implement exit()).
+
+2003-07-29 00:24:10  Sean Middleditch <elanthis@awemud.net>
+
+  * Remove --force from the automake command in the bootstrap
+    script.
+
+2003-07-26 18:18:30  Sean Middleditch <elanthis@awemud.net>
+
+  * Use bootstrap, not autogen.sh.
+
+2003-07-26 17:53:14  Sean Middleditch <elanthis@awemud.net>
+
+  * Apparantly we must carry ltmain.sh.  Yay autotools.
+
+2003-07-26 17:11:12  Sean Middleditch <elanthis@awemud.net>
+
+  * Updated autogen.sh to work in Cygwin.
+
+2003-07-26 01:21:27  Sean Middleditch <elanthis@awemud.net>
+
+  * Actually, like, you know, _test_ the changes and make sure
+    they work...
+
+2003-07-26 01:13:44  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix to library order for static linking fixes.  (For Cygwin)
+
+2003-07-16 02:24:36  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix a bug where parser nodes are free()d when they should
+    be delete'd.
+
+2003-07-16 00:57:04  Sean Middleditch <elanthis@awemud.net>
+
+  * Autogen.sh runs libtoolize now for CVS users.
+
+2003-07-13 07:06:11  Sean Middleditch <elanthis@awemud.net>
+
+  * Release 0.26.
+
 2003-07-10 20:47:51  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
 
   * Upgraded the cvs and autogen scripts.

@@ -30,6 +30,9 @@
 #include <string.h>
 #include <stdarg.h>
 
+#include <vector>
+#include <string>
+
 #include "scriptix.h"
 #include "config.h"
 
@@ -37,160 +40,27 @@ using namespace Scriptix;
 
 #include "parser.h"
 
-struct _scriptix_name_id {
-	char *name;
-	struct _scriptix_name_id *next;
-};
+static std::vector<std::string> ScriptixNameMap;
 
-static struct _scriptix_name_id *_names = NULL;
-static struct _scriptix_name_id *_last = NULL;
-
-sx_name_id
+NameID
 Scriptix::NameToID(const char *name) {
-	struct _scriptix_name_id *ni;
-	sx_name_id id;
+	NameID id;
 
-	if (name == NULL)
-		return 0;
+	// have it already?
+	for (id = 0; id < ScriptixNameMap.size(); ++id)
+		if (ScriptixNameMap[id] == name)
+			return id + 1;
 
-	id = 1;
-	ni = _names;
-	while (ni != NULL) {
-		if (!strcmp (name, ni->name)) {
-			return id;
-		}
-		++ id;
-		ni = ni->next;
-	}
-
-	ni = (struct _scriptix_name_id*)malloc (sizeof (struct _scriptix_name_id));
-	if (ni == NULL) {
-		return 0;
-	}
-	ni->name = strdup (name);
-	if (ni->name == NULL) {
-		free (ni);
-		return 0;
-	}
-
-	ni->next = NULL;
-	if (_last != NULL) {
-		_last->next = ni;
-		_last = ni;
-	} else {
-		_last = _names = ni;
-	}
-
-	return id;
+	// add it!
+	ScriptixNameMap.push_back(name);
+	return id + 1;
 }
 
 const char *
-Scriptix::IDToName (sx_name_id id) {
-	struct _scriptix_name_id *ni;
-
-	if (!id) {
+Scriptix::IDToName (NameID id) {
+	if (!id || id > ScriptixNameMap.size()) {
 		return NULL;
 	}
 
-	ni = _names;
-	while (ni != NULL) {
-		if (--id == 0) {
-			return ni->name;
-		}
-		ni = ni->next;
-	}
-
-	return NULL;
-}
-
-sx_name_id *
-Scriptix::sx_new_namelist (System* system, size_t argc, ...) {
-	sx_name_id *list;
-	va_list va;
-	size_t i;
-
-	if (argc == 0) {
-		return NULL;
-	}
-
-	list = (sx_name_id*)malloc ((argc + 1) * sizeof (sx_name_id));
-	if (list == NULL) {
-		return NULL;
-	}
-
-	va_start (va, argc);
-	for (i = 0; i < argc; ++ i) {
-		list[i] = va_arg (va, sx_name_id);
-	}
-	va_end (va);
-
-	list[i] = 0;
-
-	return list;
-}
-
-sx_name_id*
-Scriptix::sx_namelist_append (System* system, sx_name_id* list, sx_name_id id)
-{
-	sx_name_id* newlist;
-	size_t c = sx_sizeof_namelist (list);
-
-	newlist = (sx_name_id*)malloc ((c + 2) * sizeof (sx_name_id));
-	if (newlist == NULL) {
-		return NULL;
-	}
-
-	memcpy (newlist, list, c * sizeof (sx_name_id));
-	free (list);
-
-	newlist[c] = id;
-	newlist[c + 1] = 0;
-
-	return newlist;
-}
-
-sx_name_id*
-Scriptix::sx_namelist_concat (System* system, sx_name_id* list, sx_name_id* list2)
-{
-	sx_name_id* newlist;
-	size_t c1 = sx_sizeof_namelist (list);
-	size_t c2 = sx_sizeof_namelist (list2);
-	size_t i;
-
-	newlist = (sx_name_id*)malloc ((c1 + c2 + 1) * sizeof (sx_name_id));
-	if (newlist == NULL) {
-		return NULL;
-	}
-
-	for (i = 0; i < c1; ++i)
-		newlist[i] = list[i];
-	for (; i < c1 + c2; ++i)
-		newlist[i] = list2[i - c1];
-	free (list);
-	free (list2);
-
-	newlist[c1 + c2] = 0;
-
-	return newlist;
-}
-
-size_t
-Scriptix::sx_sizeof_namelist (sx_name_id *list) {
-	size_t argc;
-
-	if (!list)
-		return 0;
-
-	for (argc = 0; list[argc] != 0; ++ argc)
-		;
-
-	return argc;
-
-}
-
-void
-Scriptix::sx_free_namelist (sx_name_id *list) {
-	if (list != NULL) {
-		free (list);
-	}
+	return ScriptixNameMap[id - 1].c_str();
 }

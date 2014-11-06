@@ -35,7 +35,7 @@
 using namespace Scriptix;
 
 int
-System::AddGlobal (sx_name_id id, Value* value)
+System::AddGlobal (NameID id, Value* value)
 {
 	// have we the type already?
 	for (std::vector<Global>::iterator i = globals.begin(); i != globals.end(); ++i)
@@ -52,7 +52,7 @@ System::AddGlobal (sx_name_id id, Value* value)
 }
 
 Value*
-System::GetGlobal (sx_name_id id) const
+System::GetGlobal (NameID id) const
 {
 	// search
 	for (std::vector<Global>::const_iterator i = globals.begin(); i != globals.end(); ++i)

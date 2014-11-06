@@ -75,6 +75,8 @@ OpCode Scriptix::OpCodeDefs[] = {
 	{ "POSTINCREMENT", 0 },
 	{ "NEWARRAY", 1 },
 	{ "TYPECAST", 0 },
+	{ "STRINGCAST", 0 },
+	{ "INTCAST", 0 },
 	{ "SETINDEX", 0 },
 	{ "METHOD", 2 },
 	{ "SETFILELINE", 0 },
@@ -129,12 +131,12 @@ Thread::InvokeMethod (Value* self, const Method* method, size_t argc)
 	// invoke
 	ret = method->method (this, self, count, argv);
 
-	if (argv != NULL) {
 #if !defined(HAVE_ALLOCA)
+	if (argv != NULL) {
 		// free array
 		free (argv);
-#endif
 	}
+#endif
 
 	return ret;
 }
@@ -175,12 +177,12 @@ Thread::InvokeCFunc (Function* cfunc, size_t argc)
 	// invoke
 	ret = cfunc->cfunc (this, count, argv);
 
-	if (argv != NULL) {
 #if !defined(HAVE_ALLOCA)
+	if (argv != NULL) {
 		// free array
 		free (argv);
-#endif
 	}
+#endif
 
 	return ret;
 }
@@ -197,7 +199,7 @@ Thread::Eval (void) {
 	Call* curcall;
 	const Type* type;
 	const Method* method;
-	sx_name_id name;
+	NameID name;
 
 	while (call > 0) {
 run_code:
@@ -209,19 +211,18 @@ run_code:
 
 		// working on a C function
 		if (curcall->func->cfunc) {
-			count = data;
-
-			Thread::ret = curcall->func->cfunc (this, curcall->argc, &data_stack[curcall->top]);
+			ret = InvokeCFunc (curcall->func, curcall->argc);
 			PopCall();
+			PushValue(ret);
 			continue;
 		}
 
-		while (curcall->op_ptr < curcall->func->count && state == SX_STATE_RUNNING) {
+		while (curcall->op_ptr < curcall->func->count && state == STATE_RUNNING) {
 			// store op for faster access
 			op = curcall->func->nodes[curcall->op_ptr];
 
 			// push value - quicker than rest of loop
-			if (op == SX_OP_PUSH) {
+			if (op == OP_PUSH) {
 				PushValue((Value*)curcall->func->nodes[curcall->op_ptr + 1]);
 				curcall->op_ptr += 2;
 				continue;
@@ -230,23 +231,26 @@ run_code:
 			// next op
 			++ curcall->op_ptr;
 
+			// DEBUG
+			// std::cout << op << '\t' << OpCodeDefs[op].name << std::endl;
+
 			switch (op) {
-				case SX_OP_ADD:
+				case OP_ADD:
 					ret = Number::Create (Number::ToInt (GetValue(2)) + Number::ToInt (GetValue(1)));
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_SUBTRACT:
+				case OP_SUBTRACT:
 					ret = Number::Create (Number::ToInt (GetValue(2)) - Number::ToInt (GetValue(1)));
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_MULTIPLY:
+				case OP_MULTIPLY:
 					ret = Number::Create (Number::ToInt (GetValue(2)) * Number::ToInt (GetValue(1)));
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_DIVIDE:
+				case OP_DIVIDE:
 					// divide by 0 check
 					if (Number::ToInt(GetValue(1)) == 0) {
 						PopValue(2);
@@ -257,17 +261,17 @@ run_code:
 						PushValue(ret);
 					}
 					break;
-				case SX_OP_NEGATE:
+				case OP_NEGATE:
 					ret = Number::Create (- Number::ToInt (GetValue(1)));
 					PopValue(1);
 					PushValue(ret);
 					break;
-				case SX_OP_INVOKE:
+				case OP_INVOKE:
 					count = curcall->func->nodes[curcall->op_ptr++];
 					value = GetValue(1);
 					PopValue(1);
 
-					if (!Value::IsA<Function>(value)) {
+					if (!Value::IsA<Function>(system, value)) {
 						PopValue(count);
 						RaiseError(SXE_BADTYPE, "Invoked data is not a function");
 						break;
@@ -283,63 +287,62 @@ run_code:
 					PushCall(SX_TOFUNC(value), count);
 					goto run_code; // jump to executation stage
 					break;
-				case SX_OP_GT:
+				case OP_GT:
 					ret = Number::Create (Value::Compare (system, GetValue(2), GetValue(1)) > 0);
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_LT:
+				case OP_LT:
 					ret = Number::Create (Value::Compare (system, GetValue(2), GetValue(1)) < 0);
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_GTE:
+				case OP_GTE:
 					ret = Number::Create (Value::Compare (system, GetValue(2), GetValue(1)) >= 0);
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_LTE:
+				case OP_LTE:
 					ret = Number::Create (Value::Compare (system, GetValue(2), GetValue(1)) <= 0);
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_EQUAL:
+				case OP_EQUAL:
 					ret = Number::Create (Value::Equal (system, GetValue(2), GetValue(1)));
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_NEQUAL:
+				case OP_NEQUAL:
 					ret = Number::Create (!Value::Equal (system, GetValue(2), GetValue(1)));
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_NOT:
+				case OP_NOT:
 					ret = Number::Create (!Value::True (system, GetValue(1)));
 					PopValue(1);
 					PushValue(ret);
 					break;
-				case SX_OP_LOOKUP:
+				case OP_LOOKUP:
 					index = curcall->func->nodes[curcall->op_ptr++];
 					PushValue(curcall->items[index]);
 					break;
-				case SX_OP_ASSIGN:
+				case OP_ASSIGN:
 					index = curcall->func->nodes[curcall->op_ptr++];
-					ret = GetValue(1);
-					curcall->items[index] = ret;
+					curcall->items[index] = GetValue(1);
 					break;
-				case SX_OP_CONCAT:
+				case OP_CONCAT:
 					value = GetValue(2);
 					value2 = GetValue(1);
 					PopValue(2);
-					if (!Value::IsA<String>(value) || !Value::IsA<String>(value2)) {
+					if (!Value::IsA<String>(system, value) || !Value::IsA<String>(system, value2)) {
 						RaiseError(SXE_BADTYPE, "Only strings may be used in concatenation");
 					} else {
 						PushValue(new String(system, ((String*)value)->GetStr() + ((String*)value2)->GetStr()));
 					}
 					break;
-				case SX_OP_INDEX:
+				case OP_INDEX:
 					value = GetValue(2);
-					if (Value::IsA<List>(value)) {
+					if (Value::IsA<List>(system, value)) {
 						ret = ((List*)value)->GetIndex (system, GetValue(1));
 						PopValue(2);
 						PushValue(ret);
@@ -348,14 +351,14 @@ run_code:
 						RaiseError(SXE_BADTYPE, "Instance is not a list type in index operation");
 					}
 					break;
-				case SX_OP_PREINCREMENT:
+				case OP_PREINCREMENT:
 					ret = NULL;
 					index = Number::ToInt(GetValue(2));
 					ret = curcall->items[index] = Number::Create (Number::ToInt (curcall->items[index]) + Number::ToInt (GetValue(1)));
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_POSTINCREMENT:
+				case OP_POSTINCREMENT:
 					ret = NULL;
 					index = Number::ToInt(GetValue(2));
 					ret = curcall->items[index];
@@ -363,7 +366,7 @@ run_code:
 					PopValue(2);
 					PushValue(ret);
 					break;
-				case SX_OP_NEWARRAY:
+				case OP_NEWARRAY:
 					count = curcall->func->nodes[curcall->op_ptr++];
 					if (count > 0) {
 						ret = new Array(system, count, &data_stack[data - count]);
@@ -373,9 +376,9 @@ run_code:
 					PopValue(count);
 					PushValue(ret);
 					break;
-				case SX_OP_SETINDEX:
+				case OP_SETINDEX:
 					value = GetValue(3);
-					if (Value::IsA<List>(value)) {
+					if (Value::IsA<List>(system, value)) {
 						ret = ((List*)value)->SetIndex (system, GetValue(2), GetValue(1));
 						PopValue(3);
 						PushValue(ret);
@@ -384,14 +387,14 @@ run_code:
 						RaiseError(SXE_BADTYPE, "Instance is not a list type in set index operation");
 					}
 					break;
-				case SX_OP_TYPECAST:
+				case OP_TYPECAST:
 					// get type
 					value = GetValue(1);
 					type = SX_TOTYPE(value)->GetTypePtr();
 
 					// get value
 					value = GetValue(2);
-					if (Value::IsA (value, type)) {
+					if (Value::IsA (system, value, type)) {
 						// pop type
 						PopValue(1);
 					} else {
@@ -400,40 +403,64 @@ run_code:
 						PushValue(NULL);
 					}
 					break;
-				case SX_OP_METHOD:
+				case OP_STRINGCAST:
+					// get value
+					value = GetValue(1);
+					PopValue(1);
+					PushValue(Value::ToString(system, value));
+					break;
+				case OP_INTCAST:
+					// get value
+					value = GetValue(1);
+					PopValue(1);
+					PushValue(Value::ToInt(system, value));
+					break;
+				case OP_METHOD:
 					name = curcall->func->nodes[curcall->op_ptr++];
 					count = curcall->func->nodes[curcall->op_ptr++];
-					value = GetValue(1); // the type
-					PopValue(1);
+					value = GetValue(count + 1); // the type
 
 					if (value == NULL) {
+						PopValue(count + 1);
 						RaiseError(SXE_NILCALL, "Value is nil for method call");
 						break;
 					}
-					method = Value::GetMethod(value, name);
+					type = Value::TypeOf(system, value);
+					if (type == NULL) {
+						PopValue(count + 1);
+						RaiseError(SXE_NILCALL, "Value has no type for method call");
+						break;
+					}
+					method = type->GetMethod(name);
 					if (method == NULL) {
-						PopValue(count);
-						type = Value::TypeOf(value);
-						RaiseError(SXE_UNDEFINED, "Method '%s' on type '%s' does not exist", IDToName (name), type->name);
+						PopValue(count + 1);
+						type = Value::TypeOf(system, value);
+						RaiseError(SXE_UNDEFINED, "Method '%s' on type '%s' does not exist", IDToName (name), IDToName(type->GetName()));
 						break;
 					}
-					if (count < method->argc) {
-						PopValue(count);
-						type = Value::TypeOf(value);
-						RaiseError(SXE_UNDEFINED, "Too few arguments to method '%s' on type '%s'", IDToName (name), type->name);
-						break;
+					if (method->sxmethod != NULL) {
+						PushCall(method->sxmethod, count + 1);
+						goto run_code; // jump to executation stage
+					} else {
+						if (count < method->argc) {
+							PopValue(count + 1);
+							type = Value::TypeOf(system, value);
+							RaiseError(SXE_UNDEFINED, "Too few arguments to method '%s' on type '%s'", IDToName (name), IDToName(type->GetName()));
+							break;
+						}
+						ret = InvokeMethod (value, method, count);
+						PopValue(count + 1);
+						PushValue(ret);
 					}
-					ret = InvokeMethod (value, method, count);
-					PopValue(count);
-					PushValue(ret);
 					break;
-				case SX_OP_STATIC_METHOD:
+				case OP_STATIC_METHOD:
 					name = curcall->func->nodes[curcall->op_ptr++];
 					count = curcall->func->nodes[curcall->op_ptr++];
 					value = GetValue(1); // the type
 					PopValue(1);
 
-					if (!Value::IsA<TypeValue>(value)) {
+					if (!Value::IsA<TypeValue>(system, value)) {
+						PopValue(count);
 						RaiseError(SXE_NILCALL, "Value is not a type for method call");
 						break;
 					}
@@ -441,21 +468,27 @@ run_code:
 					method = type->GetStaticMethod(name);
 					if (method == NULL) {
 						PopValue(count);
-						RaiseError(SXE_UNDEFINED, "Static method '%s' on type '%s' does not exist", IDToName (name), type->name);
+						RaiseError(SXE_UNDEFINED, "Static method '%s' on type '%s' does not exist", IDToName (name), IDToName(type->GetName()));
 						break;
 					}
-					if (count < method->argc) {
+
+					if (method->sxmethod != NULL) {
+						PushCall(method->sxmethod, count);
+						goto run_code; // jump to executation stage
+					} else {
+						if (count < method->argc) {
+							PopValue(count);
+							RaiseError(SXE_UNDEFINED, "Too few arguments to static method '%s' on type '%s' (%d or %d)", IDToName (name), IDToName(type->GetName()), count, (long)method->argc);
+							break;
+						}
+						ret = InvokeMethod(NULL, method, count);
 						PopValue(count);
-						RaiseError(SXE_UNDEFINED, "Too few arguments to static method '%s' on type '%s' (%d or %d)", IDToName (name), type->name, count, (long)method->argc);
-						break;
+						PushValue(ret);
 					}
-					ret = InvokeMethod(NULL, method, count);
-					PopValue(count);
-					PushValue(ret);
 					break;
-				case SX_OP_SETFILELINE:
+				case OP_SETFILELINE:
 					value = GetValue(2);
-					if (Value::IsA<String>(value)) {
+					if (Value::IsA<String>(system, value)) {
 						curcall->file = (String*)value;
 					} else {
 						PopValue(2);
@@ -463,7 +496,7 @@ run_code:
 						break;
 					}
 					value = GetValue(1);
-					if (Value::IsA<Number>(value)) {
+					if (Value::IsA<Number>(system, value)) {
 						curcall->line = Number::ToInt (value);
 					} else {
 						PopValue(2);
@@ -472,42 +505,42 @@ run_code:
 					}
 					PopValue(2);
 					break;
-				case SX_OP_NEXTLINE:
+				case OP_NEXTLINE:
 					++ curcall->line;
 					break;
-				case SX_OP_POP:
+				case OP_POP:
 					PopValue(1);
 					break;
-				case SX_OP_TEST:
+				case OP_TEST:
 					if (Value::True (system, GetValue(1)))
-						curcall->flags |= SX_CFLAG_TTRUE;
+						curcall->flags |= CFLAG_TTRUE;
 					else
-						curcall->flags &= ~SX_CFLAG_TTRUE;
+						curcall->flags &= ~CFLAG_TTRUE;
 					break;
-				case SX_OP_JUMP:
+				case OP_JUMP:
 					curcall->op_ptr += curcall->func->nodes[curcall->op_ptr];
 					break;
-				case SX_OP_TJUMP:
-					if (curcall->flags & SX_CFLAG_TTRUE) {
+				case OP_TJUMP:
+					if (curcall->flags & CFLAG_TTRUE) {
 						curcall->op_ptr += curcall->func->nodes[curcall->op_ptr];
 					} else {
 						++curcall->op_ptr;
 					}
 					break;
-				case SX_OP_FJUMP:
-					if ((curcall->flags & SX_CFLAG_TTRUE) == 0) {
+				case OP_FJUMP:
+					if ((curcall->flags & CFLAG_TTRUE) == 0) {
 						curcall->op_ptr += curcall->func->nodes[curcall->op_ptr];
 					} else {
 						++curcall->op_ptr;
 					}
 					break;
-				case SX_OP_YIELD:
+				case OP_YIELD:
 					// break - switch
 					return state;
 					break;
-				case SX_OP_IN:
+				case OP_IN:
 					value = GetValue(2);
-					if (Value::IsA<List>(value)) {
+					if (Value::IsA<List>(system, value)) {
 						if (((List*)value)->Has (system, GetValue(1))) {
 							PopValue(2);
 							PushValue(Number::Create(1));
@@ -520,21 +553,21 @@ run_code:
 						RaiseError(SXE_BADTYPE, "Instance is not a list type in has operation");
 					}
 					break;
-				case SX_OP_GET_MEMBER:
+				case OP_GET_MEMBER:
 					value = GetValue(1);
 					name = curcall->func->nodes[curcall->op_ptr++];
 					PopValue(1);
-					if (Value::IsA<Struct>(value)) {
+					if (Value::IsA<Struct>(system, value)) {
 						ret = ((Struct*)value)->GetMember(system, name);
 						PushValue(ret);
 					} else {
 						RaiseError(SXE_BADTYPE, "Attempt to get member value on non-structure");
 					}
 					break;
-				case SX_OP_SET_MEMBER:
+				case OP_SET_MEMBER:
 					value = GetValue(2);
 					name = curcall->func->nodes[curcall->op_ptr++];
-					if (Value::IsA<Struct>(value)) {
+					if (Value::IsA<Struct>(system, value)) {
 						((Struct*)value)->SetMember(system, name, GetValue(1));
 						PopValue(1);
 					} else {
@@ -542,31 +575,31 @@ run_code:
 						RaiseError(SXE_BADTYPE, "Attempt to get member value on non-structure");
 					}
 					break;
-				case SX_OP_ITER:
+				case OP_ITER:
 					name = curcall->func->nodes[curcall->op_ptr++];
 					value = GetValue(1);
 					// have we a nil?
 					if (value == NULL) {
 						// remove true flag
-						curcall->flags &= ~SX_CFLAG_TTRUE;
+						curcall->flags &= ~CFLAG_TTRUE;
 					// have we an iterator?
-					} else if (Value::IsA<Iterator>(value)) {
+					} else if (Value::IsA<Iterator>(system, value)) {
 						// get next
 						if (!SX_TOITER(value)->Next(system, value)) {
 							// remove true flag
-							curcall->flags &= ~SX_CFLAG_TTRUE;
+							curcall->flags &= ~CFLAG_TTRUE;
 						} else {
 							// set variable
 							curcall->items[name] = value;
-							curcall->flags |= SX_CFLAG_TTRUE;
+							curcall->flags |= CFLAG_TTRUE;
 						}
 					// have we a list?
-					} else if (Value::IsA<List>(value)) {
+					} else if (Value::IsA<List>(system, value)) {
 						// generate iterator
 						value = List::GetIter(system, (List*)value);
 						if (!value) {
 							// remove true flag
-							curcall->flags &= ~SX_CFLAG_TTRUE;
+							curcall->flags &= ~CFLAG_TTRUE;
 						} else {
 							PopValue(1);
 							PushValue(value);
@@ -575,11 +608,11 @@ run_code:
 						// get next
 						if (!SX_TOITER(value)->Next(system, value)) {
 							// remove true flag
-							curcall->flags &= ~SX_CFLAG_TTRUE;
+							curcall->flags &= ~CFLAG_TTRUE;
 						} else {
 							// set variable
 							curcall->items[name] = value;
-							curcall->flags |= SX_CFLAG_TTRUE;
+							curcall->flags |= CFLAG_TTRUE;
 						}
 					// bad type
 					} else {
@@ -590,7 +623,7 @@ run_code:
 			}
 
 			// exit out of function on thread switch
-			if ((flags & SX_TFLAG_PREEMPT) && (state == SX_STATE_RUNNING)) {
+			if ((flags & TFLAG_PREEMPT) && (state == STATE_RUNNING)) {
 				if (-- op_count == 0) {
 					// break - switch
 					return state;
@@ -598,34 +631,37 @@ run_code:
 			}
 		}
 
-		// reset state ; if we should break, return as well
-		Thread::ret = GetValue(1);
+		// pop call, push return value
+		ret = Thread::ret = GetValue(1);
 		PopCall();
-		if (curcall->flags & SX_CFLAG_BREAK) {
-			if (state != SX_STATE_FAILED)
-				state = SX_STATE_RETURN;
+		PushValue(ret);
+
+		// reset state ; if we should break, return as well
+		if (curcall->flags & CFLAG_BREAK) {
+			if (state != STATE_FAILED)
+				state = STATE_RETURN;
 			return state;
 		}
 	}
 
 	// we finished
-	state = SX_STATE_FINISHED;
+	state = STATE_FINISHED;
 
 	return state;
 }
 
 int
 Thread::Run (void) {
-	if (state != SX_STATE_READY) {
+	if (state != STATE_READY) {
 		return SXE_NOTREADY;
 	}
 
-	state = SX_STATE_RUNNING;
+	state = STATE_RUNNING;
 	Eval();
-	if (state == SX_STATE_RUNNING)
-		state = SX_STATE_READY;
+	if (state == STATE_RUNNING)
+		state = STATE_READY;
 
-	if (data > 0 && state == SX_STATE_FAILED) {
+	if (data > 0 && state == STATE_FAILED) {
 		// return error code
 		return Number::ToInt(ret);
 	}

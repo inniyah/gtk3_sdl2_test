@@ -41,13 +41,13 @@
 #define PACKAGE_NAME "Scriptix"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Scriptix 0.26"
+#define PACKAGE_STRING "Scriptix 0.27"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "scriptix"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.26"
+#define PACKAGE_VERSION "0.27"
 
 /* The size of a `int', as computed by sizeof. */
 #define SIZEOF_INT 4
@@ -65,7 +65,7 @@
 #define STDC_HEADERS 1
 
 /* Our version */
-#define SX_VERSION "0.26"
+#define SX_VERSION "0.27"
 
 /* Version number of package */
-#define VERSION "0.26"
+#define VERSION "0.27"

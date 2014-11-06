@@ -806,6 +806,7 @@ YY_RULE_SETUP
 		LEX_NAME("yield", TYIELD)
 		LEX_NAME("new", TNEW)
 		LEX_NAME("public", TPUBLIC)
+		LEX_NAME("extend", TEXTEND)
 		{
 			yylval.id = NameToID (yytext);
 			if (parser->GetSystem()->GetType(yylval.id) != NULL) {
@@ -818,72 +819,72 @@ YY_RULE_SETUP
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 106 "lexer.ll"
+#line 107 "lexer.ll"
 { yylval.value = Number::Create (atoi (yytext)); return NUMBER; }
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 107 "lexer.ll"
+#line 108 "lexer.ll"
 { return TGTE; }
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 108 "lexer.ll"
+#line 109 "lexer.ll"
 { return TLTE; }
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 109 "lexer.ll"
+#line 110 "lexer.ll"
 { return TEQUALS; }
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 110 "lexer.ll"
+#line 111 "lexer.ll"
 { return TADDASSIGN; }
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 111 "lexer.ll"
+#line 112 "lexer.ll"
 { return TSUBASSIGN; }
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 112 "lexer.ll"
+#line 113 "lexer.ll"
 { return TINCREMENT; }
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 113 "lexer.ll"
+#line 114 "lexer.ll"
 { return TDECREMENT; }
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 114 "lexer.ll"
+#line 115 "lexer.ll"
 { return OR; }
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 115 "lexer.ll"
+#line 116 "lexer.ll"
 { return AND; }
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 116 "lexer.ll"
+#line 117 "lexer.ll"
 { return TNE; }
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 117 "lexer.ll"
+#line 118 "lexer.ll"
 { sx_lex_str_i = 0; BEGIN SSTRING; }
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 118 "lexer.ll"
+#line 119 "lexer.ll"
 { sx_lex_str_i = 0; BEGIN DSTRING; }
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 119 "lexer.ll"
+#line 120 "lexer.ll"
 { return yytext[0]; }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
@@ -891,15 +892,15 @@ case YY_STATE_EOF(BCOMMENT):
 case YY_STATE_EOF(LCOMMENT):
 case YY_STATE_EOF(SSTRING):
 case YY_STATE_EOF(DSTRING):
-#line 120 "lexer.ll"
+#line 121 "lexer.ll"
 { return 0; }
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 122 "lexer.ll"
+#line 123 "lexer.ll"
 ECHO;
 	YY_BREAK
-#line 903 "lexer.cc"
+#line 904 "lexer.cc"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -1779,7 +1780,7 @@ int main()
 	return 0;
 	}
 #endif
-#line 122 "lexer.ll"
+#line 123 "lexer.ll"
 
 static
 void

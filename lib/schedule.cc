@@ -42,7 +42,7 @@ System::Run (void)
 	while (cur_thread != NULL) {
 		cur_thread->Run();
 		if (cur_thread) {
-			if (cur_thread->state == SX_STATE_FINISHED || cur_thread->state == SX_STATE_FAILED) {
+			if (cur_thread->state == STATE_FINISHED || cur_thread->state == STATE_FAILED) {
 				next = cur_thread->next;
 				EndThread(cur_thread);
 				cur_thread = next;
@@ -56,7 +56,7 @@ System::Run (void)
 }
 
 int
-System::WaitOn (sx_thread_id id, Value** retval) {
+System::WaitOn (ThreadID id, Value** retval) {
 	Thread* next;
 
 	if (retval != NULL)
@@ -72,7 +72,7 @@ System::WaitOn (sx_thread_id id, Value** retval) {
 	while (cur_thread != NULL) { /* will break if we have no threads */
 		cur_thread->Run();
 		if (cur_thread) {
-			if (cur_thread->state == SX_STATE_FINISHED || cur_thread->state == SX_STATE_FAILED) {
+			if (cur_thread->state == STATE_FINISHED || cur_thread->state == STATE_FAILED) {
 				/* our thread? */
 				if (cur_thread->id == id) {
 					/* return value */
@@ -112,18 +112,18 @@ System::NestedRun (Thread* thread, Value** retval) {
 		*retval = NULL;
 
 	/* not running? invalid... */
-	if (thread->state != SX_STATE_RUNNING)
+	if (thread->state != STATE_RUNNING)
 		return SXE_NOTREADY;
 
 	/* set ready state so it can run */
-	thread->state = SX_STATE_READY;
+	thread->state = STATE_READY;
 
 	if (cur_thread == NULL)
 		cur_thread = threads;
 	while (cur_thread != NULL) { /* will break if we have no threads */
 		cur_thread->Run();
 		if (cur_thread) {
-			if (cur_thread->state == SX_STATE_FINISHED || cur_thread->state == SX_STATE_FAILED) {
+			if (cur_thread->state == STATE_FINISHED || cur_thread->state == STATE_FAILED) {
 				/* our thread? */
 				if (cur_thread == thread) {
 					/* return value */
@@ -141,10 +141,10 @@ System::NestedRun (Thread* thread, Value** retval) {
 				next = cur_thread->next;
 				EndThread(cur_thread);
 				cur_thread = next;
-			} else if (cur_thread->state == SX_STATE_RETURN) {
+			} else if (cur_thread->state == STATE_RETURN) {
 				/* our thread? */
 				if (cur_thread == thread) {
-					cur_thread->state = SX_STATE_RUNNING;
+					cur_thread->state = STATE_RUNNING;
 					/* return value */
 					if (retval) {
 						*retval = cur_thread->ret;

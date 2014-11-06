@@ -95,14 +95,14 @@ SX_BEGINSMETHODS(Assoc)
 	SX_DEFNEW(Assoc)
 SX_ENDMETHODS
 
-Assoc::Assoc (System* system) : List(system)
+Assoc::Assoc (System* system) : List(system, system->GetAssocType())
 {
 	list = NULL;
 	size = 0;
 	count = 0;
 }
 
-Assoc::Assoc (System* system, size_t n_size, Value** n_list) : List(system)
+Assoc::Assoc (System* system, size_t n_size, Value** n_list) : List(system, system->GetAssocType())
 {
 	list = NULL;
 	size = n_size;
@@ -160,7 +160,7 @@ Assoc::True (System* system) {
 
 Value* 
 Assoc::GetIndex (System* system, Value* vindex) {
-	if (Value::IsA<Number>(vindex)) {
+	if (Value::IsA<Number>(system, vindex)) {
 		long index = Number::ToInt(vindex);
 
 		if (count == 0) {
@@ -177,7 +177,7 @@ Assoc::GetIndex (System* system, Value* vindex) {
 		}
 	
 		return list[index].value;
-	} else if (Value::IsA<String>(vindex)) {
+	} else if (Value::IsA<String>(system, vindex)) {
 		size_t i = 0;
 		while (i < count) {
 			if (Value::Equal (system, vindex, list[i].name)) {
@@ -192,7 +192,7 @@ Assoc::GetIndex (System* system, Value* vindex) {
 
 Value* 
 Assoc::SetIndex (System* system, Value* vindex, Value* value) {
-	if (Value::IsA<Number>(vindex)) {
+	if (Value::IsA<Number>(system, vindex)) {
 		long index = Number::ToInt(vindex);
 
 		if (count == 0) {
@@ -209,7 +209,7 @@ Assoc::SetIndex (System* system, Value* vindex, Value* value) {
 		}
 		
 		return list[index].value = value;
-	} else if (Value::IsA<String>(vindex)) {
+	} else if (Value::IsA<String>(system, vindex)) {
 		size_t i = 0;
 		while (i < count) {
 			if (Value::Equal (system, vindex, list[i].name)) {

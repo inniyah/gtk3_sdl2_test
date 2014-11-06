@@ -1,7 +1,7 @@
 #!/bin/sh
 
-BASE_VERSION=`grep -E "^BASE_VERSION" configure.in | head -n 1 | sed 's/^BASE_VERSION=\(.*\)$/\1/'`
-CURVER=`grep -E "^VERSION" configure.in | head -n 1 | sed 's/^VERSION=\(.*\)$/\1/'`
+BASE_VERSION=`sed -n 's/^BASE_VERSION=\(.*\)$/\1/p' configure.in`
+CURVER=`sed -n 's/^VERSION=\(.*\)$/\1/p' configure.in`
 
 if [ -n "$1" ] ; then
 	NEWVER="$1"
@@ -23,7 +23,7 @@ fi
 
 if [ "x$NEWVER" != "x$CURVER" ] ; then
 	echo "Updating configure.in..."
-	sed "s/$CURVER/$NEWVER/" configure.in > configure.new
+	sed "/BASE_VERSION/!s/$CURVER/$NEWVER/" configure.in > configure.new
 
 	if [ "x$DOBASE" != "xn" ] ; then
 		sed "s/^BASE_VERSION=.*$/BASE_VERSION=$NEWVER/" configure.new > configure.in

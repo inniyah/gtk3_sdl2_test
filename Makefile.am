@@ -1,4 +1,4 @@
-EXTRA_DIST=scriptix.pc.in
+EXTRA_DIST=scriptix.pc.in bootstrap
 
 DIST_SUBDIRS=doc include lib bin test tools
 SUBDIRS=doc include lib bin test tools

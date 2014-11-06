@@ -41,18 +41,14 @@ SX_ENDMETHODS
 
 // Default undefined member operations
 void
-Struct::SetUndefMember (System* system, sx_name_id id, Value* value)
+Struct::SetUndefMember (System* system, NameID id, Value* value)
 {
-	Data item;
-
-	item.id = id;
-	item.value = value;
-
-	data.insert(data.begin(), item);
+	data[id] = value;
+	Value::Mark(value);
 }
 
 Value*
-Struct::GetUndefMember (System*, sx_name_id)
+Struct::GetUndefMember (System*, NameID)
 {
 	// no-op
 	return NULL;
@@ -62,22 +58,20 @@ Struct::GetUndefMember (System*, sx_name_id)
 void
 Struct::MarkChildren (void)
 {
-	for (std::list<Data>::iterator i = data.begin(); i != data.end(); i ++)
-		Value::Mark(i->value);
+	for (datalist::iterator i = data.begin(); i != data.end(); i ++)
+		Value::Mark(i->second);
 }
 
 // Member operations
 void
-Struct::SetMember (System* system, sx_name_id id, Value* value)
+Struct::SetMember (System* system, NameID id, Value* value)
 {
 	// try to set value
-	for (std::list<Data>::iterator i = data.begin(); i != data.end(); i ++) {
-		if (i->id == id) {
-			i->value = value;
-			Value::Mark (value);
-			return;
-		}
-			
+	datalist::iterator i = data.find(id);
+	if (i != data.end()) {
+		i->second = value;
+		Value::Mark (value);
+		return;
 	}
 
 	// undefined - set that way then
@@ -85,12 +79,13 @@ Struct::SetMember (System* system, sx_name_id id, Value* value)
 }
 
 Value*
-Struct::GetMember (System* system, sx_name_id id)
+Struct::GetMember (System* system, NameID id)
 {
 	// try to find member
-	for (std::list<Data>::iterator i = data.begin(); i != data.end(); i ++)
-		if (i->id == id)
-			return i->value;
+	datalist::iterator i = data.find(id);
+	if (i != data.end()) {
+		return i->second;
+	}
 
 	// undefined - get that way then
 	return GetUndefMember (system, id);

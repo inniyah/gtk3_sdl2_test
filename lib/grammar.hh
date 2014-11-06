@@ -5,9 +5,9 @@
 typedef union {
 	ParserNode* node;
 	Value* value;
-	sx_name_id id;
-	sx_name_id* name_list;
-	struct _sxp_arg_list args;
+	NameID id;
+	NameList* names;
+	struct ParserArgList args;
 } yystype;
 # define YYSTYPE yystype
 # define YYSTYPE_IS_TRIVIAL 1
@@ -27,27 +27,26 @@ typedef union {
 # define	TLTE	269
 # define	TNE	270
 # define	TFOREACH	271
-# define	TADDASSIGN	272
-# define	TSUBASSIGN	273
-# define	TINCREMENT	274
-# define	TDECREMENT	275
-# define	TNEW	276
-# define	TUNTIL	277
-# define	TNIL	278
-# define	TRESCUE	279
-# define	TIN	280
-# define	TFOR	281
-# define	TCONTINUE	282
-# define	TYIELD	283
-# define	TPUBLIC	284
-# define	TBREAK	285
-# define	TRETURN	286
-# define	TEQUALS	287
-# define	TCAST	288
+# define	TEXTEND	272
+# define	TADDASSIGN	273
+# define	TSUBASSIGN	274
+# define	TINCREMENT	275
+# define	TDECREMENT	276
+# define	TNEW	277
+# define	TUNTIL	278
+# define	TNIL	279
+# define	TRESCUE	280
+# define	TIN	281
+# define	TFOR	282
+# define	TCONTINUE	283
+# define	TYIELD	284
+# define	TPUBLIC	285
+# define	TBREAK	286
+# define	TRETURN	287
+# define	TEQUALS	288
 # define	TLENGTH	289
-# define	TRANGE	290
-# define	CUNARY	291
-# define	TSTATMETHOD	292
+# define	CUNARY	290
+# define	TCAST	291
 
 
 extern YYSTYPE yylval;

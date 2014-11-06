@@ -38,14 +38,9 @@ _sx_default_error_hook (const char *file, unsigned int line, const char *str) {
 	std::cerr << "Unhandled error: " << file << ':' << line << ": " << str << std::endl;
 }
 
-System::System (void)
+System::System (void) : globals(), tags(), types()
 {
 	funcs = NULL;
-
-	globals.resize(0);
-	types.resize(0);
-
-	tags = NULL;
 
 	pools = NULL;
 
@@ -63,14 +58,15 @@ System::System (void)
 	valid_threads = 0;
 	run_length = SX_DEF_RUN_LENGTH;
 
-	AddType (String::GetType());
-	AddType (Number::GetType());
-	AddType (Function::GetType());
-	AddType (Array::GetType());
-	AddType (Assoc::GetType());
-	AddType (TypeValue::GetType());
-	AddType (List::GetType());
-	AddType (Struct::GetType());
+	t_string = AddType (String::GetTypeDef());
+	t_number = AddType (Number::GetTypeDef());
+	t_function = AddType (Function::GetTypeDef());
+	t_iterator = AddType (Iterator::GetTypeDef());
+	t_list = AddType (List::GetTypeDef());
+	t_array = AddType (Array::GetTypeDef());
+	t_assoc = AddType (Assoc::GetTypeDef());
+	t_type = AddType (TypeValue::GetTypeDef());
+	t_struct = AddType (Struct::GetTypeDef());
 
 	// FIXME: error checking
 	InitStdlib();
@@ -83,7 +79,6 @@ System::System (void)
 System::~System (void)
 {
 	Thread* tnext;
-	Tag* gnext;
 
 	globals.resize(0);
 
@@ -93,19 +88,11 @@ System::~System (void)
 		threads = tnext;
 	}
 
-	while (tags != NULL) {
-		gnext = tags->next;
-		if (tags->name) {
-			free (tags->name);
-		}
-		delete tags;
-		tags = gnext;
-	}
-
 	while (pools != NULL)
 		PopPool ();
 
-	types.resize(0);
+	tags.clear();
+	types.clear();
 
 	// remove root
 	SGC::System::RemoveRoot(this);
@@ -166,6 +153,9 @@ System::Mark (void)
 
 	for (Function* func = funcs; func != NULL; func = func->fnext)
 		Value::Mark (func);
+
+	for(std::map<NameID,Type*>::iterator i = types.begin(); i != types.end(); ++i)
+		i->second->MarkMethods();
 
 	for (Pool* pool = pools; pool != NULL; pool = pool->next)
 		for (size_t i = 0; i < pool->argc; ++i)
