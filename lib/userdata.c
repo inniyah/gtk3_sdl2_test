@@ -25,38 +25,27 @@
  * DAMAGE.
  */
 
-#include <stdio.h>
 #include <malloc.h>
-#include <string.h>
-#include <stdarg.h>
+#include <stdlib.h>
 
 #include "scriptix.h"
 
-void *
-sx_malloc (SX_SYSTEM *system, unsigned long size) {
-	void *mem = malloc (size);
-	if (mem == NULL && system != NULL) {
-		sx_run_gc (system);
-		mem = malloc (size);
-	}
-	return mem;
-}
-
-void *
-sx_dupmem (SX_SYSTEM *system, void *mem, unsigned long size) {
-	void *new_mem = sx_malloc (system, size);
-	if (new_mem == NULL) {
-		return NULL;
-	}
-	memcpy (new_mem, mem, size);
-	return new_mem;
-}
-
-char *
-sx_strdup (SX_SYSTEM *system, char *str) {
-	if (str == NULL) {
+SX_VALUE *
+sx_new_userdata (SX_SYSTEM *system, void *data, sx_userdata_mark mark, sx_userdata_free free) {
+	SX_VALUE *ud = sx_malloc (system, sizeof (SX_VALUE));
+	if (ud == NULL) {
 		return NULL;
 	}
 
-	return sx_dupmem (system, str, strlen (str) + 1);
+	ud->data.userdata.data = data;
+	ud->data.userdata.mark = mark;
+	ud->data.userdata.free = free;
+	ud->type = SX_VALUE_USERDATA;
+	ud->locks = 0;
+	ud->flags = 0;
+	ud->gc_next = NULL;
+
+	sx_add_gc_value (system, ud);
+
+	return ud;
 }

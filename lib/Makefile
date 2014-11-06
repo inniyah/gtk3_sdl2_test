@@ -1,7 +1,19 @@
 CFLAGS := -g -Wall -I../include -O2 $(CFLAGS)
 LIBS := libscriptix.a libsxparse.a libsxstdlib.a
-SXOBJ := eval.o value.o var.o thread.o mem.o system.o class.o name.o
-YYOBJ := y.tab.o lex.sx.o
+SXOBJ := \
+	eval.o \
+	value.o \
+	var.o \
+	thread.o \
+	mem.o \
+	system.o \
+	class.o \
+	name.o \
+	error.o \
+	function.o \
+	userdata.o \
+	script.o
+YYOBJ := lex.sx.o y.tab.o 
 SLOBJ := stdlib.o
 OBJECTS := $(SXOBJ) $(YYOBJ) $(SLOBJ)
 #CC = ccmalloc gcc
@@ -37,4 +49,4 @@ dist-clean: clean
 
 install:
 	install -D -d $(DESTDIR)/$(prefix)/lib
-	install -s -m 0644 $(LIBS) $(DESTDIR)/$(prefix)/lib
+	install -m 0644 $(LIBS) $(DESTDIR)/$(prefix)/lib

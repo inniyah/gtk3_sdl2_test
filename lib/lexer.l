@@ -46,6 +46,11 @@
 	extern __INLINE__ void parser_add_line (void);
 
 	__INLINE__ void sxll_to_lower (char *buf);
+
+	#define YY_INPUT(b,r,m) sx_parser_input((b),&(r),(m))
+
+	char *sx_parser_inbuf = NULL;
+	void sx_parser_input (char *buf, int *result, int max);
 %}
 
 %x BCOMMENT
@@ -154,4 +159,29 @@ sx_lex_str_push (char c) {
 	sx_lex_str[sx_lex_str_i] = c;
 	if (sx_lex_str_i < SX_LEX_STR_MAX) 
 		++ sx_lex_str_i;
+}
+	
+void
+sx_parser_input (char *buf, int *result, int max_size) {
+	if (sx_parser_inbuf != NULL) {
+		int len = strlen (sx_parser_inbuf);
+		if (max_size > len) {
+			max_size = len;
+		}
+
+		memcpy (buf, sx_parser_inbuf, max_size);
+		sx_parser_inbuf += max_size;
+
+		*result = max_size;
+	} else {
+		errno = 0;
+		while ((*result = fread (buf, 1, max_size, sxin)) == 0 && ferror (sxin)) {
+			if (errno != EINTR) {
+				/* FIXME: error */
+				break;
+			}
+			errno = 0;
+			clearerr (sxin);
+		}
+	}
 }

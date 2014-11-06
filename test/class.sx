@@ -4,7 +4,6 @@ class k
 		global init = 16
 	end
 	function setvar (value)
-		printl ('in setvar')
 		self.var = value
 	end
 end

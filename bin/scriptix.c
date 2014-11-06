@@ -34,50 +34,24 @@
 int
 main (int argc, char **argv) {
 	SX_SYSTEM *system;
-	sx_script_id id;
-	unsigned int run_c = 1000000;
-	unsigned int thread_c = 1;
-	const char *env;
-
-	env = getenv ("SX_THREADS");
-	if (env) {
-		thread_c = atoi (env);
-		if (thread_c <= 0) {
-			fprintf (stderr, "Invalid number of threads: %d\n", thread_c);
-			return 1;
-		}
-	}
-
-	env = getenv ("SX_RUNCOUNT");
-	if (env) {
-		run_c = atoi (env);
-		if (run_c < 0 || (thread_c > 1 && run_c == 0)) {
-			fprintf (stderr, "Invalid run count %d for thread count %d\n", run_c, thread_c);
-			return 1;
-		}
-	}
+	int ret;
 
 	system = sx_create_system (argc - 1, argv + 1);
 	sx_init_stdlib (system);
 
-	if (argc > 1 && strcmp (argv[1], "-")) {
-		id = sx_load_file (system, argv[1]);
-	} else {
-		id = sx_load_file (system, NULL);
-	}
+	sx_load_string (system, "printl ('this is a string to eval')");
 
-	if (id == 0) {
-		sx_free_system (system);
-		return 1;
-	}
-	
-	while (thread_c -- >= 1) {
-		sx_start_thread (system, id);
+	if (argc > 1 && strcmp (argv[1], "-")) {
+		ret = sx_run_file (system, argv[1], NULL);
+	} else {
+		ret = sx_run_file (system, NULL, NULL);
 	}
 
 	while (system->valid_threads) {
-		sx_run (system, run_c);
+		sx_run (system, 0);
 	}
+
+	sx_free_system (system);
 
 	return 0;
 }

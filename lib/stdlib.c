@@ -32,46 +32,45 @@
 
 #include "scriptix.h"
 
-SX_VALUE *
-sx_stdlib_thread_id (SX_THREAD *thread, SX_VALUE *self, unsigned int argc, unsigned top) {
-	return sx_new_num ((long)thread >> 2);
+SX_DEFINE_CFUNC (sx_stdlib_get_tid) {
+	sx_push_value (sx_thread, sx_new_num ((long)sx_thread >> 2));
 }
 
-SX_VALUE *
-sx_stdlib_print (SX_THREAD *thread, SX_VALUE *self, unsigned int argc, unsigned int top) {
+SX_DEFINE_CFUNC (sx_stdlib_print) {
 	unsigned int i;
-	for (i = 0; i < argc; i ++) {
-		sx_print_value (sx_get_value (thread, top + i));
+	for (i = 0; i < sx_argc; i ++) {
+		sx_print_value (sx_thread->system, sx_get_value (sx_thread, sx_top + i));
 	}
-	return sx_new_nil ();
+	sx_push_value (sx_thread, NULL);
 }
 
-SX_VALUE *
-sx_stdlib_printl (SX_THREAD *thread, SX_VALUE *self, unsigned int argc, unsigned int top) {
-	sx_stdlib_print (thread, self, argc, top);
-	putchar ('\n');
-	return sx_new_nil ();
+SX_DEFINE_CFUNC (sx_stdlib_printl) {
+	sx_stdlib_print (sx_thread, sx_self, sx_data, sx_argc, sx_top);
+	sx_thread->system->print_hook ("\r\n");
+	sx_push_value (sx_thread, NULL);
 }
 
-SX_VALUE *
-sx_stdlib_concat (SX_THREAD *thread, SX_VALUE *self, unsigned int argc, unsigned int top) {
+SX_DEFINE_CFUNC (sx_stdlib_concat) {
 	SX_VALUE *ret, *one, *two;
 
-	if (argc != 2) {
-		return sx_new_nil ();
+	if (sx_argc != 2) {
+		sx_raise_error (sx_thread, sx_ArgumentError);
+		return;
 	}
 
-	one = sx_get_value (thread, top);
-	two = sx_get_value (thread, top + 1);
+	one = sx_get_value (sx_thread, sx_top);
+	two = sx_get_value (sx_thread, sx_top + 1);
 
 	if (sx_type_of (one) != sx_type_of (two)) {
-		return sx_new_nil ();
+		sx_raise_error (sx_thread, sx_TypeError);
+		return;
 	}
 
 	if (SX_ISSTRING (one)) {
-		ret = sx_new_str_len (thread->system, NULL, one->data.str.len + one->data.str.len);
+		ret = sx_new_str_len (sx_thread->system, NULL, one->data.str.len + one->data.str.len);
 		if (ret == NULL) {
-			return sx_new_nil ();
+			sx_raise_error (sx_thread, sx_MemError);
+			return;
 		}
 		if (one->data.str.len > 0) {
 			strcpy (SX_TOSTR (ret), SX_TOSTR (one));
@@ -79,18 +78,17 @@ sx_stdlib_concat (SX_THREAD *thread, SX_VALUE *self, unsigned int argc, unsigned
 		if (two->data.str.len > 0) {
 			strcpy (SX_TOSTR (ret) + one->data.str.len, SX_TOSTR (two));
 		}
-		return ret;
+		sx_push_value (sx_thread, ret);
 	} else if (SX_ISARRAY (two)) {
 		/* FIXME */
+		sx_push_value (sx_thread, one);
 	}
-
-	return sx_new_nil ();
 }
 
 void
 sx_init_stdlib (SX_SYSTEM *system) {
-	sx_define_cfunc (system, "print", sx_stdlib_print);
-	sx_define_cfunc (system, "printl", sx_stdlib_printl);
-	sx_define_cfunc (system, "concat", sx_stdlib_concat);
-	sx_define_cfunc (system, "get_tid", sx_stdlib_thread_id);
+	sx_define_cfunc (system, "print", sx_stdlib_print, NULL);
+	sx_define_cfunc (system, "printl", sx_stdlib_printl, NULL);
+	sx_define_cfunc (system, "concat", sx_stdlib_concat, NULL);
+	sx_define_cfunc (system, "get_tid", sx_stdlib_get_tid, NULL);
 }

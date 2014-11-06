@@ -115,53 +115,6 @@ sx_new_block (SX_SYSTEM *system) {
 }
 
 SX_VALUE *
-sx_new_func (SX_SYSTEM *system, SX_VALUE *args, SX_VALUE *body) {
-	SX_VALUE *value;
-
-	if (!SX_ISBLOCK (body)) {
-		return NULL;
-	}
-	if (!SX_ISNIL (args) && !SX_ISARRAY (args)) {
-		return NULL;
-	}
-	
-	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
-	if (value == NULL) {
-		return NULL;
-	}
-
-	value->type = SX_VALUE_FUNC;
-	value->data.func.args = args;
-	value->data.func.body = body;
-	value->data.func.cfunc = NULL;
-	value->locks = 0;
-	value->gc_next = NULL;
-	value->flags = 0;
-
-	sx_add_gc_value (system, value);
-
-	return value;
-}
-
-SX_VALUE *
-sx_new_cfunc (SX_SYSTEM *system, SX_VALUE *(*cfunc)(SX_THREAD *, SX_VALUE *self, unsigned int argc, unsigned int top)) {
-	SX_VALUE *value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
-	if (value == NULL) {
-		return NULL;
-	}
-
-	value->type = SX_VALUE_FUNC;
-	value->data.func.cfunc = cfunc;
-	value->locks = 0;
-	value->flags = 0;
-	value->gc_next = NULL;
-
-	sx_add_gc_value (system, value);
-
-	return value;
-}
-
-SX_VALUE *
 sx_new_array (SX_SYSTEM *system, unsigned int argc, SX_VALUE **argv) {
 	SX_VALUE *value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	if (value == NULL) {
@@ -263,23 +216,29 @@ sx_free_value (SX_VALUE *value) {
 		return;
 	}
 
-	if (SX_ISBLOCK (value)) {
-		if (value->data.block.nodes != NULL) {
-			sx_free (value->data.block.nodes);
-		}
-	} else if (SX_ISARRAY (value)) {
-		if (value->data.array.count > 0) {
-			sx_free (value->data.array.list);
-		}
-	} else if (SX_ISCLASS (value)) {
-		while (value->data.klass.members) {
-			rnext = value->data.klass.members->next;
-			sx_free_var (value->data.klass.members);
-			value->data.klass.members = rnext;
-		}
-		if (value->data.klass.free_data) {
-			value->data.klass.free_data (value->data.klass.data);
-		}
+	switch (sx_type_of (value)) {
+		case SX_VALUE_BLOCK:
+			if (value->data.block.nodes != NULL) {
+				sx_free (value->data.block.nodes);
+			}
+			break;
+		case SX_VALUE_ARRAY:
+			if (value->data.array.count > 0) {
+				sx_free (value->data.array.list);
+			}
+			break;
+		case SX_VALUE_CLASS:
+			while (value->data.klass.members) {
+				rnext = value->data.klass.members->next;
+				sx_free_var (value->data.klass.members);
+				value->data.klass.members = rnext;
+			}
+			break;
+		case SX_VALUE_USERDATA:
+			if (value->data.userdata.free) {
+				value->data.userdata.free (value->data.userdata.data);
+			}
+			break;
 	}
 
 	sx_free (value);
@@ -452,6 +411,32 @@ sx_get_index (SX_SYSTEM *system, SX_VALUE *cont, int index) {
 }
 
 SX_VALUE *
+sx_set_index (SX_SYSTEM *system, SX_VALUE *cont, int index, SX_VALUE *value) {
+	unsigned int len;
+
+	if (SX_ISARRAY (cont)) {
+		len = cont->data.array.count;
+		if (len == 0) {
+			return sx_new_nil ();
+		}
+		if (index < 0) {
+			index += len;
+			if (index < 0) {
+				index = 0;
+			}
+		}
+		if (index >= len) {
+			index = len - 1;
+		}
+		
+		cont->data.array.list[index] = value;
+		return value;
+	} else {
+		return NULL;
+	}
+}
+
+SX_VALUE *
 sx_get_section (SX_SYSTEM *system, SX_VALUE *base, int start, int end) {
 	unsigned int len;
 	if (SX_ISSTRING (base)) {
@@ -484,48 +469,48 @@ sx_get_section (SX_SYSTEM *system, SX_VALUE *base, int start, int end) {
 }
 
 void
-sx_print_value (SX_VALUE *value) {
+sx_print_value (SX_SYSTEM *system, SX_VALUE *value) {
 	int i;
 
 	switch (sx_type_of (value)) {
 		case SX_VALUE_NIL:
-			printf ("(nil)");
+			system->print_hook ("(nil)");
 			break;
 		case SX_VALUE_NUM:
-			printf ("%li", SX_TOINT (value));
+			system->print_hook ("%li", SX_TOINT (value));
 			break;
 		case SX_VALUE_STRING:
 			if (value->data.str.len > 0) {
-				printf ("%s", value->data.str.str);
+				system->print_hook ("%s", value->data.str.str);
 			}
 			break;
 		case SX_VALUE_BLOCK:
-			printf ("<block:%p>", value);
+			system->print_hook ("<block:%p>", value);
 			break;
 		case SX_VALUE_FUNC:
-			printf ("<func:%p>", value);
+			system->print_hook ("<func:%p>", value);
 			break;
 		case SX_VALUE_CLASS:
-			printf ("<class:%p>", value);
+			system->print_hook ("<class:%p>", value);
 			break;
 		case SX_VALUE_ARRAY:
 			if (value->data.array.count > 0) {
-				printf ("{");
-				sx_print_value (value->data.array.list[0]);
+				system->print_hook ("{");
+				sx_print_value (system, value->data.array.list[0]);
 				for (i = 1; i < value->data.array.count; i ++) {
-					printf (",");
-					sx_print_value (value->data.array.list[i]);
+					system->print_hook (",");
+					sx_print_value (system, value->data.array.list[i]);
 				}
-				printf ("}");
+				system->print_hook ("}");
 			} else {
-				printf ("{}");
+				system->print_hook ("{}");
 			}
 			break;
 		case SX_VALUE_RANGE:
-			printf ("(%d..%d)", value->data.range.start, value->data.range.end);
+			system->print_hook ("(%d..%d)", value->data.range.start, value->data.range.end);
 			break;
 		default:
-			printf ("<unknown:%d/%p>", sx_type_of (value), value);
+			system->print_hook ("<unknown:%d/%p>", sx_type_of (value), value);
 			break;
 	}
 }
@@ -554,6 +539,12 @@ sx_mark_value (SX_SYSTEM *system, SX_VALUE *value) {
 		case SX_VALUE_RANGE:
 			value->flags |= SX_VFLAG_MARK;
 			break;
+		case SX_VALUE_USERDATA:
+			value->flags |= SX_VFLAG_MARK;
+			if (value->data.userdata.mark) {
+				value->data.userdata.mark (system, value->data.userdata.data);
+			}
+			break;
 		case SX_VALUE_BLOCK:
 			value->flags |= SX_VFLAG_MARK;
 			for (i = 0; i < value->data.block.count; ++ i) {
@@ -564,9 +555,13 @@ sx_mark_value (SX_SYSTEM *system, SX_VALUE *value) {
 			break;
 		case SX_VALUE_FUNC:
 			value->flags |= SX_VFLAG_MARK;
-			if (value->data.func.cfunc != NULL) {
+			if (value->data.func.cfunc == NULL) {
 				sx_mark_value (system, value->data.func.args);
 				sx_mark_value (system, value->data.func.body);
+			} else {
+				if (value->data.func.data != NULL) {
+					sx_mark_value (system, value->data.func.data);
+				}
 			}
 			break;
 		case SX_VALUE_ARRAY:
@@ -577,13 +572,63 @@ sx_mark_value (SX_SYSTEM *system, SX_VALUE *value) {
 			break;
 		case SX_VALUE_CLASS:
 			value->flags |= SX_VFLAG_MARK;
-			if (value->data.klass.ref_data) {
-				value->data.klass.ref_data (system, value->data.klass.data);
-			}
-			sx_mark_value (system, value->data.klass.parent);
 			for (var = value->data.klass.members; var != NULL; var = var->next) {
 				sx_mark_value (system, var->value);
 			}
+			if (value->data.klass.parent != NULL) {
+				sx_mark_value (system, value->data.klass.parent);
+			}
+			if (value->data.klass.data != NULL) {
+				sx_mark_value (system, value->data.klass.data);
+			}
+			break;
+	}
+}
+
+SX_VALUE *
+sx_convert (SX_SYSTEM *system, SX_VALUE *value, int type) {
+	if (sx_type_of (value) == type) {
+		return value;
+	}
+
+	if (type == SX_VALUE_NIL) {
+		return NULL;
+	}
+
+	switch (sx_type_of (value)) {
+		case SX_VALUE_NIL:
+			return NULL;
+			break;
+		case SX_VALUE_NUM:
+			switch (type) {
+				/* convert num to string */
+				case SX_VALUE_STRING: {
+					char buffer[20];
+					snprintf (buffer, 20, "%ld", SX_TOINT (value));
+					return sx_new_str (system, buffer);
+					break;
+				}
+			}
+			/* no valid int conversion */
+			return NULL;
+			break;
+		case SX_VALUE_STRING:
+			switch (type) {
+				/* convert string to int */
+				case SX_VALUE_NUM:
+					if (SX_TOSTR (value) != NULL) {
+						return sx_new_num (atoi (SX_TOSTR (value)));
+					} else {
+						return sx_new_num (0);
+					}
+					break;
+			}
+			/* no valid string conversion */
+			return NULL;
+			break;
+		default:
+			/* no conversion for whatever type this is */
+			return NULL;
 			break;
 	}
 }

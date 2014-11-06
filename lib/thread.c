@@ -32,36 +32,26 @@
 
 #include "scriptix.h"
 
-SX_THREAD *
-sx_start_thread (SX_SYSTEM *system, sx_script_id id) {
-	SX_SCRIPT *script;
-
-	for (script = system->scripts; script != NULL; script = script->next) {
-		if (script->id == id) {
-			return sx_create_thread (system, script->block);
-		}
-	}
-
-	return NULL;
-}
-
-SX_THREAD *
-sx_create_thread (SX_SYSTEM *system, SX_VALUE *block) {
+sx_thread_id
+sx_create_thread (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *argv) {
 	SX_THREAD *thread;
+	static unsigned int _free_id = 0; /* ID tag for threds */
 
 	if (!SX_ISBLOCK (block)) {
-		return NULL;
+		return 0;
 	}
 
 	sx_lock_value (block);
+	sx_lock_value (argv);
 	
 	thread = (SX_THREAD *)sx_malloc (system, sizeof (SX_THREAD));
-	if (thread == NULL) {
-		/* FIXME: error */
-		return NULL;
-	}
 
 	sx_unlock_value (block);
+	sx_unlock_value (argv);
+
+	if (thread == NULL) {
+		return 0;
+	}
 
 	thread->system = system;
 	thread->main = block;
@@ -74,11 +64,17 @@ sx_create_thread (SX_SYSTEM *system, SX_VALUE *block) {
 	thread->data_size = 0;
 	thread->data = 0;
 	thread->ret = NULL;
-	thread->state = SX_STATE_READY;
+	thread->state = SX_STATE_RUN;
+	thread->id = ++_free_id;
 	system->threads = thread;
 	++ system->valid_threads;
 
-	return thread;
+	sx_push_call (thread, thread->main, NULL, SX_CFLAG_HARD);
+	if (SX_ISARRAY (argv)) {
+		sx_define_var (thread, sx_argv_id, argv, SX_SCOPE_LOCAL);
+	}
+
+	return thread->id;
 }
 
 void
@@ -169,6 +165,8 @@ sx_push_call (SX_THREAD *thread, SX_VALUE *block, SX_VALUE *klass, unsigned char
 
 	thread->call_stack[thread->call].vars = NULL;
 	thread->call_stack[thread->call].klass = klass;
+	thread->call_stack[thread->call].file = NULL;
+	thread->call_stack[thread->call].line = 1;
 	thread->call_stack[thread->call].flags = flags;
 	thread->call_stack[thread->call].block = block;
 	thread->call_stack[thread->call].op_ptr = 0;

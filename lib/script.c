@@ -31,32 +31,54 @@
 #include <stdarg.h>
 
 #include "scriptix.h"
+#include "config.h"
 
-void *
-sx_malloc (SX_SYSTEM *system, unsigned long size) {
-	void *mem = malloc (size);
-	if (mem == NULL && system != NULL) {
-		sx_run_gc (system);
-		mem = malloc (size);
+sx_script_id
+sx_new_script (SX_SYSTEM *system, char *name, char *path, SX_VALUE *block) {
+	SX_SCRIPT *script;
+	static unsigned int _free_id = 0; /* ID tag for scripts */
+
+	sx_lock_value (block);
+	script = sx_malloc (system, sizeof (SX_SCRIPT));
+	sx_unlock_value (block);
+
+	if (script == NULL) {
+		return 0;
 	}
-	return mem;
+
+	script->name = sx_strdup (system, name);
+	script->path = sx_strdup (system, path);
+
+	script->block = block;
+
+	script->next = system->scripts;
+	system->scripts = script;
+
+	script->id =  ++_free_id;
+	return script->id;
 }
 
-void *
-sx_dupmem (SX_SYSTEM *system, void *mem, unsigned long size) {
-	void *new_mem = sx_malloc (system, size);
-	if (new_mem == NULL) {
-		return NULL;
+void
+sx_free_script (SX_SCRIPT *script) {
+	if (script->name) {
+		sx_free (script->name);
 	}
-	memcpy (new_mem, mem, size);
-	return new_mem;
+	if (script->path) {
+		sx_free (script->path);
+	}
+
+	sx_free (script);
 }
 
-char *
-sx_strdup (SX_SYSTEM *system, char *str) {
-	if (str == NULL) {
-		return NULL;
+sx_thread_id
+sx_start_script (SX_SYSTEM *system, sx_script_id id, SX_VALUE *argv) {
+	SX_SCRIPT *script;
+
+	for (script = system->scripts; script != NULL; script = script->next) {
+		if (script->id == id) {
+			return sx_create_thread (system, script->block, argv);
+		}
 	}
 
-	return sx_dupmem (system, str, strlen (str) + 1);
+	return 0;
 }

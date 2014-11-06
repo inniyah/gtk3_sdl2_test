@@ -25,38 +25,29 @@
  * DAMAGE.
  */
 
-#include <stdio.h>
-#include <malloc.h>
-#include <string.h>
-#include <stdarg.h>
+#include <stdlib.h>
 
 #include "scriptix.h"
 
-void *
-sx_malloc (SX_SYSTEM *system, unsigned long size) {
-	void *mem = malloc (size);
-	if (mem == NULL && system != NULL) {
-		sx_run_gc (system);
-		mem = malloc (size);
-	}
-	return mem;
-}
+int
+sx_raise_error (SX_THREAD *thread, sx_name_id eid) {
+	SX_VAR *var;
 
-void *
-sx_dupmem (SX_SYSTEM *system, void *mem, unsigned long size) {
-	void *new_mem = sx_malloc (system, size);
-	if (new_mem == NULL) {
-		return NULL;
-	}
-	memcpy (new_mem, mem, size);
-	return new_mem;
-}
-
-char *
-sx_strdup (SX_SYSTEM *system, char *str) {
-	if (str == NULL) {
-		return NULL;
+	var = sx_get_system_var (thread->system, eid);
+	if (var != NULL) {
+		sx_push_value (thread, var->value);
+		thread->state = SX_STATE_ERROR;
+		return thread->state;
 	}
 
-	return sx_dupmem (system, str, strlen (str) + 1);
+	var = sx_get_system_var (thread->system, sx_name_to_id ("SXError"));
+	if (var != NULL) {
+		sx_push_value (thread, var->value);
+		thread->state = SX_STATE_ERROR;
+		return thread->state;
+	}
+
+	sx_push_value (thread, sx_new_nil ());
+	thread->state = SX_STATE_ERROR;
+	return thread->state;
 }

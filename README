@@ -23,8 +23,8 @@ The list of current Scriptix features include:
 Planned/future features (i.e. Todo list):
 
 	1.0:
-	Pre-emptive threading
 	General cleanups and bug fixes
+	Thread control
 	A moderate standard library, useful for simple embedding purposes
 	Use of exceptions where necessary
 

@@ -42,13 +42,17 @@ struct _scriptix_name_id *_scriptix_name_id_list = NULL;
 unsigned int _scriptix_free_name_id = 1;
 
 /* globals */
-sx_id sx_parent_id = 0;
-sx_id sx_self_id = 0;
-sx_id sx_init_id = 0;
-sx_id sx_error_id = 0;
-sx_id sx_etype_id = 0;
-sx_id sx_estack_id = 0;
-sx_id sx_ename_id = 0;
+sx_name_id sx_parent_id = 0;
+sx_name_id sx_self_id = 0;
+sx_name_id sx_init_id = 0;
+sx_name_id sx_error_id = 0;
+sx_name_id sx_argv_id = 0;
+
+sx_name_id sx_TypeError = 0;
+sx_name_id sx_StackError = 0;
+sx_name_id sx_NameError = 0;
+sx_name_id sx_ArgumentError = 0;
+sx_name_id sx_MemError = 0;
 
 unsigned int
 sx_name_to_id (const char *name) {
@@ -78,7 +82,7 @@ sx_name_to_id (const char *name) {
 }
 
 const char *
-sx_id_to_name (unsigned int id) {
+sx_name_id_to_name (unsigned int id) {
 	struct _scriptix_name_id *ni;
 
 	if (!id) {
@@ -105,7 +109,11 @@ sx_init_ids (void) {
 	sx_self_id = sx_name_to_id ("self");
 	sx_init_id = sx_name_to_id ("init");
 	sx_error_id = sx_name_to_id ("error");
-	sx_etype_id = sx_name_to_id ("TypeError");
-	sx_estack_id = sx_name_to_id ("StackError");
-	sx_ename_id = sx_name_to_id ("NameError");
+	sx_argv_id = sx_name_to_id ("argv");
+
+	sx_TypeError = sx_name_to_id ("TypeError");
+	sx_StackError = sx_name_to_id ("StackError");
+	sx_NameError = sx_name_to_id ("NameError");
+	sx_ArgumentError = sx_name_to_id ("ArgumentError");
+	sx_MemError = sx_name_to_id ("MemError");
 }

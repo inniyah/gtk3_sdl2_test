@@ -29,6 +29,7 @@
 	#include <stdlib.h>
 	#include <stdio.h>
 	#include <string.h>
+	#include <errno.h>
 
 	#include "scriptix.h"
 
@@ -58,6 +59,8 @@
 	int sxparse (void);
 
 	SX_VALUE *temp_val;
+
+	extern char *sx_parser_inbuf;
 
 	#define pushv(v) (sx_add_value (parse_system, parser_top (), (v)))
 	#define pushn(o) (sx_add_stmt (parse_system, parser_top (), (o)))
@@ -321,7 +324,13 @@ append_to_array (SX_VALUE *array, SX_VALUE *value) {
 
 int
 sxerror (char *str) {
-	fprintf (stderr, "ERROR: line %d: %s\n", parse_lineno, str);
+	if (parse_system->error_hook != NULL) {
+		char buffer[512];
+		snprintf (buffer, 512, "Parse Error: line %d: %s", parse_lineno, str);
+		parse_system->error_hook (buffer);
+	} else {
+		fprintf (stderr, "Scriptix Parse Error: line %d: %s\n", parse_lineno, str);
+	}
 	return 1;
 }
 
@@ -341,7 +350,6 @@ cleanup_parser (void) {
 sx_script_id
 sx_load_file (SX_SYSTEM *system, char *file) {
 	int ret, flags;
-	SX_SCRIPT *script;
 
 	if (file == NULL) {
 		sxin = stdin;
@@ -373,28 +381,150 @@ sx_load_file (SX_SYSTEM *system, char *file) {
 		fclose (sxin);
 	}
 
+	sx_lock_value (parse_block);
+
+	cleanup_parser ();
+	sx_run_gc (system);
+
+	sx_unlock_value (parse_block);
+
 	if (ret) {
-		cleanup_parser ();
 		return 0;
+	}
+
+	return sx_new_script (system, NULL, file, parse_block);
+}
+
+sx_script_id
+sx_load_string (SX_SYSTEM *system, char *str) {
+	int ret, flags;
+
+	if (str == NULL) {
+		return 0;
+	}
+
+	parse_system = system;
+	parse_block = sx_new_block (system);
+	if (parse_block == NULL) {
+		return 0;
+	}
+
+	sx_parser_inbuf = str;
+
+	flags = system->flags;
+	system->flags |= SX_SFLAG_GCOFF;
+	parser_push (parse_block);
+	ret = sxparse ();
+	parser_pop ();
+	system->flags = flags;
+
+	sx_parser_inbuf = NULL;
+
+	sx_lock_value (parse_block);
+
+	cleanup_parser ();
+	sx_run_gc (system);
+
+	sx_unlock_value (parse_block);
+
+	if (ret) {
+		return 0;
+	}
+
+	return sx_new_script (system, NULL, NULL, parse_block);
+}
+
+sx_thread_id
+sx_run_file (SX_SYSTEM *system, char *file, SX_VALUE *argv) {
+	int ret, flags;
+
+	if (file == NULL) {
+		sxin = stdin;
+	} else {
+		sxin = fopen (file, "r");
+		if (sxin == NULL) {
+			fprintf (stderr, "Could not open '%s'\n", file);
+			return 0;
+		}
+	}
+
+	parse_system = system;
+	sx_lock_value (argv);
+	parse_block = sx_new_block (system);
+	sx_unlock_value (argv);
+	if (parse_block == NULL) {
+		if (sxin != NULL) {
+			fclose (sxin);
+		}
+		return 0;
+	}
+
+	flags = system->flags;
+	system->flags |= SX_SFLAG_GCOFF;
+	parser_push (parse_block);
+	ret = sxparse ();
+	parser_pop ();
+	system->flags = flags;
+
+	if (file != NULL) {
+		fclose (sxin);
 	}
 
 	sx_lock_value (parse_block);
-	sx_run_gc (system);
+	sx_lock_value (argv);
 
 	cleanup_parser ();
+	sx_run_gc (system);
 
-	script = sx_malloc (system, sizeof (SX_SCRIPT));
 	sx_unlock_value (parse_block);
-	if (script == NULL) {
+	sx_unlock_value (argv);
+
+	if (ret) {
 		return 0;
 	}
 
-	script->block = parse_block;
-	script->name = NULL;
-	script->path = NULL;
-	script->id = 0;
-	script->next = NULL;
-	sx_add_script (system, script);
+	return sx_create_thread (system, parse_block, argv);
+}
 
-	return script->id;
+sx_thread_id
+sx_run_string (SX_SYSTEM *system, char *str, SX_VALUE *argv) {
+	int ret, flags;
+
+	if (str == NULL) {
+		return 0;
+	}
+
+	parse_system = system;
+	sx_lock_value (argv);
+	parse_block = sx_new_block (system);
+	sx_unlock_value (argv);
+	if (parse_block == NULL) {
+		return 0;
+	}
+
+	sx_parser_inbuf = str;
+
+	flags = system->flags;
+	system->flags |= SX_SFLAG_GCOFF;
+	parser_push (parse_block);
+	ret = sxparse ();
+	parser_pop ();
+	system->flags = flags;
+
+	sx_parser_inbuf = NULL;
+
+	sx_lock_value (parse_block);
+	sx_lock_value (argv);
+
+	cleanup_parser ();
+	sx_run_gc (system);
+
+	sx_unlock_value (parse_block);
+	sx_unlock_value (argv);
+
+	if (ret) {
+		return 0;
+	}
+
+	return sx_create_thread (system, parse_block, argv);
 }

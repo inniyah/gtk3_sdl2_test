@@ -47,16 +47,6 @@ _sx_search_call (SX_CALL *call, unsigned int id) {
 }
 
 SX_VALUE *
-sx_define_cfunc (SX_SYSTEM *system, char *name, SX_VALUE *(*func)(SX_THREAD *, SX_VALUE *, unsigned int, unsigned int)) {
-	SX_VALUE *cfunc = sx_new_cfunc (system, func);
-	if (cfunc == NULL) {
-		return NULL;
-	}
-
-	return sx_define_system_var (system, sx_name_to_id (name), cfunc);
-}
-
-SX_VALUE *
 sx_define_var (SX_THREAD *thread, unsigned int id, SX_VALUE *value, int scope) {
 	SX_VAR *var;
 	int c;

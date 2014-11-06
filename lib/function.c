@@ -34,22 +34,48 @@
 #include "scriptix.h"
 
 SX_VALUE *
-sx_new_class (SX_SYSTEM *system, SX_VALUE *parent, SX_VALUE *userdata) {
+sx_new_func (SX_SYSTEM *system, SX_VALUE *args, SX_VALUE *body) {
 	SX_VALUE *value;
 
-	sx_lock_value (parent);
-	sx_lock_value (userdata);
+	if (!SX_ISBLOCK (body)) {
+		return NULL;
+	}
+	if (!SX_ISNIL (args) && !SX_ISARRAY (args)) {
+		return NULL;
+	}
+	
 	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
-	sx_unlock_value (userdata);
-	sx_unlock_value (parent);
 	if (value == NULL) {
 		return NULL;
 	}
 
-	value->type = SX_VALUE_CLASS;
-	value->data.klass.parent = parent;
-	value->data.klass.members = NULL;
-	value->data.klass.data = userdata;
+	value->type = SX_VALUE_FUNC;
+	value->data.func.args = args;
+	value->data.func.body = body;
+	value->data.func.cfunc = NULL;
+	value->locks = 0;
+	value->gc_next = NULL;
+	value->flags = 0;
+
+	sx_add_gc_value (system, value);
+
+	return value;
+}
+
+SX_VALUE *
+sx_new_cfunc (SX_SYSTEM *system, sx_cfunc func, SX_VALUE *data) {
+	SX_VALUE *value;
+	
+	sx_lock_value (data);
+	value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
+	sx_unlock_value (data);
+	if (value == NULL) {
+		return NULL;
+	}
+
+	value->type = SX_VALUE_FUNC;
+	value->data.func.cfunc = func;
+	value->data.func.data = data;
 	value->locks = 0;
 	value->flags = 0;
 	value->gc_next = NULL;
@@ -59,82 +85,12 @@ sx_new_class (SX_SYSTEM *system, SX_VALUE *parent, SX_VALUE *userdata) {
 	return value;
 }
 
-int
-sx_class_is_a (SX_VALUE *klass, SX_VALUE *par) {
-	if (!SX_ISCLASS (klass) || !SX_ISCLASS (par)) {
-		return 0;
-	}
-
-	while (klass != NULL && klass != par) {
-		klass = klass->data.klass.parent;
-	}
-
-	return klass != NULL;
-}
-
-SX_VAR *
-sx_set_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id, SX_VALUE *value) {
-	SX_VAR *var;
-
-	for (var = klass->data.klass.members; var != NULL; var = var->next) {
-		if (id == var->id) {
-			var->value = value;
-			return var;
-		}
-	}
-
-	sx_lock_value (klass);
-	sx_lock_value (value);
-
-	var = (SX_VAR *)sx_malloc (system, sizeof (SX_VAR));
-
-	sx_unlock_value (klass);
-	sx_unlock_value (value);
-
-	if (var == NULL) {
-		return NULL;
-	}
-
-	var->id = id;
-	var->value = value;
-	var->next = klass->data.klass.members;
-	klass->data.klass.members = var;
-
-	return var;
-}
-
 SX_VALUE *
-sx_get_member (SX_VALUE *klass, sx_name_id id) {
-	SX_VAR *var;
-
-	if (id == sx_name_to_id ("parent")) {
-		return klass->data.klass.parent;
-	}
-
-	var = sx_find_member (klass, id);
-	if (var != NULL) {
-		return var->value;
-	} else {
-		return sx_new_nil ();
-	}
-}
-
-SX_VAR *
-sx_find_member (SX_VALUE *klass, sx_name_id id) {
-	SX_VAR *var;
-
-	if (!SX_ISCLASS (klass)) {
+sx_define_cfunc (SX_SYSTEM *system, char *name, sx_cfunc func, SX_VALUE *data) {
+	SX_VALUE *cfunc = sx_new_cfunc (system, func, data);
+	if (cfunc == NULL) {
 		return NULL;
 	}
 
-	while (klass != NULL) {
-		for (var = klass->data.klass.members; var != NULL; var = var->next) {
-			if (id == var->id) {
-				return var;
-			}
-		}
-		klass = klass->data.klass.parent;
-	}
-
-	return NULL;
+	return sx_define_system_var (system, sx_name_to_id (name), cfunc);
 }
