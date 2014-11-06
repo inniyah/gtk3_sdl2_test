@@ -1,44 +1,61 @@
-class test
-	function set_name (name)
-		self.name = name
-	end
-	function get_name ()
-		self.name
-	end
-end
+class test {
+	init (name) {
+		self.name = name;
+	}
+	set_name (new_name) {
+		name = new_name;
+	}
+	get_name () {
+		return name;
+	}
+}
 
-class child : test
-	function set_name (name)
-		self.name = concat ('child ', name)
-	end
-end
+class child : test {
+	init (name) {
+		self.name = string::concat ('init ', name);
+	}
+	set_name (new_name) {
+		name = string::concat ('child ', new_name);
+	}
+}
 
-a = new test
-b = new child
+main () {
+	a = new test ('abc');
+	b = new child ('def');
 
-if a == b then
-	printl ('== test failed')
-	return 1
-end
+	if (a == b) {
+		printl ('== test failed');
+		return 1;
+	}
 
-a.set_name ('test')
-b.set_name ('test')
+	if (a.get_name () != 'abc' || b.get_name () != 'init def') {
+		printl ('get_name/set_name w/ init failed');
+		return 1;
+	}
 
-if b.get_name () != 'child test' or a.get_name () != 'test' then
-	printl ('get_name/set_name failed')
-	return 1
-end
+	a.set_name ('test');
+	b.set_name ('test');
 
-if ! a isa test then
-	printl ('a isa failed')
-end
+	if (b.get_name () != 'child test' || a.get_name () != 'test') {
+		printl ('get_name/set_name failed');
+		return 1;
+	}
 
-if ! b isa test then
-	printl ('b isa test failed')
-end
+	if (b isa array) {
+		printl ('b isa array invalid');
+	}
 
-if ! b isa child then
-	printl ('b isa child failed')
-end
+	if (! a isa test) {
+		printl ('a isa failed');
+	}
 
-printl ('success')
+	if (! b isa test) {
+		printl ('b isa test failed');
+	}
+
+	if (! b isa child) {
+		printl ('b isa child failed');
+	}
+
+	printl ('success');
+}

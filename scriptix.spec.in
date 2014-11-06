@@ -35,6 +35,8 @@ rm -rf $RPM_BUILD_ROOT
 /usr/include/scriptix/config.h
 /usr/lib/libscriptix.a
 /usr/lib/libsxparse.a
+/usr/lib/libscriptix.so.@BASE_VERSION@
+/usr/lib/libsxparse.so.@BASE_VERSION@
 
 %changelog
 * Wed Apr 03 2002 Sean Middleditch <elanthis@awesomeplay.com>

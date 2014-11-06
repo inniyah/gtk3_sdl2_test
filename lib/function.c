@@ -33,101 +33,79 @@
 
 #include "scriptix.h"
 
-/* internal function stuff */
-SX_VALUE *
-_sx_function_new (SX_SYSTEM *system, SX_CLASS *klass) {
+void
+sx_mark_func (SX_SYSTEM *system, SX_FUNC *func) {
+	if (func->args != NULL) {
+		sx_mark_value (system, (SX_VALUE *)func->args);
+	}
+	if (func->body != NULL) {
+		sx_mark_value (system, (SX_VALUE *)func->body);
+	}
+	if (func->data != NULL) {
+		sx_mark_value (system, func->data);
+	}
+}
+
+SX_FUNC *
+sx_new_func (SX_SYSTEM *system, sx_name_id id, SX_ARRAY *args, SX_BLOCK *body) {
+	SX_FUNC *func;
+
+	sx_lock_value ((SX_VALUE *)args);
+	sx_lock_value ((SX_VALUE *)body);
+	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
+	sx_unlock_value ((SX_VALUE *)body);
+	sx_unlock_value ((SX_VALUE *)args);
+	if (func == NULL) {
+		return NULL;
+	}
+
+	func->id = id;
+	func->args = args;
+	func->body = body;
+	func->cfunc = NULL;
+
+	func->next = system->funcs;
+	system->funcs = func;
+
+	return func;
+}
+
+SX_FUNC *
+sx_new_cfunc (SX_SYSTEM *system, sx_name_id id, sx_cfunc cfunc, SX_VALUE *data) {
+	SX_FUNC *func ;
+	
+	sx_lock_value (data);
+	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
+	sx_unlock_value (data);
+	if (func == NULL) {
+		return NULL;
+	}
+
+	func->cfunc = cfunc;
+	func->body = NULL;
+	func->args = NULL;
+	func->data = data;
+	func->id = id;
+
+	func->next = system->funcs;
+	system->funcs = func;
+
+	return func;
+}
+
+SX_FUNC *
+sx_get_func (SX_SYSTEM *system, sx_name_id name) {
+	SX_FUNC *func;
+
+	for (func = system->funcs; func != NULL; func = func->next) {
+		if (func->id == name)
+			return func;
+	}
+		
 	return NULL;
 }
 
 void
-_sx_function_mark (SX_SYSTEM *system, SX_FUNC *value) {
-	if (value->cfunc == NULL) {
-		sx_mark_value (system, value->args);
-		sx_mark_value (system, value->body);
-	} else {
-		if (value->data != NULL) {
-			sx_mark_value (system, value->data);
-		}
-	}
-}
-
-int
-_sx_function_equal (SX_SYSTEM *system, SX_FUNC *one, SX_FUNC *two) {
-	if (one->cfunc != NULL) {
-		return one->cfunc == two->cfunc;
-	} else {
-		return one->args == two->args && one->body == two->body;
-	}
-}
-
-SX_CLASS *
-sx_init_function (SX_SYSTEM *system) {
-	SX_CLASS *klass;
-
-	klass = sx_new_core_class (system, sx_name_to_id ("Function"));
-	if (klass == NULL) {
-		return NULL;
-	}
-
-	klass->core->fnew = (sx_class_new)_sx_function_new;
-	klass->core->fmark = (sx_class_mark)_sx_function_mark;
-	klass->core->fequal = (sx_class_equal)_sx_function_equal;
-
-	return klass;
-}
-
-SX_VALUE *
-sx_new_func (SX_SYSTEM *system, SX_VALUE *args, SX_VALUE *body) {
-	SX_FUNC *value;
-
-	if (!SX_ISBLOCK (system, body)) {
-		return NULL;
-	}
-	if (!SX_ISNIL (system, args) && !SX_ISARRAY (system, args)) {
-		return NULL;
-	}
-	
-	value = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
-	if (value == NULL) {
-		return NULL;
-	}
-
-	value->args = args;
-	value->body = body;
-	value->cfunc = NULL;
-
-	sx_clear_value (system, &value->header, system->cfunction);
-
-	return (SX_VALUE *)value;
-}
-
-SX_VALUE *
-sx_new_cfunc (SX_SYSTEM *system, sx_cfunc func, SX_VALUE *data) {
-	SX_FUNC *value;
-	
-	sx_lock_value (data);
-	value = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
-	sx_unlock_value (data);
-	if (value == NULL) {
-		return NULL;
-	}
-
-	value->cfunc = func;
-	value->body = NULL;
-	value->args = NULL;
-	value->data = data;
-
-	sx_clear_value (system, &value->header, system->cfunction);
-
-	return (SX_VALUE *)value;
-}
-
-SX_VALUE *
-sx_define_cfunc (SX_SYSTEM *system, const char *name, sx_cfunc func, SX_VALUE *data) {
-	SX_VALUE *cfunc = sx_new_cfunc (system, func, data);
-	if (cfunc == NULL) {
-		return NULL;
-	}
-
-	return sx_define_system_var (system, sx_name_to_id (name), cfunc);
+sx_free_func (SX_FUNC *func) {
+	sx_free (func);
 }

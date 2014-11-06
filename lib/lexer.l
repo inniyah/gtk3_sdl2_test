@@ -32,6 +32,7 @@
 	#include <errno.h>
 
 	#include "scriptix.h"
+	#include "parser.h"
 	#include "y.tab.h"
 
 	#define SX_LEX_STR_MAX 1024
@@ -43,7 +44,7 @@
 	__INLINE__ void sx_lex_str_escape (char esc);
 	__INLINE__ void sx_lex_str_push (char c);
 
-	extern SX_SYSTEM *parse_system;
+	extern SXP_INFO *parse_info;
 	extern __INLINE__ void parser_add_line (void);
 
 	__INLINE__ void sxll_to_lower (char *buf);
@@ -73,30 +74,25 @@
 <SSTRING>[^'\n] { sx_lex_str_push (yytext[0]); }
 <DSTRING>[^"\n] { sx_lex_str_push (yytext[0]); }
 <SSTRING,DSTRING>[\n] { parser_add_line (); sx_lex_str_push ('\n'); }
-<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_system, sx_lex_str); return TSTR; } 
-<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_system, sx_lex_str); return TSTR; } 
+<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_info->system, sx_lex_str); return TSTR; } 
+<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; sxlval.value = sx_new_str (parse_info->system, sx_lex_str); return TSTR; } 
 
 [ \t]+ { /* IGNORE */ }
 "/*"  { BEGIN BCOMMENT; }
+"//"  { BEGIN LCOMMENT; }
 # { BEGIN LCOMMENT; }
-[\n] { parser_add_line (); return TSEP; }
-; { return TSEP; } 
+[\n] { parser_add_line (); }
 [a-zA-Z_][a-zA-Z0-9_]* { 
 		sxll_to_lower (yytext);
 		LEX_NAME("if", TIF)
-		LEX_NAME("then", TTHEN)
 		LEX_NAME("else", TELSE)
-		LEX_NAME("end", TEND)
 		LEX_NAME("while", TWHILE)
 		LEX_NAME("do", TDO)
-		LEX_NAME("or", TOR)
-		LEX_NAME("and", TAND)
+		LEX_NAME("until", TUNTIL)
 		LEX_NAME("return", TRETURN)
 		LEX_NAME("break", TBREAK)
-		LEX_NAME("function", TFUNC)
 		LEX_NAME("local", TLOCAL)
 		LEX_NAME("global", TGLOBAL)
-		LEX_NAME("length", TLENGTH)
 		LEX_NAME("class", TCLASS)
 		LEX_NAME("new", TNEW)
 		LEX_NAME("isa", TISA)
@@ -106,7 +102,8 @@
 		LEX_NAME("try", TTRY)
 		LEX_NAME("in", TIN)
 		LEX_NAME("for", TFOR)
-		LEX_NAME("step", TSTEP)
+		LEX_NAME("continue", TCONTINUE)
+		LEX_NAME("static", TSTATIC)
 		{
 			strncpy (sxlval.name, yytext, SX_MAX_NAME);
 			sxlval.name[SX_MAX_NAME] = 0;
@@ -121,9 +118,10 @@
 -= { return TSUBASSIGN; }
 "++" { return TINCREMENT; }
 "--" { return TDECREMENT; }
-"->" { return TMETHOD; }
+"||" { return TOR; }
+"&&" { return TAND; }
 != { return TNE; }
-".." { return TRANGE; }
+:: { return TSTATMETHOD; }
 ' { sx_lex_str_i = 0; BEGIN SSTRING; }
 \" { sx_lex_str_i = 0; BEGIN DSTRING; }
 . { return yytext[0]; }

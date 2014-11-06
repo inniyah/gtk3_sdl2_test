@@ -49,15 +49,14 @@ _sx_search_call (SX_CALL *call, unsigned int id) {
 SX_VALUE *
 sx_define_var (SX_THREAD *thread, unsigned int id, SX_VALUE *value, int scope) {
 	SX_VAR *var;
-	int c;
 
 	if (scope == SX_SCOPE_GLOBAL) {
 		return sx_define_system_var (thread->system, id, value);
 	}
 
 	if (scope == SX_SCOPE_CLASS) {
-		if (thread->cur_class != NULL) {
-			var = sx_set_member (thread->system, thread->cur_class, id, value);
+		if (thread->call_stack[thread->call - 1].klass != NULL) {
+			var = sx_set_member (thread->system, thread->call_stack[thread->call - 1].klass, id, value);
 			return var->value;
 		} else {
 			return sx_new_nil ();
@@ -82,16 +81,8 @@ sx_define_var (SX_THREAD *thread, unsigned int id, SX_VALUE *value, int scope) {
 	var->value = value;
 	var->flags = 0;
 
-	for (c = thread->call - 1; c >= 0; -- c) {
-		if ((thread->call_stack[c].flags & SX_CFLAG_VARS) != 0) {
-			var->next = thread->call_stack[c].vars;
-			thread->call_stack[c].vars = var;
-			break;
-		}
-		if ((thread->call_stack[c].flags & SX_CFLAG_HARD) != 0 && c != 0) {
-			c = 1; /* next loop, c will == 0, thus scan thread scope */
-		}
-	}
+	var->next = thread->call_stack[thread->call - 1].vars;
+	thread->call_stack[thread->call - 1].vars = var;
 
 	return value;
 }
@@ -127,7 +118,6 @@ sx_define_system_var (SX_SYSTEM *system, unsigned int id, SX_VALUE *value) {
 SX_VAR *
 sx_get_var (SX_THREAD *thread, unsigned int id, int scope) {
 	SX_VAR *var;
-	int c = 0;
 
 	/* local search only */
 	if (scope == SX_SCOPE_LOCAL) {
@@ -136,22 +126,22 @@ sx_get_var (SX_THREAD *thread, unsigned int id, int scope) {
 
 	/* default - search thru calls until top/hard call break */
 	if (scope == SX_SCOPE_DEF) {
-		for (c = thread->call - 1; c >= 0; -- c) {
-			if ((thread->call_stack[c].flags & SX_CFLAG_VARS) != 0) {
-				var = _sx_search_call (&thread->call_stack[c], id);
-				if (var != NULL) {
-					return var;
-				}
-			}
-			if ((thread->call_stack[c].flags & SX_CFLAG_HARD) != 0 && c != 0) {
-				c = 1; /* next loop, c will == 0, thus scan thread scope */
+		var = _sx_search_call (&thread->call_stack[thread->call - 1], id);
+		if (var != NULL) {
+			return var;
+		}
+
+		if (thread->call > 1) {
+			var = _sx_search_call (&thread->call_stack[0], id);
+			if (var != NULL) {
+				return var;
 			}
 		}
 	}
 
 	if (scope != SX_SCOPE_GLOBAL) {
-		if (thread->cur_class != NULL) {
-			var = sx_find_member (thread->system, thread->cur_class, id);
+		if (thread->call_stack[thread->call - 1].klass != NULL) {
+			var = sx_find_member (thread->system, thread->call_stack[thread->call - 1].klass, id);
 			if (var != NULL) {
 				return var;
 			}

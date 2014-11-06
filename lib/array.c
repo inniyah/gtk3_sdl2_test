@@ -55,15 +55,15 @@ void
 _sx_array_print (SX_SYSTEM *system, SX_ARRAY *value) {
 	unsigned int i;
 	if (value->count > 0) {
-		system->print_hook ("{");
+		system->print_hook ("[");
 		sx_print_value (system, value->list[0]);
 		for (i = 1; i < value->count; i ++) {
 			system->print_hook (",");
 			sx_print_value (system, value->list[i]);
 		}
-		system->print_hook ("}");
+		system->print_hook ("]");
 	} else {
-		system->print_hook ("{}");
+		system->print_hook ("[]");
 	}
 }
 
@@ -124,6 +124,40 @@ _sx_array_set_index (SX_SYSTEM *system, SX_ARRAY *array, int index, SX_VALUE *va
 	return array->list[index] = value;
 }
 
+SX_VALUE *
+_sx_array_append (SX_SYSTEM *system, SX_ARRAY *array, SX_VALUE *add) {
+	SX_VALUE **nlist;
+
+	if (array->count > 0) {
+		sx_lock_value ((SX_VALUE *)array);
+		sx_lock_value (add);
+		nlist = (SX_VALUE **)sx_malloc (system, (array->count + 1) * sizeof (SX_VALUE *));
+		sx_unlock_value (add);
+		sx_unlock_value ((SX_VALUE *)array);
+		if (nlist == NULL) {
+			return NULL;
+		}
+		memcpy (nlist, array->list, array->count * sizeof (SX_VALUE *));
+		sx_free (array->list);
+		array->list = nlist;
+		array->list[array->count] = add;
+		array->count += 1;
+	} else {
+		sx_lock_value ((SX_VALUE *)array);
+		sx_lock_value (add);
+		array->list = (SX_VALUE **)sx_malloc (system, sizeof (SX_VALUE *));
+		sx_unlock_value (add);
+		sx_unlock_value ((SX_VALUE *)array);
+		if (array->list == NULL) {
+			return NULL;
+		}
+		array->list[0] = add;
+		array->count = 1;
+	}
+
+	return (SX_VALUE *)array;
+}
+
 SX_CLASS *
 sx_init_array (SX_SYSTEM *system) {
 	SX_CLASS *klass;
@@ -140,6 +174,7 @@ sx_init_array (SX_SYSTEM *system) {
 	klass->core->ftrue = (sx_class_true)_sx_array_true;
 	klass->core->fgetindex = (sx_class_get_index)_sx_array_get_index;
 	klass->core->fsetindex = (sx_class_set_index)_sx_array_set_index;
+	klass->core->fappend = (sx_class_append)_sx_array_append;
 
 	return klass;
 }
@@ -178,8 +213,8 @@ sx_new_array (SX_SYSTEM *system, unsigned int argc, SX_VALUE **argv) {
 }
 
 SX_VALUE *
-sx_new_stack_array (SX_THREAD *thread, unsigned int argc, unsigned int top) {
-	unsigned int i;
+sx_new_stack_array (SX_THREAD *thread, unsigned long argc, long top) {
+	long i;
 	SX_ARRAY *value = (SX_ARRAY *)sx_malloc (thread->system, sizeof (SX_ARRAY));
 	if (value == NULL) {
 		return NULL;

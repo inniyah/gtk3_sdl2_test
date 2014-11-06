@@ -32,34 +32,27 @@
 
 #include "scriptix.h"
 
-sx_thread_id
-sx_create_thread (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *argv) {
+SX_THREAD *
+sx_create_thread (SX_SYSTEM *system, SX_FUNC *func, SX_ARRAY *argv) {
 	SX_THREAD *thread;
 	static unsigned int _free_id = 0; /* ID tag for threads */
+	unsigned long i;
 
-	if (!SX_ISBLOCK (system, block)) {
-		return 0;
-	}
-
-	sx_lock_value (block);
-	sx_lock_value (argv);
+	sx_lock_value ((SX_VALUE *)argv);
 	
 	thread = (SX_THREAD *)sx_malloc (system, sizeof (SX_THREAD));
 
-	sx_unlock_value (block);
-	sx_unlock_value (argv);
+	sx_unlock_value ((SX_VALUE *)argv);
 
 	if (thread == NULL) {
-		return 0;
+		return NULL;
 	}
 
 	thread->system = system;
-	thread->main = block;
 	thread->next = system->threads;
 	thread->call_stack = NULL;
 	thread->call_size = 0;
 	thread->call = 0;
-	thread->cur_class = NULL;
 	thread->data_stack = NULL;
 	thread->data_size = 0;
 	thread->data = 0;
@@ -71,12 +64,16 @@ sx_create_thread (SX_SYSTEM *system, SX_VALUE *block, SX_VALUE *argv) {
 	system->threads = thread;
 	++ system->valid_threads;
 
-	sx_push_call (thread, thread->main, NULL, SX_CFLAG_HARD);
-	if (SX_ISARRAY (system, argv)) {
-		sx_define_var (thread, sx_argv_id, argv, SX_SCOPE_LOCAL);
+	if (argv != NULL) {
+		for (i = 0; i < SX_TOARRAY(argv)->count; ++ i) {
+			sx_push_value (thread, argv->list[i]);
+		}
+		sx_push_call (thread, func, NULL, argv->count);
+	} else {
+		sx_push_call (thread, func, NULL, 0);
 	}
 
-	return thread->id;
+	return thread;
 }
 
 void
@@ -94,6 +91,35 @@ sx_end_thread (SX_THREAD *thread) {
 	}
 
 	sx_free_thread (thread);
+}
+
+SX_THREAD *
+sx_create_thread_v (SX_SYSTEM *system, SX_FUNC *func, unsigned int argc, ...) {
+	SX_VALUE *array;
+	SX_VALUE *value;
+	unsigned int i;
+	va_list va;
+
+	if (argc > 0) {
+		va_start (va, argc);
+		for (i = 0; i <= argc; ++ i) {
+			value = va_arg (va, SX_VALUE *);
+			sx_lock_value (value);
+		}
+		va_end (va);
+		array = sx_new_array (system, argc, NULL);
+		va_start (va, argc);
+		for (i = 0; i <= argc; ++ i) {
+			value = va_arg (va, SX_VALUE *);
+			((SX_ARRAY *)array)->list[i] = value;
+			sx_unlock_value (value);
+		}
+		va_end (va);
+
+		return sx_create_thread (system, func, (SX_ARRAY *)array);
+	} else {
+		return sx_create_thread (system, func, NULL);
+	}
 }
 
 void
@@ -120,20 +146,12 @@ sx_mark_thread (SX_THREAD *thread) {
 	if (thread->ret) {
 		sx_mark_value (thread->system, thread->ret);
 	}
-	if (thread->main) {
-		sx_mark_value (thread->system, thread->main);
-	}
 	if (thread->file) {
 		sx_mark_value (thread->system, thread->file);
 	}
 
 	for (i = 0; i < thread->call; ++ i) {
-		if (thread->call_stack[i].block != NULL) {
-			sx_mark_value (thread->system, thread->call_stack[i].block);
-		}
-		if (thread->call_stack[i].stmt != NULL) {
-			sx_mark_value (thread->system, thread->call_stack[i].block);
-		}
+		sx_mark_func (thread->system, thread->call_stack[i].func);
 		if (thread->call_stack[i].klass != NULL) {
 			sx_mark_value (thread->system, thread->call_stack[i].klass);
 		}
@@ -145,18 +163,17 @@ sx_mark_thread (SX_THREAD *thread) {
 	for (i = 0; i < thread->data; ++ i) {
 		sx_mark_value (thread->system, thread->data_stack[i]);
 	}
-
-	sx_mark_value (thread->system, thread->main);
 }
 
 SX_THREAD *
-sx_push_call (SX_THREAD *thread, SX_VALUE *block, SX_VALUE *klass, unsigned char flags) {
+sx_push_call (SX_THREAD *thread, SX_FUNC *func, SX_VALUE *klass, unsigned long argc) {
 	SX_CALL *sx_new_stack;
+	unsigned int i;
 
 	if (thread->call == thread->call_size) {
-		sx_lock_value (block);
+		sx_lock_value (klass);
 		sx_new_stack = sx_malloc (thread->system, (thread->call_size + SX_CONTEXT_CHUNK) * sizeof (SX_CALL));
-		sx_unlock_value (block);
+		sx_unlock_value (klass);
 		if (sx_new_stack == NULL) {
 			return NULL;
 		}
@@ -172,18 +189,23 @@ sx_push_call (SX_THREAD *thread, SX_VALUE *block, SX_VALUE *klass, unsigned char
 	thread->call_stack[thread->call].klass = klass;
 	thread->call_stack[thread->call].file = NULL;
 	thread->call_stack[thread->call].line = 1;
-	thread->call_stack[thread->call].flags = flags;
-	thread->call_stack[thread->call].block = block;
+	thread->call_stack[thread->call].func = func;
 	thread->call_stack[thread->call].op_ptr = 0;
-	thread->call_stack[thread->call].top = thread->data;
+	thread->call_stack[thread->call].top = thread->data - argc;
 	thread->call_stack[thread->call].state = -1; /* START state */
-	thread->call_stack[thread->call].stmt = NULL;
+	thread->call_stack[thread->call].test = 0;
+	thread->call_stack[thread->call].argc = argc;
 	++ thread->call;
 
-	if (klass != NULL) {
-		thread->cur_class = klass;
-	} else if (flags & SX_CFLAG_HARD) {
-		thread->cur_class = NULL;
+	if (klass) {
+		sx_define_var (thread, sx_self_id, klass, SX_SCOPE_LOCAL);
+	}
+
+	/* define variables */
+	if (func->args != NULL) {
+		for (i = 0; i < argc && i < func->args->count; ++ i) {
+			sx_define_var (thread, SX_TOINT (func->args->list[i]), sx_get_value (thread, -argc + i), SX_SCOPE_LOCAL);
+		}
 	}
 
 	return thread;
@@ -202,23 +224,13 @@ sx_pop_call (SX_THREAD *thread) {
 			thread->call_stack[i].vars = rnext;
 		}
 
+		/* pop stack  */
+		if (thread->data > thread->call_stack[i].top + 1) {
+			sx_pop_value (thread, thread->call_stack[i].top, thread->data - thread->call_stack[i].top - 1);
+		}
+
 		-- thread->call;
-
-		/* FIXME; stack shrinking */
 	}
-
-	/* reset cur_class */
-	thread->cur_class = NULL;
-	for (i = thread->call - 1; i >= 0; -- i) {
-		if (thread->call_stack[i].klass != NULL) {
-			thread->cur_class = thread->call_stack[i].klass;
-			break;
-		}
-		if (thread->call_stack[i].flags & SX_CFLAG_HARD && i != 0) {
-			i = 1; /* will be - on next iteration */
-		}
-	}
-	
 
 	return thread;
 }
@@ -247,13 +259,16 @@ sx_push_value (SX_THREAD *thread, SX_VALUE *value) {
 
 SX_VALUE *
 sx_get_value (SX_THREAD *thread, int index) {
-	if (index >= 0 && index < thread->data) {
-		return thread->data_stack[index];
+	if (index >= 0) {
+		index += thread->call_stack[thread->call - 1].top;
+		if (index < thread->data) {
+			return thread->data_stack[index];
+		}
 	} else if (index < 0 && (-index) - 1 < thread->data) {
 		return thread->data_stack[index + thread->data];
-	} else {
-		return sx_new_nil ();
 	}
+
+	return sx_new_nil ();
 }
 
 void

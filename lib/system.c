@@ -41,8 +41,7 @@ _sx_default_error_hook (const char *str) {
 }
 
 SX_SYSTEM *
-sx_create_system (int argc, const char **argv) {
-	SX_VALUE *args;
+sx_create_system (void) {
 	SX_SYSTEM *system = (SX_SYSTEM *)sx_malloc (NULL, sizeof (SX_SYSTEM));
 	if (system == NULL) {
 		return system;
@@ -67,16 +66,8 @@ sx_create_system (int argc, const char **argv) {
 	system->cerror = sx_init_error (system);
 	system->cblock = sx_init_block (system);
 	system->carray = sx_init_array (system);
-	system->cfunction = sx_init_function (system);
-	system->crange = sx_init_range (system);
 
 	sx_define_system_var (system, sx_name_to_id ("SX_VERSION"), sx_new_str (system, SX_VERSION));
-
-	args = sx_new_array (system, argc, NULL);
-	for (-- argc; argc >= 0; -- argc) {
-		SX_TOARRAY(args)->list[argc] = sx_new_str (system, argv[argc]);
-	}
-	sx_define_system_var (system, sx_argv_id, args);
 
 	sx_new_class (system, sx_NameError, system->cerror);
 	sx_new_class (system, sx_TypeError, system->cerror);
@@ -150,6 +141,7 @@ sx_run_gc (SX_SYSTEM *system) {
 	SX_VAR *var;
 	SX_VALUE *value, *last;
 	SX_CLASS *klass;
+	SX_FUNC *func;
 
 	if (system->flags & SX_SFLAG_GCOFF) {
 		return;
@@ -161,6 +153,10 @@ sx_run_gc (SX_SYSTEM *system) {
 
 	for (var = system->vars; var != NULL; var = var->next) {
 		sx_mark_value (system, var->value);
+	}
+
+	for (func = system->funcs; func != NULL; func = func->next) {
+		sx_mark_func (system, func);
 	}
 
 	for (klass = system->classes; klass != NULL; klass = klass->next) {
@@ -225,10 +221,9 @@ sx_run (SX_SYSTEM *system, unsigned int max) {
 				}
 				-- system->valid_threads;
 				break;
-			case SX_STATE_RUN:
-				/* ERROR: wtf? */
-
-				/* fall thry */
+			case SX_STATE_SWITCH:
+				thread->state = SX_STATE_RUN;
+				/* fall thru */
 			default:
 				thread = thread->next;
 				break;
@@ -280,10 +275,9 @@ sx_run_until (SX_SYSTEM *system, sx_thread_id id) {
 						return ret;
 					}
 					break;
-				case SX_STATE_RUN:
-					/* ERROR: wtf? */
-
-					/* fall thry */
+				case SX_STATE_SWITCH:
+					thread->state = SX_STATE_RUN;
+					/* fall thru */
 				default:
 					thread = thread->next;
 					break;

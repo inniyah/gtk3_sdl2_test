@@ -7,6 +7,8 @@ Standards-Version: 3.2.1
 Package: scriptix
 Architecture: any
 Depends: ${shlibs:Depends}
-Description: Lite-weight scripting interface
+Description: (unofficial) Lite-weight scripting interface
  Scriptix is a scripting interface designed solely for
  embedding in applications.
+
+ (Note: this is not an official Debian package)

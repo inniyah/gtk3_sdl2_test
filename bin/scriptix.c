@@ -34,14 +34,33 @@
 int
 main (int argc, const char **argv) {
 	SX_SYSTEM *system;
+	SX_FUNC *func;
+	SX_VALUE *sargv;
+	int i;
 
-	system = sx_create_system (argc - 1, argv + 1);
+	system = sx_create_system ();
 	sx_init_stdlib (system);
 
 	if (argc > 1 && strcmp (argv[1], "-")) {
-		sx_run_file (system, argv[1], NULL);
+		if (sx_load_file (system, argv[1]))
+			return 1;
 	} else {
-		sx_run_file (system, NULL, NULL);
+		if (sx_load_file (system, NULL))
+			return 1;
+	}
+
+	func = sx_get_func (system, sx_name_to_id ("main"));
+	if (func == NULL) {
+		fprintf (stderr, "Fatal error: No main() function defined.\n");
+	} else {
+		sargv = sx_new_array (system, argc - 1, NULL);
+		for (i = 1; i < argc; ++i) {
+			((SX_ARRAY *)sargv)->list[i - 1] = sx_new_str (system, argv[i]);
+		}
+
+		sx_create_thread_v (system, func, 1, sargv);
+		while (sx_runable (system))
+			sx_run (system, 1000);
 	}
 
 	sx_free_system (system);

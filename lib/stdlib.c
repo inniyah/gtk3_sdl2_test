@@ -32,63 +32,27 @@
 
 #include "scriptix.h"
 
-SX_DEFINE_CFUNC (sx_stdlib_get_tid) {
-	sx_push_value (sx_thread, sx_new_num ((long)sx_thread >> 2));
-}
-
 SX_DEFINE_CFUNC (sx_stdlib_print) {
 	unsigned int i;
 	for (i = 0; i < sx_argc; i ++) {
-		sx_print_value (sx_thread->system, sx_get_value (sx_thread, sx_top + i));
+		sx_print_value (sx_thread->system, sx_get_value (sx_thread, i));
 	}
 	sx_push_value (sx_thread, NULL);
 }
 
 SX_DEFINE_CFUNC (sx_stdlib_printl) {
-	sx_stdlib_print (sx_thread, sx_self, sx_data, sx_argc, sx_top);
+	sx_stdlib_print (sx_thread, sx_self, sx_data, sx_argc);
 	sx_thread->system->print_hook ("\r\n");
 	sx_push_value (sx_thread, NULL);
 }
 
-SX_DEFINE_CFUNC (sx_stdlib_concat) {
-	SX_VALUE *ret, *one, *two;
-
-	if (sx_argc != 2) {
-		sx_raise_error (sx_thread, sx_ArgumentError, NULL);
-		return;
-	}
-
-	one = sx_get_value (sx_thread, sx_top);
-	two = sx_get_value (sx_thread, sx_top + 1);
-
-	if (sx_class_of (sx_thread->system, one)->core != sx_class_of (sx_thread->system, two)->core) {
-		sx_raise_error (sx_thread, sx_TypeError, NULL);
-		return;
-	}
-
-	if (SX_ISSTRING (sx_thread->system, one)) {
-		ret = sx_new_str_len (sx_thread->system, NULL, SX_TOSTRING(one)->len + SX_TOSTRING(two)->len);
-		if (ret == NULL) {
-			sx_raise_error (sx_thread, sx_MemError, NULL);
-			return;
-		}
-		if (SX_TOSTRING(one)->len > 0) {
-			strcpy (SX_TOSTRING(ret)->str, SX_TOSTRING(one)->str);
-		}
-		if (SX_TOSTRING(two)->len > 0) {
-			strcpy (SX_TOSTRING(ret)->str + SX_TOSTRING(one)->len, SX_TOSTRING(two)->str);
-		}
-		sx_push_value (sx_thread, ret);
-	} else if (SX_ISARRAY (sx_thread->system, two)) {
-		/* FIXME */
-		sx_push_value (sx_thread, one);
-	}
+SX_DEFINE_CFUNC (sx_stdlib_get_tid) {
+	sx_push_value (sx_thread, sx_new_num ((long)sx_thread >> 2));
 }
 
 void
 sx_init_stdlib (SX_SYSTEM *system) {
-	sx_define_cfunc (system, "print", sx_stdlib_print, NULL);
-	sx_define_cfunc (system, "printl", sx_stdlib_printl, NULL);
-	sx_define_cfunc (system, "concat", sx_stdlib_concat, NULL);
-	sx_define_cfunc (system, "get_tid", sx_stdlib_get_tid, NULL);
+	sx_new_cfunc (system, sx_name_to_id ("print"), sx_stdlib_print, NULL);
+	sx_new_cfunc (system, sx_name_to_id ("printl"), sx_stdlib_printl, NULL);
+	sx_new_cfunc (system, sx_name_to_id ("get_tid"), sx_stdlib_get_tid, NULL);
 }

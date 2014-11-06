@@ -33,52 +33,37 @@
 
 	#include "scriptix.h"
 	#include "system.h"
+	#include "parser.h"
 
 	#define COMP_STACK_SIZE 20
 	#define NAME_LIST_SIZE 20
-
-	int parser_stack_size = 0;
-	int parser_stack_top = 0;
-	SX_VALUE **parser_stack = NULL;
-
-	SX_VALUE *parser_top (void);
-	void parser_push (SX_VALUE *value);
-	void parser_pop (void);
-
-	SX_VALUE *append_to_array (SX_VALUE *array, SX_VALUE *value);
 
 	__INLINE__ void parser_add_line (void);
 
 	int sxerror (const char *);
 	int sxlex (void);
 
-	SX_SYSTEM *parse_system = NULL;
-	SX_VALUE *parse_block = NULL;
+	SXP_INFO *parse_info = NULL;
 
-	unsigned int parse_lineno = 1;
 	extern FILE *sxin;
 	int sxparse (void);
 
-	SX_VALUE *temp_val;
-
 	extern const char *sx_parser_inbuf;
-
-	#define pushv(v) (sx_add_value (parse_system, parser_top (), (v)))
-	#define pushn(o) (sx_add_stmt (parse_system, parser_top (), (o)))
 %}
 
 %union {
+	SXP_NODE *node;
 	SX_VALUE *value;
 	char name[SX_MAX_NAME + 1];
-	unsigned int count;
+	sx_name_id id;
 }
 
 %token<value> TNUM TSTR
 %token<name> TNAME
-%token TSEP TIF TTHEN TELSE TEND TWHILE TDO TAND TOR TGTE TLTE TNE
-%token TRETURN TFUNC TBREAK TBLOCK TLOCAL TGLOBAL TEQUALS TRANGE TSTEP
-%token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT TLENGTH
-%token TCLASS TNEW TUNTIL TNIL TRAISE TRESCUE TTRY TIN TFOR TMETHOD
+%token TIF TELSE TWHILE TDO TAND TOR TGTE TLTE TNE TSTATMETHOD
+%token TRETURN TBREAK TLOCAL TGLOBAL TEQUALS TCONTINUE
+%token TADDASSIGN TSUBASSIGN TINCREMENT TDECREMENT TSTATIC
+%token TCLASS TNEW TUNTIL TNIL TRAISE TRESCUE TTRY TIN TFOR
 
 %nonassoc TBREAK TRETURN TRAISE
 %right '=' TADDASSIGN TSUBASSIGN 
@@ -91,241 +76,158 @@
 %nonassoc TLENGTH TWHILE TUNTIL TDO TNEW
 %left TRANGE
 %nonassoc '!' CUNARY
-%left '.' '[' '(' TMETHOD '^'
+%left '.' TSTATMETHOD '[' '(' '^'
 
-%type<count> array_list stmt_list cstmt_list
-%type<value> scope
+%nonassoc TIF
+%nonassoc TELSE
+
+%type<node> node args block stmts stmt control expr
+%type<value> arg_names errors
+%type<id> name
 
 %%
-
-program: stmts {}
+program:
+	| program class
+	| program function
 	;
 
-block:	{ parser_push (sx_new_block (parse_system)); } stmts { temp_val = parser_top (); parser_pop (); pushv (temp_val); }
+class:	TCLASS name { sxp_new_class (parse_info, $2, 0); } '{' cblock '}'
+	| TCLASS name ':' name { sxp_new_class (parse_info, $2, $4); } '{' cblock '}'
 	;
 
-oblock:	{ parser_push (sx_new_block (parse_system)); } node { pushn (SX_OP_STMT); temp_val = parser_top (); parser_pop (); pushv (temp_val); }
+cblock:	cstmt 
+	| cblock cstmt
 	;
 
-stmts:	
-	| stmt_list {}
-	| seps stmt_list {}
-	| stmt_list seps {}
-	| seps stmt_list seps {}
+cstmt:	name '(' arg_names ')' '{' block '}' { sxp_add_method (parse_info->classes, $1, (SX_ARRAY *)$3, $6); }
+	| TSTATIC name '(' arg_names ')' '{' block '}' { sxp_add_static_method (parse_info->classes, $2, (SX_ARRAY *)$4, $7); }
 	;
 
-stmt_list: stmt { $$ = 1; }
-	| stmt_list seps { $$ = $1 + 1; } stmt
+function: name '(' arg_names ')' '{' block '}' { sxp_new_func (parse_info, $1, (SX_ARRAY *)$3, $6); }
 	;
 
-stmt:	node { pushn (SX_OP_STMT); }
+block: { $$ = NULL; }
+	| stmts { $$ = $1; }
 	;
 
-sep:	TSEP { pushn (SX_OP_NEXTLINE); }
+stmts:	stmt { $$ = $1; }
+	| stmts stmt { $$ = $1; sxp_append ($$, $2); } 
 	;
 
-seps:	sep
-	| seps sep
-	;
-
-cblock:	cstmt_list { pushv (sx_new_num ($1)); pushn (SX_OP_NEWARRAY); } 
-	;
-
-cstmt_list: cstmt { $$ = 2; }
-	| cstmt_list cstmt { $$ = $1 + 2; }
-	;
-
-cstmt: TFUNC name '(' args ')' sep block { pushn (SX_OP_NEWFUNC); } TEND seps
-	;
-
-array_list: { $$ = 0; }
-	| node { $$ = 1; }
-	| array_list ',' node { $$ = $1 + 1; }
-	;
-
-args: { pushv (sx_new_nil ()); }
-	| { parser_push (sx_new_array (parse_system, 0, NULL)); } arg_list { temp_val = parser_top (); parser_pop (); pushv (temp_val); }
-	;
-
-arg_list: TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($1))); }
-	| arg_list ',' TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($3))); }
-	;
-
-errors: { parser_push (sx_new_array (parse_system, 0, NULL)); } error_list { temp_val = parser_top (); parser_pop (); pushv (temp_val); }
-	;
-
-error_list: TNAME TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($1))); append_to_array (parser_top (), sx_new_num(sx_name_to_id ($2))); }
-	| arg_list ',' TNAME TNAME { append_to_array (parser_top (), sx_new_num(sx_name_to_id ($3))); append_to_array (parser_top (), sx_new_num(sx_name_to_id ($4))); }
-	;
-
-node:	node '+' node { pushn (SX_OP_ADD); }
-	| node '-' node { pushn (SX_OP_SUBTRACT); }
-	| node '*' node { pushn (SX_OP_MULTIPLY); }
-	| node '/' node { pushn (SX_OP_DIVIDE); }
-	| '(' node ')'
-	| '-' node %prec CUNARY { pushn (SX_OP_NEGATE); }
-
-	| '!' node { pushn (SX_OP_NOT); }
-	| node TAND { parser_push (sx_new_block (parse_system)); } node { pushn (SX_OP_STMT); temp_val = parser_top (); parser_pop (); pushv (temp_val); pushn (SX_OP_AND); }
-	| node TOR { parser_push (sx_new_block (parse_system)); } node { pushn (SX_OP_STMT); temp_val = parser_top (); parser_pop (); pushv (temp_val); pushn (SX_OP_OR); }
-
-	| node '>' node { pushn (SX_OP_GT); }
-	| node '<' node { pushn (SX_OP_LT); }
-	| node TNE node { pushn (SX_OP_NEQUAL); }
-	| node TGTE node { pushn (SX_OP_GTE); }
-	| node TLTE node { pushn (SX_OP_LTE); }
-	| node TEQUALS node { pushn (SX_OP_EQUAL); }
-
-	| name '=' node { pushv (sx_new_num (SX_SCOPE_DEF)); pushn (SX_OP_ASSIGN); }
-	| scope name '=' node { pushv ($1); pushn (SX_OP_ASSIGN); }
-	| node '[' node ']' '=' node %prec '=' { pushn (SX_OP_SETINDEX); }
-	| node '.' name '=' node %prec '=' { pushn (SX_OP_SETMEMBER); }
-
-	| name TADDASSIGN node { pushn (SX_OP_PREINCREMENT); }
-	| name TSUBASSIGN node { pushn (SX_OP_PREDECREMENT); }
-	| name TINCREMENT { pushv (sx_new_num (1)); pushn (SX_OP_POSTINCREMENT); }
-	| TINCREMENT name { pushv (sx_new_num (1)); pushn (SX_OP_PREINCREMENT); }
-	| name TDECREMENT { pushv (sx_new_num (1)); pushn (SX_OP_POSTDECREMENT); }
-	| TDECREMENT name { pushv (sx_new_num (1)); pushn (SX_OP_PREDECREMENT); }
+stmt:	node ';' { $$ = $1; }
+	| control ';' { $$ = $1; }
+	| TIF '(' expr ')' stmt %prec TIF { $$ = sxp_new_if (parse_info, $3, $5, NULL); }
+	| TIF '(' expr ')' stmt TELSE stmt %prec TELSE { $$ = sxp_new_if (parse_info, $3, $5, $7); }
+	| TWHILE '(' expr ')' stmt { $$ = sxp_new_whil (parse_info, $3, $5, SXP_W_WD); }
+	| TUNTIL '(' expr ')' stmt { $$ = sxp_new_whil (parse_info, $3, $5, SXP_W_UD); }
+	| TDO stmt TWHILE '(' expr ')' ';' { $$ = sxp_new_whil (parse_info, $5, $2, SXP_W_DW); }
+	| TDO stmt TUNTIL '(' expr ')' ';' { $$ = sxp_new_whil (parse_info, $5, $2, SXP_W_DU); }
 	
-	| TLENGTH '(' node ')' { pushn (SX_OP_SIZEOF); }
-	| node TISA name { pushn (SX_OP_ISA); }
+	| TTRY '{' block '}' TRESCUE '(' errors ')' '{' block '}' { $$ = sxp_new_try (parse_info, $7, $3, $10); }
 
-	| lookup '(' array_list ')' { pushv (sx_new_num ($3)); pushn (SX_OP_CALL); }
-	| node TMETHOD '(' array_list ')' { pushv (sx_new_num ($4)); pushn (SX_OP_CALL); }
-	| TFUNC name '(' args ')' sep block TEND { pushn (SX_OP_NEWFUNC); pushv (sx_new_num (SX_SCOPE_DEF)); pushn (SX_OP_ASSIGN); }
-	| TFUNC '(' args ')' sep block TEND { pushn (SX_OP_NEWFUNC); }
+	| TFOR name TIN expr TDO stmt { $$ = sxp_new_for (parse_info, $2, $4, $6); }
+	| TFOR '(' node ';' expr ';' node ')' stmt { $$ = sxp_new_cfor (parse_info, $3, $5, $7, $9); }
 
-	| node '.' name '(' array_list ')' { pushv (sx_new_num ($5)); pushn (SX_OP_METHOD); }
-	| node '.' name { pushn (SX_OP_MEMBER); }
-	| TNEW name { pushn (SX_OP_NEWINSTANCE); }
-	| TCLASS name seps { pushv (sx_new_nil ()); } cblock TEND { pushn (SX_OP_NEWCLASS); }
-	| TCLASS name ':' name seps cblock TEND { pushn (SX_OP_NEWCLASS); }
+	| '{' block '}' { $$ = $2; }
+	;
 
-	| node '[' node ']' { pushn (SX_OP_INDEX); }
+node:	{ $$ = NULL; }
+	| expr { $$ = sxp_new_stmt (parse_info, $1); }
+	;
+
+control: TRETURN expr { $$ = sxp_new_retr (parse_info, $2); }
+	| TRETURN { $$ = sxp_new_retr (parse_info, NULL); }
+	| TBREAK { $$ = sxp_new_brak (parse_info); }
+	| TCONTINUE { $$ = sxp_new_cont (parse_info); }
+	| TRAISE name { $$ = sxp_new_rais (parse_info, $2, NULL); }
+	| TRAISE name expr { $$ = sxp_new_rais (parse_info, $2, $3); }
+	;
+
+args: { $$ = NULL; }
+	| expr { $$ = $1; }
+	| args ',' expr { $$ = $1; sxp_append ($$, $3); }
+	;
+
+arg_names: { $$ = NULL; }
+	| name { $$ = sx_append (parse_info->system, sx_new_array (parse_info->system, 0, NULL), sx_new_num ($1)); }
+	| arg_names ',' name { $$ = sx_append (parse_info->system, $1, sx_new_num ($3)); }
+	;
+
+errors: { $$ = NULL; }
+	| name name { $$ = sx_append (parse_info->system, sx_append (parse_info->system, sx_new_array (parse_info->system, 0, NULL), sx_new_num ($1)), sx_new_num ($2)); }
+	| errors ',' name name { $$ = sx_append (parse_info->system, sx_append (parse_info->system, sx_new_array (parse_info->system, 0, NULL), sx_new_num ($3)), sx_new_num ($4)); }
+	;
+
+expr:	expr '+' expr { $$ = sxp_new_math (parse_info, SX_OP_ADD, $1, $3); }
+	| expr '-' expr { $$ = sxp_new_math (parse_info, SX_OP_SUBTRACT, $1, $3); }
+	| expr '*' expr { $$ = sxp_new_math (parse_info, SX_OP_MULTIPLY, $1, $3); }
+	| expr '/' expr { $$ = sxp_new_math (parse_info, SX_OP_DIVIDE, $1, $3); }
+	| '(' expr ')' { $$ = $2; }
+
+	| '-' expr %prec CUNARY { $$ = sxp_new_nega (parse_info, $2); }
+
+	| '!' expr { $$ = sxp_new_not (parse_info, $2); }
+	| expr TAND expr { $$ = sxp_new_and (parse_info, $1, $3); }
+	| expr TOR expr { $$ = sxp_new_or (parse_info, $1, $3); }
+
+	| expr '>' expr { $$ = sxp_new_math (parse_info, SX_OP_GT, $1, $3); }
+	| expr '<' expr { $$ = sxp_new_math (parse_info, SX_OP_LT, $1, $3); }
+	| expr TNE expr { $$ = sxp_new_math (parse_info, SX_OP_NEQUAL, $1, $3); }
+	| expr TGTE expr { $$ = sxp_new_math (parse_info, SX_OP_GTE, $1, $3); }
+	| expr TLTE expr { $$ = sxp_new_math (parse_info, SX_OP_LTE, $1, $3); }
+	| expr TEQUALS expr { $$ = sxp_new_math (parse_info, SX_OP_EQUAL, $1, $3); }
+
+	| name '=' expr { $$ = sxp_new_assi (parse_info, $1, SX_SCOPE_DEF, $3); }
+	| TLOCAL name '=' expr { $$ = sxp_new_assi (parse_info, $2, SX_SCOPE_LOCAL, $4); }
+	| TGLOBAL name '=' expr { $$ = sxp_new_assi (parse_info, $2, SX_SCOPE_GLOBAL, $4); }
+	| expr '[' expr ']' '=' expr %prec '=' { $$ = sxp_new_set (parse_info, $1, $3, $6); }
+	| expr '.' name '=' expr %prec '=' { $$ = sxp_new_setm (parse_info, $1, $3, $5); }
+
+	| name TADDASSIGN expr { $$ = sxp_new_pric (parse_info, $1, $3); }
+	| name TSUBASSIGN expr { $$ = sxp_new_pric (parse_info, $1, sxp_new_nega (parse_info, $3)); }
+	| name TINCREMENT { $$ = sxp_new_poic (parse_info, $1, sxp_new_data (parse_info, sx_new_num (1))); }
+	| TINCREMENT name { $$ = sxp_new_pric (parse_info, $2, sxp_new_data (parse_info, sx_new_num (1))); }
+	| name TDECREMENT { $$ = sxp_new_poic (parse_info, $1, sxp_new_data (parse_info, sx_new_num (-1))); }
+	| TDECREMENT name { $$ = sxp_new_pric (parse_info, $2, sxp_new_data (parse_info, sx_new_num (-1))); }
 	
-	| TIF node TTHEN block TEND { pushv (sx_new_nil ()); pushn (SX_OP_IF); }
-	| TIF node TTHEN block TELSE block TEND { pushn (SX_OP_IF); }
-	| TWHILE oblock TDO block TEND { pushn (SX_OP_WHILE); }
-	| TTRY block TRESCUE errors sep block TEND { pushn (SX_OP_TRY); }
-	| TTRY block TRESCUE sep { pushv (sx_new_nil ()); } block TEND { pushn (SX_OP_TRY); }
-	| TUNTIL oblock TDO block TEND { pushn (SX_OP_UNTIL); }
-	| TDO block TEND { pushn (SX_OP_EVAL); }
-	| TFOR name TIN node TDO { pushv (sx_new_num (1)); } block TEND { pushn (SX_OP_FOR); }
-	| TFOR name TIN node TSTEP TNUM { pushv ($6); } TDO block TEND { pushn (SX_OP_FOR); }
+	| expr TISA name { $$ = sxp_new_isa (parse_info, $1, $3); }
+	| name '(' args ')' { $$ = sxp_new_call (parse_info, $1, $3); }
 
-	| TRETURN node { pushn (SX_OP_RETURN); }
-	| TRETURN { pushv (sx_new_nil ()); pushn (SX_OP_RETURN); }
-	| TBREAK { pushv (sx_new_nil ()); pushn (SX_OP_BREAK); }
-	| TBREAK node { pushn (SX_OP_BREAK); }
-	| TRAISE name { pushv (sx_new_nil ()); pushn (SX_OP_RAISE); }
-	| TRAISE name node { pushn (SX_OP_RAISE); }
+	| name TSTATMETHOD name '(' args ')' { $$ = sxp_new_smet (parse_info, $1, $3, $5); }
+	| expr '.' name '(' args ')' { $$ = sxp_new_meth (parse_info, $1, $3, $5); }
+	| expr '.' name { $$ = sxp_new_memb (parse_info, $1, $3); }
+	| TNEW name '(' args ')' { $$ = sxp_new_newc (parse_info, $2, $4); }
 
-	| lookup {}
+	| expr '[' expr ']' { $$ = sxp_new_indx (parse_info, $1, $3); }
+	| '[' args ']' { $$ = sxp_new_arry (parse_info, $2); }
+	
+	| TNUM { $$ = sxp_new_data (parse_info, $1);  }
+	| TSTR { $$ = sxp_new_data (parse_info, $1); }
+	| TNIL { $$ = sxp_new_data (parse_info, NULL); }
 
-	| node TRANGE node { pushn (SX_OP_NEWRANGE); }
-	| '{' array_list '}' { pushv (sx_new_num ($2)); pushn (SX_OP_NEWARRAY); }
-
-	| TNUM { pushv ($1);  }
-	| TSTR { pushv ($1); }
-	| TBLOCK block TEND
-	| TNIL { pushv (sx_new_nil ()); }
+	| name { $$ = sxp_new_name (parse_info, $1, SX_SCOPE_DEF); }
+	| TLOCAL name { $$ = sxp_new_name (parse_info, $2, SX_SCOPE_LOCAL); }
+	| TGLOBAL name { $$ = sxp_new_name (parse_info, $2, SX_SCOPE_GLOBAL); }
 	;
 
-lookup:	name { pushv (sx_new_num (SX_SCOPE_DEF)); pushn (SX_OP_LOOKUP); }
-	| scope name { pushv ($1); pushn (SX_OP_LOOKUP); }
-	;
-
-name:	TNAME { pushv (sx_new_num (sx_name_to_id ($1))); }
-	;
-
-scope:	TLOCAL { $$ = (sx_new_num (SX_SCOPE_LOCAL)); }
-	| TGLOBAL { $$ = (sx_new_num (SX_SCOPE_GLOBAL)); }
+name:	TNAME { $$ = sx_name_to_id ($1); }
 	;
 
 %%
 
 void
 parser_add_line (void) {
-	++ parse_lineno;
-}
-
-/* value stack */
-SX_VALUE *
-parser_top (void) {
-	if (parser_stack_top > 0) {
-		return parser_stack[parser_stack_top - 1];
-	}
-
-	return NULL;
-}
-
-void
-parser_push (SX_VALUE *value) {
-	SX_VALUE **sx_new_stack;
-	if (parser_stack_top >= parser_stack_size) {
-		if (parser_stack != NULL) {
-			sx_new_stack = sx_dupmem (parse_system, parser_stack, (parser_stack_size + COMP_STACK_SIZE) * sizeof (SX_VALUE **));
-		} else {
-			sx_new_stack = sx_malloc (parse_system, (parser_stack_size + COMP_STACK_SIZE) * sizeof (SX_VALUE **));
-		}
-		if (sx_new_stack == NULL) {
-			return;
-		}
-		sx_free (parser_stack);
-		parser_stack = sx_new_stack;
-		parser_stack_size += COMP_STACK_SIZE;
-	}
-
-	parser_stack[parser_stack_top ++] = value;
-}
-
-void
-parser_pop (void) {
-	if (parser_stack_top > 0) {
-		-- parser_stack_top;
-	}
-}
-
-
-SX_VALUE *
-append_to_array (SX_VALUE *array, SX_VALUE *value) {
-	SX_VALUE **nlist;
-
-	if (!SX_ISARRAY (parse_system, array)) {
-		return sx_new_nil ();
-	}
-
-	if (SX_TOARRAY(array)->count > 0) {
-		nlist = (SX_VALUE **)sx_malloc (parse_system, (SX_TOARRAY(array)->count + 1) * sizeof (SX_VALUE *));
-		if (nlist == NULL) {
-			return sx_new_nil ();
-		}
-		memcpy (nlist, SX_TOARRAY(array)->list, SX_TOARRAY(array)->count * sizeof (SX_VALUE *));
-		sx_free (SX_TOARRAY(array)->list);
-		SX_TOARRAY(array)->list = nlist;
-		SX_TOARRAY(array)->list[SX_TOARRAY(array)->count] = value;
-		SX_TOARRAY(array)->count += 1;
-	} else {
-		SX_TOARRAY(array)->list = (SX_VALUE **)sx_malloc (parse_system, sizeof (SX_VALUE *));
-		if (SX_TOARRAY(array)->list == NULL) {
-			return sx_new_nil ();
-		}
-		SX_TOARRAY(array)->list[0] = value;
-		SX_TOARRAY(array)->count = 1;
-	}
-
-	return array;
+	++ parse_info->line;
 }
 
 int
 sxerror (const char *str) {
-	if (parse_system->error_hook != NULL) {
+	if (parse_info->system->error_hook != NULL) {
 		char buffer[512];
-		snprintf (buffer, 512, "Parse Error: line %d: %s", parse_lineno, str);
-		parse_system->error_hook (buffer);
+		snprintf (buffer, 512, "File %s, line %d: %s", parse_info->file ? SX_TOSTRING (parse_info->file)->str : "<input>", parse_info->line, str);
+		parse_info->system->error_hook (buffer);
 	} else {
-		fprintf (stderr, "Scriptix Parse Error: line %d: %s\n", parse_lineno, str);
+		fprintf (stderr, "Scriptix Error: File %s, line %d: %s\n", parse_info->file ? SX_TOSTRING (parse_info->file)->str : "<input>", parse_info->line, str);
 	}
 	return 1;
 }
@@ -335,18 +237,9 @@ sxwrap (void) {
 	return 1;
 }
 
-void
-cleanup_parser (void) {
-	free (parser_stack);
-	parser_stack = NULL;
-	parser_stack_top = 0;
-	parser_stack_size = 0;
-}
-
-SX_VALUE *
+int
 sx_load_file (SX_SYSTEM *system, const char *file) {
 	int ret, flags;
-	SX_VALUE *sfile;
 
 	if (file == NULL) {
 		sxin = stdin;
@@ -358,207 +251,69 @@ sx_load_file (SX_SYSTEM *system, const char *file) {
 		}
 	}
 
-	parse_system = system;
-	parse_block = sx_new_block (system);
-	if (parse_block == NULL) {
-		if (sxin != NULL) {
+	parse_info = sxp_new_info (system);
+	if (parse_info == NULL) {
+		if (file != NULL)
 			fclose (sxin);
-		}
-		return 0;
+		fprintf (stderr, "Failed to create info\n");
+		return 1;
 	}
+	if (file != NULL)
+		parse_info->file = sx_new_str (system, file);
 
+	sx_parser_inbuf = NULL;
 	flags = system->flags;
 	system->flags |= SX_SFLAG_GCOFF;
 
-	parser_push (parse_block);
-	sfile = sx_new_str (system, file ? file : "<stdin>");
-	pushv (sfile);
-	pushv (sx_new_num (1));
-	pushn (SX_OP_SETFILELINE);
 	ret = sxparse ();
 
-	parser_pop ();
 	system->flags = flags;
 
 	if (file != NULL) {
 		fclose (sxin);
 	}
 
-	sx_lock_value (parse_block);
+	if (!ret) {
+		ret = sxp_compile (parse_info);
+	}
 
-	cleanup_parser ();
+	sxp_del_info (parse_info);
+
 	sx_run_gc (system);
 
-	sx_unlock_value (parse_block);
-
-	if (ret) {
-		return 0;
-	}
-
-	return parse_block;
+	return ret;
 }
 
-SX_VALUE *
-sx_load_string (SX_SYSTEM *system, const char *str) {
+int
+sx_load_string (SX_SYSTEM *system, const char *buf) {
 	int ret, flags;
 
-	if (str == NULL) {
-		return 0;
+	if (buf == NULL) {
+		return 1;
 	}
 
-	parse_system = system;
-	parse_block = sx_new_block (system);
-	if (parse_block == NULL) {
-		return 0;
+	parse_info = sxp_new_info (system);
+	if (parse_info == NULL) {
+		fprintf (stderr, "Failed to create info\n");
+		return 1;
 	}
 
-	sx_parser_inbuf = str;
-
-	flags = system->flags;
-	system->flags |= SX_SFLAG_GCOFF;
-	parser_push (parse_block);
-	ret = sxparse ();
-	parser_pop ();
-	system->flags = flags;
-
-	sx_parser_inbuf = NULL;
-
-	sx_lock_value (parse_block);
-
-	cleanup_parser ();
-	sx_run_gc (system);
-
-	sx_unlock_value (parse_block);
-
-	if (ret) {
-		return 0;
-	}
-
-	return parse_block;
-}
-
-sx_thread_id
-sx_start_file (SX_SYSTEM *system, const char *file, SX_VALUE *argv) {
-	int ret, flags;
-	SX_VALUE *sfile;
-
-	if (file == NULL) {
-		sxin = stdin;
-	} else {
-		sxin = fopen (file, "r");
-		if (sxin == NULL) {
-			fprintf (stderr, "Could not open '%s'\n", file);
-			return 0;
-		}
-	}
-
-	parse_system = system;
-	sx_lock_value (argv);
-	parse_block = sx_new_block (system);
-	sx_unlock_value (argv);
-	if (parse_block == NULL) {
-		if (sxin != NULL) {
-			fclose (sxin);
-		}
-		return 0;
-	}
-
+	sxin = NULL;
+	sx_parser_inbuf = buf;
 	flags = system->flags;
 	system->flags |= SX_SFLAG_GCOFF;
 
-	parser_push (parse_block);
-	sfile = sx_new_str (system, file ? file : "<stdin>");
-	pushv (sfile);
-	pushv (sx_new_num (1));
-	pushn (SX_OP_SETFILELINE);
 	ret = sxparse ();
 
-	parser_pop ();
 	system->flags = flags;
 
-	if (file != NULL) {
-		fclose (sxin);
+	if (!ret) {
+		ret = sxp_compile (parse_info);
 	}
 
-	sx_lock_value (parse_block);
-	sx_lock_value (argv);
+	sxp_del_info (parse_info);
 
-	cleanup_parser ();
 	sx_run_gc (system);
 
-	sx_unlock_value (parse_block);
-	sx_unlock_value (argv);
-
-	if (ret) {
-		return 0;
-	}
-
-	return sx_create_thread (system, parse_block, argv);
-}
-
-sx_thread_id
-sx_start_string (SX_SYSTEM *system, const char *str, SX_VALUE *argv) {
-	int ret, flags;
-
-	if (str == NULL) {
-		return 0;
-	}
-
-	parse_system = system;
-	sx_lock_value (argv);
-	parse_block = sx_new_block (system);
-	sx_unlock_value (argv);
-	if (parse_block == NULL) {
-		return 0;
-	}
-
-	sx_parser_inbuf = str;
-
-	flags = system->flags;
-	system->flags |= SX_SFLAG_GCOFF;
-	parser_push (parse_block);
-	ret = sxparse ();
-	parser_pop ();
-	system->flags = flags;
-
-	sx_parser_inbuf = NULL;
-
-	sx_lock_value (parse_block);
-	sx_lock_value (argv);
-
-	cleanup_parser ();
-	sx_run_gc (system);
-
-	sx_unlock_value (parse_block);
-	sx_unlock_value (argv);
-
-	if (ret) {
-		return 0;
-	}
-
-	return sx_create_thread (system, parse_block, argv);
-}
-
-SX_VALUE *
-sx_run_file (SX_SYSTEM *system, const char *file, SX_VALUE *argv) {
-	sx_thread_id id;
-
-	id = sx_start_file (system, file, argv);
-	if (id) {
-		return sx_run_until (system, id);
-	} else {
-		return NULL;
-	}
-}
-
-SX_VALUE *
-sx_run_string (SX_SYSTEM *system, const char *str, SX_VALUE *argv) {
-	sx_thread_id id;
-
-	id = sx_start_string (system, str, argv);
-	if (id) {
-		return sx_run_until (system, id);
-	} else {
-		return NULL;
-	}
+	return ret;
 }

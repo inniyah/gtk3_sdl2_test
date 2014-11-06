@@ -31,211 +31,79 @@
 
 #include "scriptix.h"
 
-__INLINE__ int sx_call_func (SX_THREAD *thread, SX_VALUE *self, SX_VALUE *func, unsigned int argc, unsigned int top);
-__INLINE__ int sx_call_cfunc (SX_THREAD *thread, SX_VALUE *self, SX_VALUE *func, unsigned int argc, unsigned int top);
-
-int
-sx_call_cfunc (SX_THREAD *thread, SX_VALUE *self, SX_VALUE *func, unsigned int argc, unsigned int top) {
-	unsigned int otop;
-
-	if (!SX_ISFUNC (thread->system, func) || SX_TOFUNC(func)->cfunc == NULL) {
-		sx_raise_error (thread, sx_TypeError, "Tried to call a non-function");
-		return thread->state = SX_STATE_ERROR;
-	}
-
-	sx_lock_value (func);
-	sx_lock_value (self);
-
-	otop = thread->data;
-	SX_TOFUNC(func)->cfunc (thread, self, SX_TOFUNC(func)->data, argc, top);
-
-	if (thread->data == otop) { /* no return value pushed */
-		sx_push_value (thread, self ? self : NULL);
-	} else if (thread->data > otop + 1) { /* too many values, clear extras */
-		sx_pop_value (thread, otop, thread->data - otop - 1);
-	}
-	
-	sx_unlock_value (func);
-	sx_unlock_value (self);
-
-	return thread->state;
-}
-
-int
-sx_call_func (SX_THREAD *thread, SX_VALUE *self, SX_VALUE *func, unsigned int argc, unsigned int top) {
-	unsigned int i;
-
-	sx_push_call (thread, SX_TOFUNC(func)->body, self, SX_CFLAG_HARD);
-
-	if (self != NULL) {
-		sx_define_var (thread, sx_self_id, self, SX_SCOPE_LOCAL);
-	}
-
-	if (SX_ISARRAY (thread->system, SX_TOFUNC(func)->args)) {
-		for (i = 0; i < argc && i < SX_TOARRAY(SX_TOFUNC(func)->args)->count; i ++) {
-			sx_define_var (thread, SX_TOINT (SX_TOARRAY(SX_TOFUNC(func)->args)->list[i]), sx_get_value (thread, top + i), SX_SCOPE_LOCAL);
-		}
-		for (; i < SX_TOARRAY(SX_TOFUNC(func)->args)->count; i ++) {
-			sx_define_var (thread, SX_TOINT (SX_TOARRAY(SX_TOFUNC(func)->args)->list[i]), sx_new_nil (), SX_SCOPE_LOCAL);
-		}
-	}
-
-	return thread->state;
-}
-
 int
 sx_eval (SX_THREAD *thread, unsigned int max) {
 	unsigned int count;
 	unsigned int i;
 	unsigned int op_count = max;
 	int op;
-	int step;
-	SX_VALUE *loop, *name;
+	SX_BLOCK *block;
+	SX_VALUE *loop;
 	SX_VALUE *ret, *value;
 	SX_VAR *var;
 	SX_CALL *call;
 	SX_CLASS *klass;
+	SX_FUNC *func;
+	sx_name_id name;
 
-	while (thread->call > 0) {
+	while (thread->call > 0 && thread->state == SX_STATE_RUN) {
+run_code:
 		call = &thread->call_stack[thread->call - 1];
 
-		if (call->state == 0) { /* step on initialized call */
-			++ call->op_ptr;
+		/* working on a C function */
+		if (call->func->cfunc) {
+			count = thread->data;
+
+			call->func->cfunc (thread, call->klass, call->func->data, call->argc);
+
+			sx_pop_call (thread);
+			continue;
 		}
 
-		while (call->op_ptr < SX_TOBLOCK(call->block)->count && (thread->state == SX_STATE_RUN || call->state > 0) && (max == 0 || op_count > 0)) {
-			if (call->state == -1) { /* START state */
-				call->state = 0; /* DEFAULT state */
-				call->top = thread->data;
-			}
+		block = call->func->body;
 
-			op = SX_TOBLOCK(call->block)->nodes[call->op_ptr].op;
+		while (call->op_ptr < block->count && thread->state == SX_STATE_RUN) {
+			/* store op for faster access */
+			op = block->nodes[call->op_ptr].op;
 
+			/* push value */
 			if (op == 0) {
-				sx_push_value (thread, SX_TOBLOCK(call->block)->nodes[call->op_ptr].value);
+				sx_push_value (thread, block->nodes[call->op_ptr].value);
 				++ call->op_ptr;
 				continue;
 			}
 
+			/* next op */
+			++ call->op_ptr;
+
 			switch (op) {
-				case SX_OP_IF:
-					if (sx_is_true (thread->system, sx_get_value (thread, -3))) {
-						sx_push_call (thread, sx_get_value (thread, -2), NULL, 0);
-						sx_pop_value (thread, -3, 3);
-					} else {
-						if (sx_get_value (thread, -1) != NULL) {
-							sx_push_call (thread, sx_get_value (thread, -1), NULL, 0);
-							sx_pop_value (thread, -3, 3);
-						}
-					}
-					break;
-				case SX_OP_WHILE:
-					switch (call->state) {
-						case 3: /* pop last value -> fallthru */
-							sx_pop_value (thread, -1, 1);
-						case 0: /* ENTER -> fallthru */
-						case 1: /* perform test */
-							call->state = 2;
-							sx_push_call (thread, sx_get_value (thread, -2), NULL, 0);
-							break;
-						case 2: /* test, check state, run body, looping to 3 */
-							if (thread->state != SX_STATE_RUN) {
-								sx_pop_value (thread, -3, 2);
-								if (thread->state == SX_STATE_BREAK) {
-									thread->state = SX_STATE_RUN;
-								}
-								call->state = 0;
-							} else if (!sx_is_true (thread->system, sx_get_value (thread, -1))) {
-								sx_pop_value (thread, -2, 2);
-								sx_push_value (thread, sx_new_nil ());
-								call->state = 0;
-							} else {
-								sx_pop_value (thread, -1, 1);
-								sx_push_call (thread, sx_get_value (thread, -1), NULL, 0);
-								call->state = 3;
-							}
-							break;
-					}
-					break;
 				case SX_OP_FOR:
-					switch (call->state) {
-						case 0: /* initialize */
-							step = SX_TOINT (sx_get_value (thread, -2));
-							loop = sx_get_value (thread, -3);
-							if (SX_ISARRAY (thread->system,loop)) {
-								if (SX_TOARRAY(loop)->count == 0) {
-									sx_pop_value (thread, -4, 4);
-									sx_push_value (thread, sx_new_nil ());
-									break;
-								}
-								i = (step > 0) ? 0 : (SX_TOARRAY(loop)->count - 1);
-								sx_push_value (thread, sx_new_num (i));
-								sx_push_value (thread, sx_new_nil ());
-								call->state = 1;
-							} else if (SX_ISRANGE (thread->system, loop)) {
-								sx_push_value (thread, sx_new_num (SX_TORANGE(loop)->start));
-								sx_push_value (thread, sx_new_nil ());
-								call->state = 3;
-							} else {
-								sx_pop_value (thread, -4, 4);
-								sx_raise_error (thread, sx_TypeError, "Invalid for loop base");
-							}
-							break;
-						case 1: /* setup loop for iteration of array */
-							call->state = 2;
-							i = SX_TOINT (sx_get_value (thread, -2));
-							sx_pop_value (thread, -2, 2);
-							name = sx_get_value (thread, -4);
-							loop = sx_get_value (thread, -3);
-							step = SX_TOINT (sx_get_value (thread, -2));
-							sx_push_call (thread, sx_get_value (thread, -1), NULL, 0);
-							sx_define_var (thread, SX_TOINT(name), SX_TOARRAY(loop)->list[i], SX_SCOPE_LOCAL);
-							i += step;
+					name = SX_TOINT (sx_get_value (thread, -3));
+					loop = sx_get_value (thread, -2);
+					value = sx_get_value (thread, -1);
+					if (SX_ISARRAY (thread->system, loop)) {
+						call->test = 0;
+						if (value == NULL) {
+							i = 0;
+						} else {
+							i = SX_TOINT (value) + 1;
+						}
+						if (i >= SX_TOARRAY(loop)->count) {
+							call->test = 0;
+						} else {
+							call->test = 1;
+							sx_pop_value (thread, -1, 1);
+							value = SX_TOARRAY(loop)->list[i];
 							sx_push_value (thread, sx_new_num (i));
-							break;
-						case 2: /* attempt loop */
-							if (thread->state == SX_STATE_BREAK) {
-								thread->state = SX_STATE_RUN;
-								sx_pop_value (thread, -6, 5);
-								call->state = 0;
-							} else {
-								step = SX_TOINT (sx_get_value (thread, -4));
-								loop = sx_get_value (thread, -5);
-								i = SX_TOINT (sx_get_value (thread, -2));
-								if ((step > 0) ? (i < SX_TOARRAY(loop)->count) : (i >= 0)) {
-									call->state = 1;
-								} else {
-									sx_pop_value (thread, -4, 3);
-									call->state = 0;
-								}
-							}
-							break;
-						case 3: /* do iteration for range */
-							if (thread->state == SX_STATE_BREAK) {
-								thread->state = SX_STATE_RUN;
-								sx_pop_value (thread, -6, 3);
-								call->state = 0;
-							} else {
-								i = SX_TOINT (sx_get_value (thread, -2));
-								loop = sx_get_value (thread, -5);
-								step = SX_TOINT (sx_get_value (thread, -4));
-								if (step > 0 ? (i > SX_TORANGE(loop)->end) : (i < SX_TORANGE(loop)->end)) {
-									/* end loop */
-									sx_pop_value (thread, -6, 5);
-									call->state = 0;
-									break;
-								}
-								sx_pop_value (thread, -2, 2);
-								name = sx_get_value (thread, -4);
-								sx_push_call (thread, sx_get_value (thread, -1), NULL, 0);
-								sx_define_var (thread, SX_TOINT(name), sx_new_num (i), SX_SCOPE_LOCAL);
-								i += step;
-								sx_push_value (thread, sx_new_num (i));
-							}
-							break;
+							sx_define_var (thread, name, value, SX_SCOPE_LOCAL);
+						}
+					} else {
+						sx_pop_value (thread, -3, 3);
+						sx_raise_error (thread, sx_TypeError, "Invalid type for loop base");
 					}
 					break;
 				case SX_OP_TRY:
+#if 0
 					if (!call->state) { /* try block */
 						call->state = 1;
 						sx_push_call (thread, sx_get_value (thread, -3), NULL, 0);
@@ -267,51 +135,19 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 							sx_pop_value (thread, -4, 4);
 						}
 					}
-					break;
-				case SX_OP_BREAK:
-					if (thread->state == SX_STATE_RUN) {
-						thread->state = SX_STATE_BREAK;
-					}
-					break;
-				case SX_OP_EVAL:
-					sx_push_call (thread, sx_get_value (thread, -1), NULL, 0);
-					sx_pop_value (thread, -1, 1);
-					break;
-				case SX_OP_RETURN:
-					if (thread->state == SX_STATE_RUN || thread->state == SX_STATE_BREAK) {
-						thread->state = SX_STATE_RETURN;
-					}
+#endif
 					break;
 				case SX_OP_RAISE:
-					value = sx_get_value (thread, -2);
-					if (SX_ISNUM (thread->system, value)) {
-						ret = sx_new_error (thread, SX_TOINT(value), sx_get_value (thread, -1));
+					name = SX_TOINT (sx_get_value (thread, -2));
+					value = sx_get_value (thread, -1);
+					sx_pop_value (thread, -2, 2);
+					ret = sx_new_error (thread, name, value);
+					if (ret) {
 						thread->state = SX_STATE_ERROR;
 						sx_push_value (thread, ret);
 					} else {
-						sx_raise_error (thread, sx_TypeError, "Tried to raise without a name");
+						sx_raise_error (thread, sx_NameError, "Invalid error name");
 					}
-					sx_pop_value (thread, -3, 2);
-					break;
-				case SX_OP_AND:
-					if (!sx_is_true (thread->system, sx_get_value (thread, -2))) {
-						sx_pop_value (thread, -1, 1);
-					} else {
-						sx_push_call (thread, sx_get_value (thread, -1), NULL, 0);
-						sx_pop_value (thread, -2, 2);
-					}
-					break;
-				case SX_OP_OR:
-					if (sx_is_true (thread->system, sx_get_value (thread, -2))) {
-						sx_pop_value (thread, -1, 1);
-					} else {
-						sx_push_call (thread, sx_get_value (thread, -1), NULL, 0);
-						sx_pop_value (thread, -2, 2);
-					}
-					break;
-				case SX_OP_STMT:
-					call->stmt = sx_get_value (thread, -1);
-					sx_pop_value (thread, -1, 1);
 					break;
 				case SX_OP_ADD:
 					sx_push_value (thread, sx_new_num (SX_TOINT (sx_to_num (thread->system, sx_get_value (thread, -2))) + SX_TOINT (sx_to_num (thread->system, sx_get_value (thread, -1)))));
@@ -334,19 +170,17 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					sx_pop_value (thread, -2, 1);
 					break;
 				case SX_OP_CALL:
-					count = SX_TOINT (sx_get_value (thread, -1));
-					value = sx_get_value (thread, -count - 2);
-					if (SX_ISFUNC (thread->system, value)) {
-						if (SX_TOFUNC(value)->cfunc) {
-							sx_call_cfunc (thread, NULL, value, count, thread->data - count - 1);
-							sx_pop_value (thread, -3 - count, count + 2);
-						} else {
-							sx_call_func (thread, NULL, value, count, thread->data - count - 1);
-							sx_pop_value (thread, -2 - count, count + 2);
-						}
+					count = SX_TOINT (sx_get_value (thread, -2));
+					name = SX_TOINT (sx_get_value (thread, -1));
+					func = sx_get_func (thread->system, name);
+					sx_pop_value (thread, -2, 2);
+					if (func != NULL) {
+						sx_push_call (thread, func, NULL, count);
+						/* jump to executation stage */
+						goto run_code;
 					} else {
-						sx_pop_value (thread, -2 - count, count + 2);
-						sx_raise_error (thread, sx_TypeError, "Tried to call a non-function");
+						sx_pop_value (thread, -count, count);
+						sx_raise_error (thread, sx_NameError, "Function '%s' does not exist", sx_name_id_to_name (name));
 					}
 					break;
 				case SX_OP_GT:
@@ -387,17 +221,14 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					}
 					break;
 				case SX_OP_ASSIGN:
-					ret = sx_get_value (thread, -2);
-					sx_define_var (thread, SX_TOINT (sx_get_value (thread, -3)), ret, SX_TOINT (sx_get_value (thread, -1)));
-					sx_push_value (thread, ret);
-					sx_pop_value (thread, -4, 3);
+					ret = sx_get_value (thread, -1);
+					sx_define_var (thread, SX_TOINT (sx_get_value (thread, -3)), ret, SX_TOINT (sx_get_value (thread, -2)));
+					sx_pop_value (thread, -3, 2);
 					break;
 				case SX_OP_INDEX:
 					value = sx_get_value (thread, -1);
 					if (SX_ISNUM (thread->system, value)) {
 						sx_push_value (thread, sx_get_index (thread->system, sx_get_value (thread, -2), SX_TOINT (value)));
-					} else if (SX_ISRANGE (thread->system, value)) {
-						sx_push_value (thread, sx_get_section (thread->system, sx_get_value (thread, -2), SX_TORANGE(value)->start, SX_TORANGE(value)->end));
 					} else {
 						sx_push_value (thread, sx_new_nil ());
 					}
@@ -422,30 +253,11 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					sx_push_value (thread, ret);
 					sx_pop_value (thread, -3, 2);
 					break;
-				case SX_OP_PREDECREMENT:
-					ret = sx_new_nil ();
-					var = sx_get_var (thread, SX_TOINT(sx_get_value (thread, -2)), SX_SCOPE_DEF);
-					if (var) {
-						ret = var->value = sx_new_num (SX_TOINT (var->value) - SX_TOINT (sx_get_value (thread, -1)));
-					}
-					sx_push_value (thread, ret);
-					sx_pop_value (thread, -3, 2);
-					break;
-				case SX_OP_POSTDECREMENT:
-					ret = sx_new_nil ();
-					var = sx_get_var (thread, SX_TOINT(sx_get_value (thread, -2)), SX_SCOPE_DEF);
-					if (var) {
-						ret = var->value;
-						var->value = sx_new_num (SX_TOINT (var->value) - SX_TOINT (sx_get_value (thread, -1)));
-					}
-					sx_push_value (thread, ret);
-					sx_pop_value (thread, -3, 2);
-					break;
 				case SX_OP_NEWARRAY:
 					count = SX_TOINT (sx_get_value (thread, -1));
 					sx_pop_value (thread, -1, 1);
 					if (count > 0) {
-						sx_push_value (thread, sx_new_stack_array (thread, count, thread->data - count));
+						sx_push_value (thread, sx_new_stack_array (thread, count, -count));
 					} else {
 						sx_push_value (thread, sx_new_array (thread->system, 0, NULL));
 					}
@@ -487,114 +299,89 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					}
 					sx_pop_value (thread, -2, 1);
 					break;
-				case SX_OP_NEWCLASS:
-					klass = sx_get_class (thread->system, SX_TOINT (sx_get_value (thread, -3)));
-					if (klass != NULL) {
-						sx_pop_value (thread, -3, 3);
-						sx_raise_error (thread, sx_NameError, "Class name already exists");
-						break;
-					}
-
-					value = sx_get_value (thread, -2);
-					if (SX_ISNUM (thread->system, value)) {
-						klass = sx_get_class (thread->system, SX_TOINT (value));
-						if (klass != NULL) {
-							klass = sx_new_class (thread->system, SX_TOINT (sx_get_value (thread, -3)), klass);
-						} else {
-							sx_pop_value (thread, -3, 3);
-							sx_raise_error (thread, sx_NameError, "Class does not exist for child");
-							break;
-						}
-					} else {
-						klass = sx_new_class (thread->system, SX_TOINT (sx_get_value (thread, -3)), NULL);
-					}
-
-					value = sx_get_value (thread, -1);
-					sx_push_value (thread, NULL);
-
-					if (SX_ISARRAY (thread->system, value)) {
-						for (i = 0; i < SX_TOARRAY(value)->size; i += 2) {
-							sx_set_method (thread->system, klass, SX_TOINT (SX_TOARRAY(value)->list[i]), SX_TOARRAY(value)->list[i + 1]);
-						}
-					}
-
-					sx_pop_value (thread, -4, 3);
-					break;
 				case SX_OP_MEMBER:
 					value = sx_get_member (thread->system, sx_get_value (thread, -2), SX_TOINT(sx_get_value (thread, -1)));
 					sx_push_value (thread, value);
 					sx_pop_value (thread, -3, 2);
 					break;
 				case SX_OP_NEWINSTANCE:
-					if (call->state == 0) { /* start */
-						klass = sx_get_class (thread->system, SX_TOINT(sx_get_value (thread, -1)));
-						if (klass != NULL) {
-							ret = sx_new_object (thread->system, klass);
-							if (ret) {
-								sx_push_value (thread, ret);
-								sx_pop_value (thread, -2, 1);
-								value = sx_get_member (thread->system, ret, sx_init_id);
-								if (SX_ISFUNC (thread->system, value)) {
-									if (SX_TOFUNC(value)->cfunc) {
-										sx_call_cfunc (thread, ret, value, 0, thread->data);
-										sx_pop_value (thread, -1, 1);
-									} else {
-										sx_call_func (thread, ret, value, 0, thread->data);
-										call->state = 1;
-									}
-								}
+					count = SX_TOINT (sx_get_value (thread, -2));
+					name = SX_TOINT (sx_get_value (thread, -1));
+					klass = sx_get_class (thread->system, name);
+					sx_pop_value (thread, -2, 2);
+					if (klass != NULL) {
+						ret = sx_new_object (thread->system, klass);
+						if (ret) {
+							/* ugly hack */
+							thread->data_stack[thread->data - count - 1] = ret;
+							func = sx_get_method (thread->system, klass, sx_init_id);
+							if (func) {
+								sx_push_call (thread, func, ret, count);
+								goto run_code;
 							} else {
-								sx_pop_value (thread, -1, 1);
-								sx_raise_error (thread, sx_MemError, "Failed to create object");
+								sx_pop_value (thread, -count, count);
+								sx_push_value (thread, NULL);
 							}
 						} else {
-							sx_pop_value (thread, -1, 1);
-							sx_raise_error (thread, sx_NameError, "Class does not exist for instance");
+							sx_pop_value (thread, -count, count);
+							sx_raise_error (thread, sx_MemError, "Failed to create object '%s'", sx_name_id_to_name (klass->id));
 						}
-					} else { /* cleanup init() */
-						sx_pop_value (thread, -1, 1);
-						call->state = 0;
+					} else {
+						sx_pop_value (thread, -count, count);
+						sx_raise_error (thread, sx_NameError, "Class '%s' does not exist", sx_name_id_to_name (name));
 					}
 					break;
 				case SX_OP_ISA:
+					value = sx_get_value (thread, -2);
 					klass = sx_get_class (thread->system, SX_TOINT(sx_get_value (thread, -1)));
+					sx_pop_value (thread, -2, 2);
 					if (klass) {
-						sx_push_value (thread, sx_new_num (sx_value_is_a (thread->system, sx_get_value (thread, -2), klass)));
+						sx_push_value (thread, sx_new_num (sx_value_is_a (thread->system, value, klass)));
 					} else {
 						sx_raise_error (thread, sx_NameError, "Parent is not a class");
 					}
-					sx_pop_value (thread, -3, 2);
-					break;
-				case SX_OP_NEWFUNC:
-					sx_push_value (thread, sx_new_func (thread->system, sx_get_value (thread, -2), sx_get_value (thread, -1)));
-					sx_pop_value (thread, -3, 2);
 					break;
 				case SX_OP_METHOD:
-					count = SX_TOINT (sx_get_value (thread, -1));
-					value = sx_get_value (thread, -count - 3); /* the class */
+					count = SX_TOINT (sx_get_value (thread, -3));
+					value = sx_get_value (thread, -2); /* the class */
+					name = SX_TOINT (sx_get_value (thread, -1));
+					sx_pop_value (thread, -3, 3);
+
 					klass = sx_class_of (thread->system, value);
 					if (klass) {
-						ret = sx_get_method (thread->system, klass, SX_TOINT(sx_get_value (thread, -count - 2)));
-						if (SX_ISFUNC (thread->system, ret)) {
-							if (SX_TOFUNC(ret)->cfunc) {
-								sx_call_cfunc (thread, value, ret, count, thread->data - count - 1);
-								sx_pop_value (thread, -4 - count, count + 3);
-							} else {
-								sx_call_func (thread, value, ret, count, thread->data - count - 1);
-								sx_pop_value (thread, -3 - count, count + 3);
-							}
+						func = sx_get_method (thread->system, klass, name);
+						if (func != NULL) {
+							sx_push_call (thread, func, value, count);
+							/* jump to executation stage */
+							goto run_code;
 						} else {
-							sx_pop_value (thread, -3 - count, count + 3);
-							sx_raise_error (thread, sx_TypeError, "Method does not exit");
+							sx_pop_value (thread, -count, count);
+							sx_raise_error (thread, sx_NameError, "Method '%s' on class '%s' does not exist", sx_name_id_to_name (name), sx_name_id_to_name (klass->id));
 						}
 					} else {
-						sx_pop_value (thread, -3 - count, count + 3);
-						sx_raise_error (thread, sx_TypeError, "Tried to call a method on an invalid class");
+						sx_raise_error (thread, sx_TypeError, "Value is not a class");
 					}
 					break;
-				case SX_OP_NEWRANGE:
-					sx_push_value (thread, sx_new_range (thread->system, SX_TOINT (sx_get_value (thread, -2)), SX_TOINT (sx_get_value (thread, -1))));
-					sx_pop_value (thread, -3, 2);
+				case SX_OP_STATIC_METHOD:
+					count = SX_TOINT (sx_get_value (thread, -3));
+					name = SX_TOINT (sx_get_value (thread, -2)); /* the class */
+					klass = sx_get_class (thread->system, name);
+					name = SX_TOINT (sx_get_value (thread, -1));
+					sx_pop_value (thread, -3, 3);
+
+					if (klass) {
+						func = sx_get_static_method (thread->system, klass, name);
+						if (func != NULL) {
+							sx_push_call (thread, func, NULL, count);
+							/* jump to executation stage */
+							goto run_code;
+						} else {
+							sx_pop_value (thread, -count, count);
+							sx_raise_error (thread, sx_NameError, "Static method '%s' on class '%s' does not exist", sx_name_id_to_name (name), sx_name_id_to_name (klass->id));
+						}
+					} else {
+						sx_raise_error (thread, sx_TypeError, "Class '%s' does not exist", sx_name_id_to_name (name));
+					}
 					break;
 				case SX_OP_SETFILELINE:
 					value = sx_get_value (thread, -2);
@@ -618,40 +405,40 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 				case SX_OP_NEXTLINE:
 					++ thread->line;
 					break;
-			}
-
-			/* recalculate call; may have changed */
-			call = &thread->call_stack[thread->call - 1];
-
-			/* DEFAULT state - safe to break, or next op */
-			if (call->state == 0) {
-				/* exit out of function on thread switch */
-				if (max) {
-					if (-- op_count == 0) {
-						thread->state = SX_STATE_SWITCH;
-						return thread->state;
+				case SX_OP_POP:
+					sx_pop_value (thread, -1, 1);
+					break;
+				case SX_OP_JUMP:
+					call->op_ptr = SX_TOINT (sx_get_value (thread, -1));
+					sx_pop_value (thread, -1, 1);
+					break;
+				case SX_OP_TEST:
+					call->test = sx_is_true (thread->system, sx_get_value (thread, -1));
+					break;
+				case SX_OP_TJUMP:
+					if (call->test) {
+						call->op_ptr = SX_TOINT (sx_get_value (thread, -1));
 					}
+					sx_pop_value (thread, -1, 1);
+					break;
+				case SX_OP_FJUMP:
+					if (!call->test) {
+						call->op_ptr = SX_TOINT (sx_get_value (thread, -1));
+					}
+					sx_pop_value (thread, -1, 1);
+					break;
+			}
+
+			/* exit out of function on thread switch */
+			if (max && thread->state == SX_STATE_RUN) {
+				if (-- op_count == 0) {
+					thread->state = SX_STATE_SWITCH;
+					return thread->state;
 				}
-
-				/* call next op */
-				++ call->op_ptr;
 			}
 		}
 
-		if (thread->state == SX_STATE_RUN) {
-			sx_push_value (thread, call->stmt);
-		}
-
-		if (call->flags & SX_CFLAG_HARD) {
-			if (thread->state == SX_STATE_BREAK || thread->state == SX_STATE_RETURN) {
-				thread->state = SX_STATE_RUN;
-			}
-		}
-
-		if (thread->data > call->top + 1) {
-			sx_pop_value (thread, call->top, thread->data - call->top - 1);
-		}
-
+		/* reset state */
 		sx_pop_call (thread);
 	}
 
@@ -667,7 +454,7 @@ sx_run_thread (SX_THREAD *thread, unsigned int max) {
 	sx_eval (thread, max);
 
 	if (thread->data > 0) {
-		thread->ret = sx_get_value (thread, 0);
+		thread->ret = sx_get_value (thread, -1);
 	}
 
 	switch (thread->state) {
@@ -682,11 +469,7 @@ sx_run_thread (SX_THREAD *thread, unsigned int max) {
 			}
 			break;
 		case SX_STATE_RUN:
-		case SX_STATE_RETURN:
 			thread->state = SX_STATE_EXIT;
-			break;
-		case SX_STATE_SWITCH:
-			thread->state = SX_STATE_RUN;
 			break;
 	}
 

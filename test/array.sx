@@ -1,16 +1,18 @@
-a = {'abc','def','ghi'}
+test () {
+	for i in a do {
+		for (n = 3; n <= 9; n += 3) {
+			printl ('In - ', n, ':', i);
+		}
+	}
+}
 
-function test ()
-	for i in a do
-		for n in 3..9 step 3 do
-			printl ('In - ', n, ':', i)
-		end
-	end
-end
+scope () {
+	local a = [1,2,3];
+	test ();
+}
 
-function scope ()
-	local a = {1,2,3}
-	test ()
-end
+main () {
+	global a = ['abc','def','ghi'];
 
-scope()
+	scope();
+}

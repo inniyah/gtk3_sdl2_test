@@ -2,81 +2,46 @@ Scriptix -
 See the file COPYING, which should have come with this distribution, for
 information regarding the licensing terms and warranty for this software
 
-Scriptix is a simple scripting language (not to be confused with a full-scale
+Scriptix is a simple extension language (not to be confused with a full-scale
 programming language).  The intent of Scriptix is to allow easy, fast,
 powerful scripting/plugin support for any application.
 
 The list of current Scriptix features include:
 
-	BASIC/Ruby-esque syntax
+	C/C++/Java -like syntax
 	Number and string data types
 	Variables
-	Nested scopes
 	User and C functions
 	Lists/arrays
 	Garbage collection
 	Fully class based
 	Exceptions
 	While/until/do/for loops and blocks
-	Ranges
 
 Features you won't likely see, ever, as they are unnecessary overkill:
 
-	User-defined operator overloading
-	Module loading/including/requiring
+	Script-defined operator overloading
+	In-script module loading/including/requiring
 	Virtual variables
+	Weird/unusual built-in datatypes
+	OS/System interfaces
 	Massively large standard library/class system
 
 Planned/future features (i.e. Todo list):
 
-	1.0:
-	General cleanups and bug fixes
-	Thread control
+	Advanced thread control
 	A moderate standard library, useful for simple embedding purposes
-	Finish full core-class system
-
-	2.0:
-	Re-entrant/threadable parsers
-	Security Model
-	Function statements, i.e. print 'notice lack of parans'
+	Optimization system
+	Security model
 	Constants
 	Regular expressions
 	Floating-point and bignum support
 	Better error system for C functions
 
 Model:
-As some notes, Scriptix is not based on a VM model.  A true VM language can
-probably do everything Scriptix can, and (in many cases) do it much faster.
-I have yet to see a freely available language that can boast all of these
-features, and remain lite enough for use as scripting (not full-out
-programming).  I'm sure there is one out there somewhere, tho, or perhaps
-one will appear soon-ish.  Either way, a model based on a true VM would
-likely prove better, and I would recommend you look at any such products
-if given the chance, before deciding to use Scriptix for you project.  Of
-all the projects out there, Lua seems to closest in terms of architecture,
-but its syntax and symantics aren't quite what they could be.
-
-Blocks:
-A block is merely a list of nodes that are evaluated in order.  Every bit
-of executable code is thus some form of expression.  And, all expressions
-must return a value (although it can be nil).  This means that code blocks,
-such as if/while statements, return values.
-
-Also, every block must return a value.  So, if you have a block of just 3
-statements, with no return commands, what will its value be?  It will be
-the last evaluated statement/node before the block returned.
-
-This fact provides a powerful mechanism for writing code.  A very simple
-example is the setting of variables:
-
-	max = if a > b then a else b end
-
-Granted, other languages provide even cleaner syntax for such a simple
-operation, but the general idea of blocks returning values should be clear.
-The if statement returned a value for the setting of max.  The two blocks,
-the true case and the false case, each had a statement/node, with no return
-commands.  However, the last executed statement in either block would be
-returned.
+Scriptix is based on a byte-code interpreter.  The compiler parses the input
+into a parse tree.  This is then run thru an optimization system.  Then the
+trimmed/pruned/optimized tree is run thru a code generator.
 
 Classes:
 Classes are fairly simple.  A class is nothing more than an name, a collection
@@ -86,7 +51,7 @@ most part).
 
 An object can be created.  Each object inherits from a class.  An object is
 generally just a collection of members.  Methods, or class functions, are part
-of the classes themselves, and cannot be defined on a per-class basis only.
+of the classes themselves, and can be defined on a per-class basis only.
 
 In addition, each core class can define additional parameters/members of an
 instance.  For example, you could create a special core class for containing
@@ -101,4 +66,4 @@ A derived class based on a core class can be made to do a number of
 interesting things, depending on the core class.  A derived class cannot
 overload a core class's operator overloading code, however, the total
 usefulness *is* limited.  This shouldn't be too much of an issue given
-Scriptix' domain, however.
+Scriptix' problem domain, however.

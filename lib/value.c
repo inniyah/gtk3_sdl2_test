@@ -96,6 +96,10 @@ sx_are_equal (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
 		return 1;
 	}
 
+	if (one == NULL) {
+		return 0;
+	}
+
 	klass = sx_class_of (system, one);
 
 	if (klass->core == NULL) {
@@ -121,7 +125,7 @@ sx_compare (SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two) {
 		return 0;
 	}
 
-	if (one == NULL) {
+	if (one == NULL || two == NULL) {
 		return 0;
 	}
 
@@ -171,15 +175,16 @@ sx_set_index (SX_SYSTEM *system, SX_VALUE *cont, int index, SX_VALUE *value) {
 }
 
 SX_VALUE *
-sx_get_section (SX_SYSTEM *system, SX_VALUE *cont, int start, int end) {
-	if (cont != NULL) {
-		SX_CLASS *klass = sx_class_of (system, cont);
-		if (klass && klass->core && klass->core->fgetsection) {
-			return klass->core->fgetsection (system, cont, start, end);
+sx_append (SX_SYSTEM *system, SX_VALUE *base, SX_VALUE *add) {
+	if (base != NULL) {
+		SX_CLASS *klass = sx_class_of (system, base);
+		if (klass && klass->core && klass->core->fappend) {
+			return klass->core->fappend (system, base, add);
 		}
 	}
 	return NULL;
 }
+
 
 void
 sx_print_value (SX_SYSTEM *system, SX_VALUE *value) {

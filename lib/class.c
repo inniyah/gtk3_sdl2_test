@@ -84,16 +84,20 @@ sx_new_core_class (SX_SYSTEM *system, sx_name_id id) {
 
 void
 sx_mark_class (SX_SYSTEM *system, SX_CLASS *klass) {
-	SX_VAR *var;
+	SX_FUNC *func;
 
-	for (var = klass->methods; var != NULL; var = var->next) {
-		sx_mark_value (system, var->value);
+	for (func = klass->methods; func != NULL; func = func->next) {
+		sx_mark_func (system, func);
+	}
+	
+	for (func = klass->static_methods; func != NULL; func = func->next) {
+		sx_mark_func (system, func);
 	}
 }
 
 void
 sx_free_class (SX_CLASS *class) {
-	SX_VAR *nmethod;
+	SX_FUNC *nmethod;
 
 	if (class->par == NULL && class->core != NULL) {
 		sx_free (class->core);
@@ -101,7 +105,7 @@ sx_free_class (SX_CLASS *class) {
 
 	while (class->methods != NULL) {
 		nmethod = class->methods->next;
-		sx_free_var (class->methods);
+		sx_free_func (class->methods);
 		class->methods = nmethod;
 	}
 
@@ -157,40 +161,13 @@ sx_new_object (SX_SYSTEM *system, SX_CLASS *parent) {
 	return value;
 }
 
-SX_VALUE *
-sx_set_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id, SX_VALUE *method) {
-	SX_VAR *var;
-
-	for (var = klass->methods; var != NULL; var = var->next) {
-		if (var->id == id) {
-			var->value = method;
-			return method;
-		}
-	}
-
-	sx_lock_value (method);
-	var = (SX_VAR *)sx_malloc (system, sizeof (SX_VAR));
-	sx_unlock_value (method);
-
-	if (var == NULL) {
-		return NULL;
-	}
-
-	var->id = id;
-	var->value = method;
-	var->next = klass->methods;
-	klass->methods = var;
-
-	return method;
-}
-
-SX_VALUE *
+SX_FUNC *
 sx_get_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id) {
-	SX_VAR *var;
+	SX_FUNC *method;
 	while (klass != NULL) {
-		for (var = klass->methods; var != NULL; var = var->next) {
-			if (var->id == id) {
-				return var->value;
+		for (method = klass->methods; method != NULL; method = method->next) {
+			if (method->id == id) {
+				return method;
 			}
 		}
 		klass = klass->par;
@@ -199,11 +176,120 @@ sx_get_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id) {
 	return NULL;
 }
 
+SX_FUNC *
+sx_add_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id, SX_ARRAY *args, SX_BLOCK *body) {
+	SX_FUNC *func;
+
+	sx_lock_value ((SX_VALUE *)args);
+	sx_lock_value ((SX_VALUE *)body);
+	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
+	sx_unlock_value ((SX_VALUE *)body);
+	sx_unlock_value ((SX_VALUE *)args);
+	if (func == NULL) {
+		return NULL;
+	}
+
+	func->id = id;
+	func->args = args;
+	func->body = body;
+	func->cfunc = NULL;
+
+	func->next = klass->methods;
+	klass->methods = func;
+
+	return func;
+}
+
+SX_FUNC *
+sx_add_cmethod (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id, sx_cfunc cfunc, SX_VALUE *data) {
+	SX_FUNC *func ;
+	
+	sx_lock_value (data);
+	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
+	sx_unlock_value (data);
+	if (func == NULL) {
+		return NULL;
+	}
+
+	func->cfunc = cfunc;
+	func->body = NULL;
+	func->args = NULL;
+	func->data = data;
+	func->id = id;
+
+	func->next = klass->methods;
+	klass->methods = func;
+
+	return func;
+}
+
+SX_FUNC *
+sx_get_static_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id) {
+	SX_FUNC *method;
+	while (klass != NULL) {
+		for (method = klass->static_methods; method != NULL; method = method->next) {
+			if (method->id == id) {
+				return method;
+			}
+		}
+		klass = klass->par;
+	}
+
+	return NULL;
+}
+
+SX_FUNC *
+sx_add_static_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id, SX_ARRAY *args, SX_BLOCK *body) {
+	SX_FUNC *func;
+
+	sx_lock_value ((SX_VALUE *)args);
+	sx_lock_value ((SX_VALUE *)body);
+	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
+	sx_unlock_value ((SX_VALUE *)body);
+	sx_unlock_value ((SX_VALUE *)args);
+	if (func == NULL) {
+		return NULL;
+	}
+
+	func->id = id;
+	func->args = args;
+	func->body = body;
+	func->cfunc = NULL;
+
+	func->next = klass->static_methods;
+	klass->static_methods = func;
+
+	return func;
+}
+
+SX_FUNC *
+sx_add_static_cmethod (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id, sx_cfunc cfunc, SX_VALUE *data) {
+	SX_FUNC *func ;
+	
+	sx_lock_value (data);
+	func = (SX_FUNC *)sx_malloc (system, sizeof (SX_FUNC));
+	sx_unlock_value (data);
+	if (func == NULL) {
+		return NULL;
+	}
+
+	func->cfunc = cfunc;
+	func->body = NULL;
+	func->args = NULL;
+	func->data = data;
+	func->id = id;
+
+	func->next = klass->static_methods;
+	klass->static_methods = func;
+
+	return func;
+}
+
 int
 sx_value_is_a (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *par) {
 	SX_CLASS *klass;
 
-	for (klass = sx_class_of (system, value); klass != NULL; klass = klass->next) {
+	for (klass = sx_class_of (system, value); klass != NULL; klass = klass->par) {
 		if (klass == par) {
 			return 1;
 		}

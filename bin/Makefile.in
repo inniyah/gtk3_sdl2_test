@@ -1,0 +1,27 @@
+CC := @CC@
+CFLAGS := -Wall -I../include @CFLAGS@
+OBJECTS := scriptix.o
+#CC = ccmalloc gcc
+
+all: scriptix scriptix-shared
+
+scriptix-shared: $(OBJECTS)
+	$(CC)  -L../lib -lscriptix -lsxparse -o $@ $(CFLAGS) $^
+
+scriptix: $(OBJECTS) ../lib/libsxparse.a  ../lib/libscriptix.a 
+	$(CC) -o $@ $(CFLAGS) $^
+
+$(OBJECTS): ../include/scriptix.h
+
+clean:
+	rm -f *.o scriptix
+
+dist:
+	mkdir ../scriptix/bin/
+	cp *.c Makefile.in ../scriptix/bin
+
+dist-clean: clean
+
+install:
+	install -D -d $(DESTDIR)/$(prefix)/bin
+	install -s -m 0755 scriptix-shared $(DESTDIR)/$(prefix)/bin/scriptix

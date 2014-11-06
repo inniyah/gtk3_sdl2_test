@@ -2,11 +2,13 @@
  * This is a block comment, yo!
  */
 
-a = 1 #set a to 1
+main () {
+	a = 1; #set a to 1
 
-# hmm, weird
-/* something */ b = /* else */ 2 /* to think about */
+	# hmm, weird
+	/* something */ b = /* else */ 2; /* to think about */
 
-printl ('all good')
+	printl ('all good');
 
-return 0 # oh ya
+	return 0; # oh ya
+}

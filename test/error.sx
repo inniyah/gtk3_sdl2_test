@@ -1,11 +1,13 @@
-try
-	raise StackError
-	printl ('oops - didnt raise')
-	return 1
-rescue StackError error
-	printl ('ok, caught it: ', error)
-	return 0
-end
+main () {
+	try {
+		raise StackError;
+		printl ('oops - didnt raise');
+		return 1;
+	} rescue (StackError error) {
+		printl ('ok, caught it: ', error);
+		return 0;
+	}
 
-printl ('oops - didnt catch')
-return 1
+	printl ('oops - didnt catch');
+	return 1;
+}

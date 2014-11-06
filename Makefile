@@ -1,5 +1,5 @@
 # Generated automatically from Makefile.in by configure.
-prefix := /usr
+prefix := /usr/local
 
 debian: all
 	if [ ! -d debian ] ; then ln -s deb debian ; fi
@@ -40,15 +40,15 @@ dist: all
 	( cd bin ; make dist )
 	( cd test ; make dist )
 	( cd deb ; make dist )
-	mv scriptix/ scriptix-0.16/
-	tar -zcf scriptix-0.16.tar.gz scriptix-0.16/
-	rm -rf scriptix-0.16/
+	mv scriptix/ scriptix-0.17/
+	tar -zcf scriptix-0.17.tar.gz scriptix-0.17/
+	rm -rf scriptix-0.17/
 
 deb:
 	if [ ! -d debian/ ] ; then ln -s deb debian ; fi
 	debuild
 
 rpm: dist
-	rpm -ta scriptix-0.16.tar.gz
+	rpm -ta scriptix-0.17.tar.gz
 
 .PHONY: deb rpm dist install clean all dist-clean

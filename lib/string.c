@@ -96,6 +96,42 @@ _sx_str_true (SX_SYSTEM *system, SX_STRING *value) {
 	return value->len > 0;
 }
 
+/* methods */
+SX_DEFINE_CFUNC(_sx_str_length) {
+	sx_push_value (sx_thread, sx_new_num (SX_TOSTRING (sx_self)->len));
+}
+
+SX_DEFINE_CFUNC(_sx_str_concat) {
+	SX_VALUE *ret;
+	SX_VALUE *value1 = sx_get_value (sx_thread, 0);
+	SX_VALUE *value2 = sx_get_value (sx_thread, 1);
+
+	if (!SX_ISSTRING (sx_thread->system, value1)) {
+		value1 = sx_to_str (sx_thread->system, value1);
+		if (!SX_ISSTRING (sx_thread->system, value1)) {
+			sx_raise_error (sx_thread, sx_TypeError, "Argument cannot be converted to a string");
+			return;
+		}
+	}
+
+	if (!SX_ISSTRING (sx_thread->system, value2)) {
+		value2 = sx_to_str (sx_thread->system, value2);
+		if (!SX_ISSTRING (sx_thread->system, value2)) {
+			sx_raise_error (sx_thread, sx_TypeError, "Argument cannot be converted to a string");
+			return;
+		}
+	}
+
+	ret = sx_new_str_len (sx_thread->system, NULL, SX_TOSTRING(value1)->len + SX_TOSTRING(value2)->len);
+	memcpy (SX_TOSTRING(ret)->str, SX_TOSTRING(value1)->str, SX_TOSTRING(value1)->len);
+	memcpy (SX_TOSTRING(ret)->str + SX_TOSTRING(value1)->len, SX_TOSTRING(value2)->str, SX_TOSTRING(value2)->len);
+	SX_TOSTRING(ret)->str[SX_TOSTRING(ret)->len] = '\0';
+
+	sx_push_value (sx_thread, ret);
+
+	return;
+}
+
 SX_VALUE *
 _sx_str_get_index (SX_SYSTEM *system, SX_STRING *value, int index) {
 	if (value->len == 0) {
@@ -114,32 +150,6 @@ _sx_str_get_index (SX_SYSTEM *system, SX_STRING *value, int index) {
 	return sx_new_str_len (system, value->str + index, 1);
 }
 
-SX_VALUE *
-_sx_str_get_section (SX_SYSTEM *system, SX_STRING *string, int start, int end) {
-	if (string->len == 0) {
-		return sx_new_str (system, NULL);
-	}
-	if (start < 0) {
-		start += string->len;
-		if (start < 0) {
-			start = 0;
-		}
-	}
-	if (start >= string->len) {
-		start = string->len - 1;
-	}
-	if (end < 0) {
-		end += string->len;
-		if (start < 0) {
-			start = 0;
-		}
-	}
-	if (end >= string->len) {
-		end = string->len - 1;
-	}
-	return sx_new_str_len (system, string->str + start, end - start + 1);
-}
-
 SX_CLASS *
 sx_init_string (SX_SYSTEM *system) {
 	SX_CLASS *klass;
@@ -156,7 +166,9 @@ sx_init_string (SX_SYSTEM *system) {
 	klass->core->fcompare = (sx_class_compare)_sx_str_compare;
 	klass->core->ftrue = (sx_class_true)_sx_str_true;
 	klass->core->fgetindex = (sx_class_get_index)_sx_str_get_index;
-	klass->core->fgetsection = (sx_class_get_section)_sx_str_get_section;
+
+	sx_add_cmethod (system, klass, sx_name_to_id ("length"), _sx_str_length, NULL);
+	sx_add_static_cmethod (system, klass, sx_name_to_id ("concat"), _sx_str_concat, NULL);
 
 	return klass;
 }

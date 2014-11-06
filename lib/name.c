@@ -46,7 +46,6 @@ sx_name_id sx_parent_id = 0;
 sx_name_id sx_self_id = 0;
 sx_name_id sx_init_id = 0;
 sx_name_id sx_error_id = 0;
-sx_name_id sx_argv_id = 0;
 
 sx_name_id sx_TypeError = 0;
 sx_name_id sx_StackError = 0;
@@ -109,7 +108,6 @@ sx_init_ids (void) {
 	sx_self_id = sx_name_to_id ("self");
 	sx_init_id = sx_name_to_id ("init");
 	sx_error_id = sx_name_to_id ("error");
-	sx_argv_id = sx_name_to_id ("argv");
 
 	sx_TypeError = sx_name_to_id ("TypeError");
 	sx_StackError = sx_name_to_id ("StackError");

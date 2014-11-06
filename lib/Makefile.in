@@ -1,4 +1,5 @@
-CFLAGS := -g -Wall -I../include -O2 $(CFLAGS)
+CC := @CC@
+CFLAGS := -Wall -I../include @CFLAGS@
 LIBS := libscriptix.a libsxparse.a
 SOLIBS := libscriptix.so.@BASE_VERSION@ libsxparse.so.@BASE_VERSION@
 SXOBJ := \
@@ -15,11 +16,10 @@ SXOBJ := \
 	block.o \
 	array.o \
 	string.o \
-	range.o \
 	stdlib.o \
 	number.o
 SOSXOBJ := $(SXOBJ:%.o=%.lo)
-YYOBJ := lex.sx.o y.tab.o 
+YYOBJ := lex.sx.o y.tab.o parser.o
 SOYYOBJ := $(YYOBJ:%.o=%.lo)
 OBJECTS := $(SXOBJ) $(YYOBJ)
 SOOBJECTS := $(SOSXOBJ) $(SOYYOBJ)
@@ -52,7 +52,7 @@ lex.sx.c: lexer.l y.tab.h ../include/scriptix.h
 y.tab.c y.tab.h: grammar.y ../include/scriptix.h
 	$(YACC) -p sx -d grammar.y
 
-$(OBJECTS): ../include/scriptix.h
+$(OBJECTS) $(SOOBJECTS): ../include/scriptix.h
 
 %.lo: %.c
 	$(CC) $(CFLAGS) -fPIC -c -o $@ $<
@@ -60,12 +60,12 @@ $(OBJECTS): ../include/scriptix.h
 clean:
 	rm -f $(OBJECTS) $(SOOBJECTS) $(LIBS) $(SOLIBS)
 
-dist:
+dist: lex.sx.c y.tab.c y.tab.h
 	mkdir ../scriptix/lib/
-	cp $(OBJECTS:%.o=%.c) Makefile.in grammar.y lexer.l ../scriptix/lib/
+	cp $(OBJECTS:%.o=%.c) y.tab.h Makefile.in grammar.y lexer.l ../scriptix/lib/
 
 dist-clean: clean
-	rm -f lex.yy.c y.tab.c y.tab.h
+	rm -f lex.sx.c y.tab.c y.tab.h
 
 install:
 	install -D -d $(DESTDIR)/$(prefix)/lib

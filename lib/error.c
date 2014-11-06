@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "scriptix.h"
 
@@ -53,9 +54,7 @@ void
 _sx_error_print (SX_SYSTEM *system, SX_ERROR *value) {
 	system->print_hook ("<Exception %s# %s:%d", sx_name_id_to_name (sx_class_of (system, (SX_VALUE *)value)->id), SX_TOSTRING (value->file)->str, value->line);
 	if (!SX_ISNIL (system, value->data)) {
-		system->print_hook (" <");
 		sx_print_value (system, value->data);
-		system->print_hook (">");
 	}
 	system->print_hook (">");
 }
@@ -70,13 +69,11 @@ SX_VALUE *
 _sx_error_tostr (SX_SYSTEM *system, SX_ERROR *value) {
 	char buffer[512];
 
-	snprintf (buffer, 512, "<Exception %s# %s:%d%s%s%s>",
+	snprintf (buffer, 512, "<Exception %s# %s:%d %s>",
 			sx_name_id_to_name (sx_class_of (system, (SX_VALUE *)value)->id),
-			SX_TOSTRING (value->file)->str,
+			value->file ? SX_TOSTRING (value->file)->str : "-unknown-",
 			value->line,
-			value->data ? " <" : "",
-			value->data ? SX_TOSTRING (sx_to_str (system, value->data))->str : "", 
-			value->data ? ">" : "");
+			value->data ? SX_TOSTRING (sx_to_str (system, value->data))->str : "");
 
 	return sx_new_str (system, buffer);
 }
@@ -99,14 +96,16 @@ sx_init_error (SX_SYSTEM *system) {
 }
 
 int
-sx_raise_error (SX_THREAD *thread, sx_name_id eid, const char *str) {
+sx_raise_error (SX_THREAD *thread, sx_name_id eid, const char *format, ...) {
 	SX_VALUE *value;
+	char buf[256]; /* big enough */
+	va_list va;
 
-	if (str != NULL) {
-		value = sx_new_str (thread->system, str);
-	} else {
-		value = NULL;
-	}
+	va_start (va, format);
+	vsnprintf (buf, 256, format, va);
+	va_end (va);
+
+	value = sx_new_str (thread->system, buf);
 
 	sx_push_value (thread, sx_new_error (thread, eid, value));
 	thread->state = SX_STATE_ERROR;
@@ -131,7 +130,10 @@ sx_new_error (SX_THREAD *thread, sx_name_id id, SX_VALUE *value) {
 	}
 
 	error->line = thread->line;
-	error->file = thread->file;
+	if (thread->file)
+		error->file = thread->file;
+	else
+		error->file = sx_new_str (thread->system, "<unknown>");
 	error->data = value;
 
 	sx_clear_value (thread->system, &error->header, klass);
