@@ -25,10 +25,10 @@
  * DAMAGE.
  */
 
-#ifndef SCRIPTIX_H
-#define SCFIPTIX_H
+#ifndef __SCRIPTIX_H__
+#define __SCRIPTIX_H__
 
-#ifdef __cplusplus__
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -131,7 +131,6 @@ typedef struct scriptix_var SX_VAR;
 typedef struct scriptix_call SX_CALL;
 typedef struct scriptix_system SX_SYSTEM;
 typedef struct scriptix_thread SX_THREAD;
-typedef struct scriptix_script SX_SCRIPT;
 typedef struct scriptix_class SX_CLASS;
 
 typedef unsigned int sx_name_id;
@@ -153,7 +152,7 @@ typedef int (*sx_class_compare)(SX_SYSTEM *system, SX_VALUE *one, SX_VALUE *two)
 
 typedef void (*sx_cfunc)(SX_THREAD *thread, SX_VALUE *klass, SX_VALUE *data, unsigned int args, unsigned int top);
 #define SX_DEFINE_CFUNC(name) void name (SX_THREAD *sx_thread, SX_VALUE *sx_self, SX_VALUE *sx_data, unsigned int sx_argc, unsigned int sx_top)
-#define SX_GET_ARG(i) (sx_get_value (sx_thread, sx_top + i - 1))
+#define SX_GET_ARG(i) (sx_get_value (sx_thread, sx_top + i))
 #define SX_NUM_ARGS() (sx_argc)
 #define SX_RETURN(v) (sx_push_value (sx_thread, (v)))
 
@@ -250,7 +249,7 @@ extern SX_CLASS *sx_new_class (SX_SYSTEM *system, sx_name_id id, SX_CLASS *par);
 extern SX_CLASS *sx_new_core_class (SX_SYSTEM *system, sx_name_id id);
 extern SX_CLASS *sx_get_class (SX_SYSTEM *system, sx_name_id id);
 extern __INLINE__ SX_CLASS *sx_top_class_of (SX_SYSTEM *system, SX_VALUE *value);
-extern SX_VALUE *sx_new_object (SX_SYSTEM *system, SX_CLASS *par, SX_VALUE *data);
+extern SX_VALUE *sx_new_object (SX_SYSTEM *system, SX_CLASS *par);
 extern SX_VALUE *sx_set_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id, SX_VALUE *method);
 extern SX_VALUE *sx_get_method (SX_SYSTEM *system, SX_CLASS *klass, sx_name_id id);
 extern int sx_value_is_a (SX_SYSTEM *system, SX_VALUE *value, SX_CLASS *klass);
@@ -258,17 +257,15 @@ extern SX_VAR *sx_set_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id,
 extern SX_VALUE *sx_get_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id);
 extern SX_VAR *sx_find_member (SX_SYSTEM *system, SX_VALUE *klass, sx_name_id id);
 
-extern sx_script_id sx_new_script (SX_SYSTEM *system, char *name, char *path, SX_VALUE *block);
-extern sx_script_id sx_find_script (SX_SYSTEM *system, char *name);
-extern sx_thread_id sx_start_script (SX_SYSTEM *system, sx_script_id id, SX_VALUE *argv);
-extern SX_VALUE *sx_run_script (SX_SYSTEM *system, sx_script_id id, SX_VALUE *argv);
-extern void sx_release_script (SX_SYSTEM *system, sx_script_id id);
-extern void sx_free_script (SX_SCRIPT *script);
+/* returns the block of the script */
+extern SX_VALUE *sx_load_file (SX_SYSTEM *system, char *file);
+extern SX_VALUE *sx_load_string (SX_SYSTEM *system, char *buffer);
 
-extern sx_script_id sx_load_file (SX_SYSTEM *system, char *file);
-extern sx_script_id sx_load_string (SX_SYSTEM *system, char *buffer);
+/* begins the script as a new thread */
 extern sx_thread_id sx_start_file (SX_SYSTEM *system, char *file, SX_VALUE *argv);
 extern sx_thread_id sx_start_string (SX_SYSTEM *system, char *buffer, SX_VALUE *argv);
+
+/* runs the script to completion */
 extern SX_VALUE *sx_run_file (SX_SYSTEM *system, char *file, SX_VALUE *argv);
 extern SX_VALUE *sx_run_string (SX_SYSTEM *system, char *buffer, SX_VALUE *argv);
 
@@ -378,17 +375,8 @@ struct scriptix_call {
 	unsigned char flags;
 };
 
-struct scriptix_script {
-	sx_script_id id;
-	char *name;
-	char *path;
-	SX_VALUE *block;
-	SX_SCRIPT *next;
-};
-
 struct scriptix_system {
 	SX_THREAD *threads;
-	SX_SCRIPT *scripts;
 	SX_CLASS *classes;
 	SX_VAR *vars;
 	SX_VALUE *gc_values;
@@ -432,7 +420,7 @@ struct scriptix_thread {
 	SX_THREAD *next;
 };
 
-#ifdef __cplusplus__
+#ifdef __cplusplus
 } /* extern "C" */
 #endif
 

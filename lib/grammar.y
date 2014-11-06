@@ -343,7 +343,7 @@ cleanup_parser (void) {
 	parser_stack_size = 0;
 }
 
-sx_script_id
+SX_VALUE *
 sx_load_file (SX_SYSTEM *system, char *file) {
 	int ret, flags;
 	SX_VALUE *sfile;
@@ -395,10 +395,10 @@ sx_load_file (SX_SYSTEM *system, char *file) {
 		return 0;
 	}
 
-	return sx_new_script (system, NULL, file, parse_block);
+	return parse_block;
 }
 
-sx_script_id
+SX_VALUE *
 sx_load_string (SX_SYSTEM *system, char *str) {
 	int ret, flags;
 
@@ -434,7 +434,7 @@ sx_load_string (SX_SYSTEM *system, char *str) {
 		return 0;
 	}
 
-	return sx_new_script (system, NULL, NULL, parse_block);
+	return parse_block;
 }
 
 sx_thread_id

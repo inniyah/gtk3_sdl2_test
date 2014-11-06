@@ -11,7 +11,6 @@ SXOBJ := \
 	name.o \
 	error.o \
 	function.o \
-	script.o \
 	block.o \
 	array.o \
 	string.o \

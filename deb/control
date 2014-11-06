@@ -1,7 +1,7 @@
 Source: scriptix
 Section: interpreters
 Priority: optional
-Maintainer: Sean Middleditch <elanthis@stargrazer>
+Maintainer: Sean Middleditch <elanthis@awesomeplay.com>
 Standards-Version: 3.2.1
 
 Package: scriptix

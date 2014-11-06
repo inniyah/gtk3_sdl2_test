@@ -1,3 +1,9 @@
+scriptix (0.14.20020502-1) unstable; urgency=low
+
+  * CVS snapshot. 
+
+ -- Sean Middleditch <elanthis@awesomeplay.com>  Thu,  2 May 2002 08:40:42 -0400
+
 scriptix (0.14-1) unstable; urgency=low
 
   * New release. 
@@ -44,7 +50,7 @@ scriptix (0.9-1) unstable; urgency=low
 
   * Initial release.
 
- -- Sean Middleditch <elanthis@stargrazer>  Wed,  3 Apr 2002 18:17:28 -0500
+ -- Sean Middleditch <elanthis@awesomeplay.com>  Wed,  3 Apr 2002 18:17:28 -0500
 
 Local variables:
 mode: debian-changelog

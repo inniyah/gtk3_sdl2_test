@@ -12,5 +12,8 @@ AC_CHECK_FUNC(strcasecmp)
 
 AC_OUTPUT(
 	Makefile
+	scriptix-conf
 	scriptix.spec
 )
+
+chmod +x scriptix-conf

@@ -30,6 +30,7 @@ rm -rf $RPM_BUILD_ROOT
 %doc README COPYING
 
 /usr/bin/scriptix
+/usr/bin/scriptix-conf
 /usr/include/scriptix/scriptix.h
 /usr/include/scriptix/config.h
 /usr/lib/libscriptix.a

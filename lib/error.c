@@ -26,6 +26,7 @@
  */
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "scriptix.h"
 
@@ -47,6 +48,21 @@ _sx_error_mark (SX_SYSTEM *system, SX_VALUE *value) {
 	sx_mark_value (system, value->data.error.data);
 }
 
+SX_VALUE *
+_sx_error_tostr (SX_SYSTEM *system, SX_VALUE *value) {
+	char buffer[512];
+
+	snprintf (buffer, 512, "<Exception %s# %s:%d%s%s%s>",
+			sx_name_id_to_name (value->data.error.id),
+			SX_TOSTR (system, value->data.error.file),
+			value->data.error.line,
+			value->data.error.data ? " <" : "",
+			value->data.error.data ? SX_TOSTR (system, sx_to_str (system, value->data.error.data)) : "", 
+			value->data.error.data ? ">" : "");
+
+	return sx_new_str (system, buffer);
+}
+
 SX_CLASS *
 sx_init_error (SX_SYSTEM *system) {
 	SX_CLASS *klass;
@@ -58,6 +74,7 @@ sx_init_error (SX_SYSTEM *system) {
 
 	klass->core->fprint = _sx_error_print;
 	klass->core->fmark = _sx_error_mark;
+	klass->core->ftostr = _sx_error_tostr;
 
 	return klass;
 }

@@ -33,6 +33,13 @@
 #include "scriptix.h"
 #include "config.h"
 
+void
+_sx_default_error_hook (char *str) {
+	if (str) {
+		fprintf (stderr, "Unhandled error: %s\n", str);
+	}
+}
+
 SX_SYSTEM *
 sx_create_system (int argc, char **argv) {
 	SX_VALUE *args;
@@ -42,7 +49,6 @@ sx_create_system (int argc, char **argv) {
 	}
 
 	system->threads = NULL;
-	system->scripts = NULL;
 	system->vars = NULL;
 	system->classes = NULL;
 	system->gc_values = NULL;
@@ -51,7 +57,7 @@ sx_create_system (int argc, char **argv) {
 	system->gc_thresh = SX_GC_THRESH;
 	system->gc_hook = NULL;
 	system->print_hook = (sx_print_hook)printf;
-	system->error_hook = NULL;
+	system->error_hook = _sx_default_error_hook;
 	system->valid_threads = 0;
 
 	sx_init_ids ();
@@ -86,13 +92,6 @@ sx_free_system (SX_SYSTEM *system) {
 	SX_THREAD *tnext;
 	SX_VAR *rnext;
 	SX_VALUE *vnext;
-	SX_SCRIPT *snext;
-
-	while (system->scripts != NULL) {
-		snext = system->scripts->next;
-		sx_free_script (system->scripts);
-		system->scripts = snext;
-	}
 
 	while (system->threads != NULL) {
 		tnext = system->threads->next;
@@ -143,7 +142,6 @@ sx_run_gc (SX_SYSTEM *system) {
 	SX_THREAD *thread;
 	SX_VAR *var;
 	SX_VALUE *value, *last;
-	SX_SCRIPT *script;
 
 	if (system->flags & SX_SFLAG_GCOFF) {
 		return;
@@ -151,10 +149,6 @@ sx_run_gc (SX_SYSTEM *system) {
 
 	if (system->gc_hook != NULL) {
 		system->gc_hook (system);
-	}
-
-	for (script = system->scripts; script != NULL; script = script->next) {
-		sx_mark_value (system, script->block);
 	}
 
 	for (var = system->vars; var != NULL; var = var->next) {

@@ -528,7 +528,7 @@ sx_eval (SX_THREAD *thread, unsigned int max) {
 					if (call->state == 0) { /* start */
 						klass = sx_get_class (thread->system, SX_TOINT(sx_get_value (thread, -1)));
 						if (klass != NULL) {
-							ret = sx_new_object (thread->system, klass, NULL);
+							ret = sx_new_object (thread->system, klass);
 							if (ret) {
 								sx_push_value (thread, ret);
 								sx_pop_value (thread, -2, 1);
@@ -672,10 +672,10 @@ sx_run_thread (SX_THREAD *thread, unsigned int max) {
 	switch (thread->state) {
 		case SX_STATE_ERROR:
 			if (thread->system->error_hook != NULL) {
-				thread->system->error_hook ("Uncaught exception");
-			} else {
-				fprintf (stderr, "Uncaught exception\n");
-				sx_print_value (thread->system, thread->ret);
+				SX_VALUE *val = sx_to_str (thread->system, thread->ret);
+				sx_lock_value (val);
+				thread->system->error_hook (SX_TOSTR (thread->system, val));
+				sx_unlock_value (val);
 			}
 			break;
 		case SX_STATE_RUN:

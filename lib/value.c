@@ -286,13 +286,34 @@ sx_mark_value (SX_SYSTEM *system, SX_VALUE *value) {
 
 SX_VALUE *
 sx_to_num (SX_SYSTEM *system, SX_VALUE *value) {
+	SX_CLASS *klass;
 	if (value == NULL) {
 		return sx_new_num (0);
 	} else if (((long)value) & SX_NUM_MARK) {
 		return value;
-	} else if (value->klass && value->klass->core && value->klass->core->ftonum) {
-		return value->klass->core->ftonum (system, value);
+	}
+
+	klass = sx_top_class_of (system, value);
+	if (klass && klass->core && klass->core->ftonum) {
+		return klass->core->ftonum (system, value);
 	} else {
 		return sx_new_num (0);
+	}
+}
+
+SX_VALUE *
+sx_to_str (SX_SYSTEM *system, SX_VALUE *value) {
+	SX_CLASS *klass;
+	if (value == NULL) {
+		return sx_new_str (system, "");
+	} else if (SX_ISSTRING (system, value)) {
+		return value;
+	}
+
+	klass = sx_top_class_of (system, value);
+	if (klass && klass->core && klass->core->ftostr) {
+		return klass->core->ftostr (system, value);
+	} else {
+		return sx_new_str (system, "");
 	}
 }

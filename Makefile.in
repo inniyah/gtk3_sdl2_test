@@ -28,6 +28,7 @@ install: all
 	( cd bin ; make install prefix=$(prefix) DESTDIR=$(DESTDIR) )
 	install -D -d $(DESTDIR)/$(prefix)/share/doc/scriptix-@VERSION@
 	install -m 0644 README COPYING $(DESTDIR)/$(prefix)/share/doc/scriptix-@VERSION@
+	install -m 0755 scriptix-conf $(DESTDIR)/$(prefix)/bin/scriptix-conf
 
 dist: all
 	rm -rf scriptix/
@@ -43,6 +44,7 @@ dist: all
 	rm -rf scriptix-@VERSION@/
 
 deb:
+	if [ ! -d debian/ ] ; then ln -s deb debian ; fi
 	debuild
 
 rpm: dist

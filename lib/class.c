@@ -117,7 +117,7 @@ sx_top_class_of (SX_SYSTEM *system, SX_VALUE *value) {
 }
 
 SX_VALUE *
-sx_new_object (SX_SYSTEM *system, SX_CLASS *parent, SX_VALUE *userdata) {
+sx_new_object (SX_SYSTEM *system, SX_CLASS *parent) {
 	SX_VALUE *value;
 	SX_CLASS *klass;
 
@@ -127,15 +127,12 @@ sx_new_object (SX_SYSTEM *system, SX_CLASS *parent, SX_VALUE *userdata) {
 			;
 	}
 
-	sx_lock_value (userdata);
-
 	if (klass && klass->core && klass->core->fnew) {
 		value = klass->core->fnew (system);
 	} else {
 		value = (SX_VALUE *)sx_malloc (system, sizeof (SX_VALUE));
 	}
 
-	sx_unlock_value (userdata);
 	if (value == NULL) {
 		return NULL;
 	}
