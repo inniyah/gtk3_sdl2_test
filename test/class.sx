@@ -1,0 +1,56 @@
+class k
+	name = 'kclass'
+	function init (value)
+		global init = 16
+	end
+	function setvar (value)
+		self.var = value
+	end
+end
+k.test = function ()
+	return self.name
+end
+
+g = new k
+
+if k.test () != 'kclass' then
+	print ('k.test() failure')
+	return 1
+end
+
+k.setvar ('hey')
+if k.var != 'hey' or g.var != 'hey' then
+	print ('*.var failure')
+	return 1
+end
+
+g.setvar ('hmm')
+if k.var != 'hey' or g.var != 'hmm' then
+	print ('*.var failure 2')
+	return 1
+end
+
+if g.name != 'kclass' then
+	print ('g.name failure')
+	return 1
+end
+
+g.name = 'g'
+
+if g.name != 'g' or k.name != 'kclass' then
+	print ('*.name failure')
+	return 1
+end
+
+if ! g isa k or k isa g then
+	return 1
+end
+
+if init != 16 then
+	print ('init failure')
+	return 1
+end
+
+print ('all good')
+
+return 0

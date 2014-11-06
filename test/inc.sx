@@ -1,0 +1,17 @@
+a = 10
+
+a += 10
+a -= 5
+
+c = a --
+b = --a
+
+print ('a: ' + a)
+print ('b: ' + b)
+print ('c: ' + c)
+
+if a != 13 or c != 15 or b != 13 then
+	return 1
+end
+
+return 0

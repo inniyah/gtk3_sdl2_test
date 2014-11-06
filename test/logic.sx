@@ -1,0 +1,15 @@
+function attempt(a,b)
+	# cheat - do add to make num
+	return 0 + a > 0 + b
+end
+function fail()
+	print ('Failure')
+	return 1
+end
+function succeed()
+	print ('Success')
+	return 1
+end
+
+(attempt (argv[1], argv[2]) and succeed()) and return 0
+(attempt (argv[1], argv[2]) or fail()) and return 1

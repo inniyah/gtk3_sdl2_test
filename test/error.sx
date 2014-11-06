@@ -1,0 +1,11 @@
+try
+	print ('try!')
+	raise 46
+	return 1
+rescue
+	print ('catch:', error)
+	return !(error == 46)
+end
+
+print ('oops')
+return 1

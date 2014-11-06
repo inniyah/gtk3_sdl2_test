@@ -1,0 +1,13 @@
+a = {'abc','def','ghi'}
+print (a)
+print (length (a))
+
+for i in a do
+	print (i)
+end
+
+i = 0
+while i < length (a) do
+	print (a[i])
+	i ++
+end

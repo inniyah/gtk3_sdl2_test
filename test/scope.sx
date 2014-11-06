@@ -1,0 +1,17 @@
+a = 1
+
+function f (a)
+	local b = 2
+	global c = a
+	return thread a
+end
+
+b = 3
+d = f (10)
+
+if a != 1 or b != 3 or c != 10 or d != 1 then
+	print ('Invalid: ', a, ',', b, ',', c, ',', d)
+	return 1
+else
+	return 0
+end

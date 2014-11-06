@@ -1,0 +1,5 @@
+print (abc)
+print (testing)
+g = new testing
+g.var = 'test'
+g.print ()
