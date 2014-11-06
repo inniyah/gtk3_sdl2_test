@@ -1,7 +1,7 @@
-BASE_VERSION=0.25
-VERSION=0.25
+BASE_VERSION=0.26
+VERSION=0.26
 
-AC_INIT([Scriptix], 0.25, [http://www.awemud.net/bugs/submit.php])
+AC_INIT([Scriptix], 0.26, [http://www.awemud.net/bugs/submit.php])
 AC_CONFIG_SRCDIR(bin/scriptix.cc)
 AM_INIT_AUTOMAKE(scriptix, "$PACKAGE_VERSION")
 AM_CONFIG_HEADER(include/config.h)
@@ -31,15 +31,11 @@ fi
 AC_SUBST(PATH_BISON)
 AC_SUBST(PATH_FLEX)
 
-# long == void*
-AC_MSG_CHECKING([whether sizeof(long) == sizeof(void*)])
-AC_TRY_RUN([
-	int main (void) { return sizeof(void*) != sizeof(long); }
-],LONGVOID=yes,LONGVOID=no)
-AC_MSG_RESULT($LONGVOID)
-if test "x$LONGVOID" = 'xno' ; then
-	AC_MSG_ERROR([Scriptix only runs on platforms where sizeof(void*) == sizeof(long)])
-fi
+# sizoef(void*) == sizeof(what??)
+AC_CHECK_SIZEOF(long)
+AC_CHECK_SIZEOF(int)
+AC_CHECK_SIZEOF(long long)
+AC_CHECK_SIZEOF(void*)
 
 AC_CHECK_FUNC(snprintf)
 AC_CHECK_FUNC(strcasecmp)

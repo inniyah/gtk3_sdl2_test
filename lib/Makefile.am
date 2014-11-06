@@ -1,6 +1,6 @@
 EXTRA_DIST=grammar.hh grammar.cc lexer.cc grammar.yy lexer.ll
 
-CXXFLAGS := @CXXFLAGS@ @SGC_CFLAGS@
+INCLUDES=-I@top_srcdir@/include @SGC_CFLAGS@
 
 libdir=${exec_prefix}/lib
 lib_LTLIBRARIES=libscriptix.la libsxparse.la

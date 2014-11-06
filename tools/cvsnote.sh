@@ -33,7 +33,7 @@ if [ -z "$EMAIL" ] ; then
 fi
 
 if [ -z "$EDITOR" ] ; then
-  for EDITOR in `which editor` `which vim` `which vi` ; do
+  for EDITOR in `which editor 2>/dev/null` `which vim 2>/dev/null` `which vi 2>/dev/null` ; do
     break
   done
 fi
@@ -48,7 +48,7 @@ if [ ! -f .cvs.commit.log ] ; then
 fi
 
 #has blank line already?
-if expr $(tail -n 1 .cvs.commit.log | wc -L) '>' 0 ; then
+if expr $(tail -n 1 .cvs.commit.log | wc -L) '>' 0 >/dev/null 2>&1 ; then
   echo >> .cvs.commit.log # blank line
 fi
 LINES=$(wc -l < .cvs.commit.log)

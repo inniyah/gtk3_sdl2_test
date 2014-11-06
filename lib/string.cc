@@ -48,21 +48,14 @@ SX_BEGINSMETHODS(String)
 	SX_DEFMETHOD(SMethodConcat, "concat", 2, 0)
 SX_ENDMETHODS
 
-String::String (System* system, const ctype* src, size_t size) : Value(system)
-{
-	len = size;
-	if (src) {
-		memcpy (str, src, len);
-		str[len] = '\0';
-	} else
-		str[0] = '\0';
-}
+String::String (System* system, const char* src, size_t size) : Value(system), data(src, size) {}
+String::String (System* system, const char* src) : Value(system), data(src) {}
+String::String (System* system, const std::string& src) : Value(system), data(src) {}
 
 void
 String::Print (System* system)
 {
-	if (len)
-		std::cout << str;
+	std::cout << data;
 }
 
 bool
@@ -70,13 +63,7 @@ String::Equal (System* system, Value* other) {
 	if (!Value::IsA<String>(other))
 		return false;
 
-	if (len != ((String*)other)->len) {
-		return false;
-	}
-	if (len == 0) {
-		return true;
-	}
-	return !strcmp (str, ((String*)other)->str);
+	return data == ((String*)other)->data;
 }
 
 int
@@ -84,38 +71,38 @@ String::Compare (System* system, Value* other) {
 	if (!Value::IsA<String>(other))
 		return -1;
 
-	if (len < ((String*)other)->len) {
+	if (GetLen() < ((String*)other)->GetLen()) {
 		return -1;
-	} else if (len > ((String*)other)->len) {
+	} else if (GetLen() > ((String*)other)->GetLen()) {
 		return 1;
-	} else if (len == 0) {
+	} else if (GetLen() == 0) {
 		return 0;
 	}
-	return memcmp (str, ((String*)other)->str, len*sizeof(ctype));
+	return memcmp (GetCStr(), ((String*)other)->GetCStr(), GetLen()*sizeof(char));
 }
 
 bool
 String::True (System* system) {
-	return len > 0;
+	return !data.empty();
 }
 
 bool
 String::Has (System* system, Value* value) {
-	const ctype *c;
+	const char *c;
 
 	if (!Value::IsA<String>(value))
 		return false;
 
 	// blank test - always in
-	if (!((String*)value)->len)
+	if (!((String*)value)->GetLen())
 		return true;
 	// longer - can't be in
-	if (((String*)value)->len > len)
+	if (((String*)value)->GetLen() > GetLen())
 		return false;
 
 	// scan and check
-	for (c = str; *c != '\0'; ++ c) {
-		if (!strncasecmp (c, ((String*)value)->str, ((String*)value)->len))
+	for (c = GetCStr(); *c != '\0'; ++ c) {
+		if (!strncasecmp (c, ((String*)value)->GetCStr(), ((String*)value)->GetLen()))
 			return true;
 	}
 
@@ -131,73 +118,58 @@ String::GetIndex (System* system, Value* vindex) {
 	
 	index = Number::ToInt(vindex);
 
-	if (len == 0) {
+	if (data.empty()) {
 		return NULL;
 	}
 	if (index < 0) {
-		index += len;
+		index += GetLen();
 		if (index < 0) {
 			index = 0;
 		}
 	}
-	if ((size_t)index >= len) {
-		index = len - 1;
+	if ((size_t)index >= GetLen()) {
+		index = GetLen() - 1;
 	}
 	
-	return String::Create (system, str + index, 1);
+	return new String (system, GetCStr() + index, 1);
 }
 
 Value*
 String::MethodLength (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	return Number::Create (((String*)self)->len);
+	return Number::Create (((String*)self)->GetLen());
 }
 
 Value*
 String::MethodTonum (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	return Number::Create (atoi (((String*)self)->str));
+	return Number::Create (atoi (((String*)self)->GetCStr()));
 }
 
 // methods
 Value*
 String::SMethodConcat (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	size_t len = 0;
-	String* ret;
+	std::string ret;
 
-	// calc length
-	for (size_t i = 0; i < argc; ++ i) {
-		if (Value::IsA<String>(argv[i])) {
-			len += ((String*)argv[i])->len;
-		}
-	}
+	// do concat
+	for (size_t i = 0; i < argc; ++ i)
+		if (Value::IsA<String>(argv[i]))
+			ret += ((String*)argv[i])->data;
 
 	// allocate string
-	ret = String::Alloc(thread->GetSystem(), len);
-	if (ret == NULL) {
+	String* strret = new String(thread->GetSystem(), ret);
+	if (strret == NULL) {
 		thread->RaiseError(SXE_NOMEM, "Out of memory");
 		return NULL;
 	}
-
-	// copy into
-	len = 0; // pointer to index
-	for (size_t i = 0; i < argc; ++ i) {
-		if (Value::IsA<String>(argv[i])) {
-			memcpy (ret->str + len, ((String*)argv[i])->str, ((String*)argv[i])->len * sizeof (ctype));
-			len += ((String*)argv[i])->len;
-		}
-	}
-
-	// finish
-	ret->str[((String*)ret)->len] = '\0';
-	return ret;
+	return strret;
 }
 
 Value*
 String::MethodSplit (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	const ctype *c, *needle, *haystack;
+	const char *c, *needle, *haystack;
 	size_t nlen;
 
 	if (!Value::IsA<String>(argv[0])) {
@@ -205,8 +177,8 @@ String::MethodSplit (Thread* thread, Value* self, size_t argc, Value** argv)
 		return NULL;
 	}
 
-	haystack = ((String*)self)->str;
-	needle = ((String*)argv[0])->str;
+	haystack = ((String*)self)->GetCStr();
+	needle = ((String*)argv[0])->GetCStr();
 	nlen = strlen (needle);
 
 	Array* array = new Array(thread->GetSystem());
@@ -223,14 +195,14 @@ String::MethodSplit (Thread* thread, Value* self, size_t argc, Value** argv)
 	// find substr
 	for (c = haystack; *c != '\0'; ++ c) {
 		if (!strncasecmp (c, needle, strlen (needle))) {
-			List::Append (thread->GetSystem(), array, String::Create (thread->GetSystem(), haystack, c - haystack));
+			List::Append (thread->GetSystem(), array, new String (thread->GetSystem(), haystack, c - haystack));
 			haystack = c + nlen;
 		}
 	}
 
 	// append last
 	if (*haystack != '\0') {
-		List::Append (thread->GetSystem(), array, String::Create (thread->GetSystem(), haystack, strlen(haystack)));
+		List::Append (thread->GetSystem(), array, new String (thread->GetSystem(), haystack, strlen(haystack)));
 	}
 
 	return array;
@@ -245,36 +217,36 @@ String::MethodSubstr (Thread* thread, Value* self, size_t argc, Value** argv)
 	len = Number::ToInt(argv[1]);
 
 	// valid starting location?
-	if (start < 0 || (size_t)start >= ((String*)self)->len) {
+	if (start < 0 || (size_t)start >= ((String*)self)->GetLen()) {
 		// FIXME: perhaps an error?
 		return NULL;
 	}
 
 	// trim len
-	if ((size_t)(start + len) > ((String*)self)->len) {
-		len = ((String*)self)->len - start;
+	if ((size_t)(start + len) > ((String*)self)->GetLen()) {
+		len = ((String*)self)->GetLen() - start;
 	}
 
 	// return value
-	return String::Create (thread->GetSystem(), ((String*)self)->str + start, len);
+	return new String (thread->GetSystem(), ((String*)self)->GetCStr() + start, len);
 }
 
 Value*
 String::MethodLower (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	String* ret = String::Create(thread->GetSystem(), ((String*)self)->GetStr());
+	String* ret = new String(thread->GetSystem(), ((String*)self)->GetStr());
 	if (ret)
 		for (size_t i = 0; i < ((String*)ret)->GetLen(); ++ i)
-			((String*)ret)->str[i] = tolower (((String*)ret)->str[i]);
+			((String*)ret)->data[i] = tolower (((String*)ret)->data[i]);
 	return ret;
 }
 
 Value*
 String::MethodUpper (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	String* ret = String::Create(thread->GetSystem(), ((String*)self)->GetStr());
+	String* ret = new String(thread->GetSystem(), ((String*)self)->GetStr());
 	if (ret)
 		for (size_t i = 0; i < ((String*)ret)->GetLen(); ++ i)
-			((String*)ret)->str[i] = toupper (((String*)ret)->str[i]);
+			((String*)ret)->data[i] = toupper (((String*)ret)->data[i]);
 	return ret;
 }

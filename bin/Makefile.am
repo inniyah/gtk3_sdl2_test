@@ -1,4 +1,4 @@
-CXXFLAGS := $(CXXFLAGS) @SGC_CFLAGS@
+INCLUDES=-I@top_srcdir@/include @SGC_CFLAGS@
 
 EXTRA_DIST = scriptix-conf.in
 

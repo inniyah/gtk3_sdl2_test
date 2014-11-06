@@ -74,8 +74,7 @@ BASE_VERSION = @BASE_VERSION@
 CC = @CC@
 CXX = @CXX@
 CXXCPP = @CXXCPP@
-
-CXXFLAGS := @CXXFLAGS@ @SGC_CFLAGS@
+CXXFLAGS = @CXXFLAGS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
 ECHO = @ECHO@
@@ -102,6 +101,8 @@ am__include = @am__include@
 am__quote = @am__quote@
 install_sh = @install_sh@
 EXTRA_DIST = grammar.hh grammar.cc lexer.cc grammar.yy lexer.ll
+
+INCLUDES = -I@top_srcdir@/include @SGC_CFLAGS@
 lib_LTLIBRARIES = libscriptix.la libsxparse.la
 
 libscriptix_la_SOURCES = \

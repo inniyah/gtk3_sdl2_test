@@ -77,7 +77,7 @@ void
 ParserState::Error(const char *msg)
 {
 	if (system->error_hook != NULL) {
-		system->error_hook (file ? ((String*)file)->GetStr(): "<input>", line, msg);
+		system->error_hook (file ? ((String*)file)->GetCStr(): "<input>", line, msg);
 	}
 }
 
@@ -87,7 +87,7 @@ Scriptix::ParserState::ParserState(System* s_system)
 	nodes = NULL;
 	funcs = NULL;
 	blocks = NULL;
-	file = String::Create(system, "<input>");
+	file = new String(system, "<input>");
 	last_file = NULL;
 	last_line = 1;
 	line = 1;
@@ -317,54 +317,44 @@ ParserState::GetGlobal(sx_name_id id)
 	return -1;
 }
 
-ParserNode*
-sxp_new_node (Scriptix::ParserState* info,
-		int type,
-		ParserNode* node0,
-		ParserNode* node1,
-		ParserNode* node2,
-		ParserNode* node3,
-		sx_name_id name0,
-		sx_name_id name1,
-		Value* value,
-		int op)
+ParserNode::ParserNode(Scriptix::ParserState* s_info,
+		int s_type,
+		ParserNode* s_node0,
+		ParserNode* s_node1,
+		ParserNode* s_node2,
+		ParserNode* s_node3,
+		sx_name_id s_name0,
+		sx_name_id s_name1,
+		Value* s_value,
+		int s_op)
 {
-	ParserNode* node = (ParserNode*)malloc (sizeof (ParserNode));
-	if (node == NULL)
-		return NULL;
-
-	node->info = info;
-	node->type = type;
-	node->next = NULL;
+	info = s_info;
+	type = s_type;
+	next = NULL;
 	
-	node->file = info->file;
-	node->line = info->line;
+	file = info->file;
+	line = info->line;
 
-	node->inext = info->nodes;
-	info->nodes = node;
+	inext = info->nodes;
+	info->nodes = this;
 
-	node->parts.nodes[0] = node0;
-	node->parts.nodes[1] = node1;
-	node->parts.nodes[2] = node2;
-	node->parts.nodes[3] = node3;
-	node->parts.names[0] = name0;
-	node->parts.names[1] = name1;
-	node->parts.value = value;
-	node->parts.op = op;
-
-	return node;
+	parts.nodes[0] = s_node0;
+	parts.nodes[1] = s_node1;
+	parts.nodes[2] = s_node2;
+	parts.nodes[3] = s_node3;
+	parts.names[0] = s_name0;
+	parts.names[1] = s_name1;
+	parts.value = s_value;
+	parts.op = s_op;
 }
 
 ParserNode* 
-sxp_append (ParserNode* base, ParserNode* add) {
+ParserNode::Append(ParserNode* node) {
 	ParserNode* i;
 
-	if (base == NULL)
-		return NULL;
-
-	for (i = base; i->next != NULL; i = i->next)
+	for (i = this; i->next != NULL; i = i->next)
 		;
-	i->next = add;
+	i->next = node;
 
-	return base;
+	return this;
 }

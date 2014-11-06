@@ -56,16 +56,16 @@ System::Run (void)
 }
 
 int
-System::WaitOn (sx_thread_id id, int *retval) {
+System::WaitOn (sx_thread_id id, Value** retval) {
 	Thread* next;
+
+	if (retval != NULL)
+		*retval = NULL;
 
 	/* check existance of valid thread */
 	if (id == 0) {
 		return SXE_BOUNDS;
 	}
-
-	if (retval)
-		*retval = 0;
 
 	if (cur_thread == NULL)
 		cur_thread = threads;
@@ -76,10 +76,8 @@ System::WaitOn (sx_thread_id id, int *retval) {
 				/* our thread? */
 				if (cur_thread->id == id) {
 					/* return value */
-					if (retval) {
-						if (Value::IsA<Number>(cur_thread->ret)) {
-							*retval = Number::ToInt (cur_thread->ret);
-						}
+					if (retval != NULL) {
+						*retval = cur_thread->ret;
 					}
 
 					next = cur_thread->next;

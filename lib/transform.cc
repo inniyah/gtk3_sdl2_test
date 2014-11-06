@@ -86,6 +86,16 @@ sxp_do_transform (ParserNode** node_ptr)
 				}
 			}
 			break;
+		/* concatenation */
+		case SXP_CONCAT:
+			if (node->parts.nodes[0]->type == SXP_DATA &&
+					Value::IsA<String>(node->parts.nodes[0]->parts.value) &&
+					node->parts.nodes[1]->type == SXP_DATA &&
+					Value::IsA<String>(node->parts.nodes[1]->parts.value)) {
+				node->type = SXP_DATA;
+				node->parts.value = new String(node->info->system, ((String*)(node->parts.nodes[0]->parts.value))->GetStr() + ((String*)(node->parts.nodes[1]->parts.value))->GetStr());
+			}
+			break;
 		/* breaks, returns, and continues have nothing afterwards */
 		case SXP_BREAK:
 		case SXP_RETURN:
@@ -103,10 +113,9 @@ sxp_do_transform (ParserNode** node_ptr)
 				} else {
 					block = node->parts.nodes[2];
 				}
-				if (block) {
+				if (block != NULL) {
 					/* append next to block list, update current */
-					sxp_append (block, node->next);
-					*node_ptr = block;
+					*node_ptr = block->Append(node->next);
 				} else {
 					node->type = SXP_NOOP;
 				}

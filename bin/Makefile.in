@@ -73,7 +73,7 @@ BASE_VERSION = @BASE_VERSION@
 CC = @CC@
 CXX = @CXX@
 CXXCPP = @CXXCPP@
-CXXFLAGS := $(CXXFLAGS) @SGC_CFLAGS@
+CXXFLAGS = @CXXFLAGS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
 ECHO = @ECHO@
@@ -99,6 +99,7 @@ VERSION = @VERSION@
 am__include = @am__include@
 am__quote = @am__quote@
 install_sh = @install_sh@
+INCLUDES = -I@top_srcdir@/include @SGC_CFLAGS@
 
 EXTRA_DIST = scriptix-conf.in
 bin_PROGRAMS = scriptix

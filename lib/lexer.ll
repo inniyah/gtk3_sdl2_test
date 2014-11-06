@@ -70,8 +70,8 @@
 <SSTRING>[^'\n] { sx_lex_str_push (yytext[0]); }
 <DSTRING>[^"\n] { sx_lex_str_push (yytext[0]); }
 <SSTRING,DSTRING>[\n] { parser->LineIncr(); sx_lex_str_push ('\n'); }
-<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = String::Create(parser->GetSystem(), sx_lex_str); return STRING; } 
-<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = String::Create(parser->GetSystem(), sx_lex_str); return STRING; } 
+<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = new String(parser->GetSystem(), sx_lex_str); return STRING; } 
+<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = new String(parser->GetSystem(), sx_lex_str); return STRING; } 
 
 [ \t]+ { /* IGNORE */ }
 "/*"  { BEGIN BCOMMENT; }

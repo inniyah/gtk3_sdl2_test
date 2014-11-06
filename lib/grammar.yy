@@ -117,7 +117,7 @@ block: { $$ = NULL; }
 	;
 
 stmts:	stmt { $$ = $1; }
-	| stmts stmt { $$ = $1; sxp_append ($$, $2); }
+	| stmts stmt { $$ = $1; $$->Append($2); }
 	;
 
 stmt:	node ';' { $$ = $1; }
@@ -146,7 +146,7 @@ node:	{ $$ = NULL; }
 	;
 
 args:	expr { $$ = $1; }
-	| args ',' expr { $$ = $1; sxp_append ($$, $3); }
+	| args ',' expr { $$ = $1; $$->Append($3); }
 	;
 
 arg_names: { $$.args = NULL; $$.varg = 0; }
@@ -167,6 +167,7 @@ expr: expr '+' expr { $$ = sxp_new_math (parser, SX_OP_ADD, $1, $3); }
 	| expr '-' expr { $$ = sxp_new_math (parser, SX_OP_SUBTRACT, $1, $3); }
 	| expr '*' expr { $$ = sxp_new_math (parser, SX_OP_MULTIPLY, $1, $3); }
 	| expr '/' expr { $$ = sxp_new_math (parser, SX_OP_DIVIDE, $1, $3); }
+	| expr '@' expr { $$ = sxp_new_concat (parser, $1, $3); }
 	| '(' expr ')' { $$ = $2; }
 
 	| expr TIN expr { $$ = sxp_new_in (parser, $1, $3); }

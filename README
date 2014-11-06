@@ -1,63 +1,84 @@
-Scriptix :: The lite-weight extension language
-See the file COPYING, which should have come with this distribution, for
-information regarding the licensing terms and warranty for this software
+Scriptix Embedded Scripting Engine
+Copyright (C) 2002,2003  AwesomePlay Productions, Inc.
+Sean Middleditch <elanthis@awesomeplay.com>
+Basic Scriptix Information
+------------------------------------------------------
 
-Scriptix is a simple extension language (not to be confused with a full-scale
-programming language).  The intent of Scriptix is to allow easy, fast,
-and powerful scripting support for any application.
 
-The list of current Scriptix features include:
+1. Introduction
+   ============
+   Scriptix is a scripting system coded in C++, designed solely for embedding
+   in other C++ applications.  Scriptix doesn't pretend to be a stand-alone
+   language.
 
-	C/C++/Java -like syntax
-	Basic integer and string data types
-	Local/global Variables
-	User and C++ functions
-	Lists/arrays
-	Garbage collection
-	Fully OO
-	While/until/do/for loops and blocks
-	Extensible class/type system thru C++
+   The language is based loosely on C++, Java, and C#.  Scriptix is a
+   dynamically typed language.  (Meaning you don't declare
+   variable/argument/return types.)  Scriptix is heavily OO based, however.
 
-Planned/future features (i.e. Todo list):
+   Scriptix is intended to be fast, tho it isn't as fast as it could be.  (The
+   older C version was much faster, due to better optimizations in the system.)
 
-	Documentation
-	Advanced thread control
-	A moderate standard library, useful for simple embedding purposes
-	Regular expressions
-	Floating-point and bignum support
 
-Features you won't likely see, ever, as they are unnecessary overkill:
+2. Features
+   ========
+   Scriptix is an object-oriented language.  Classes/types can only be defined
+   from with the embedding application using the C++ API.
 
-	Script-defined operator overloading
-	Virtual variables
-	Weird/unusual built-in datatypes
-	OS/System interfaces
-	Massively large standard library/type system
+   Scriptix provides several core types, including Numbers (31-bit signed
+   integers only, currently), Strings, Arrays, Structs, and Functions.
 
-Model:
-Scriptix is based on a byte-code interpreter.  The compiler parses the input
-into a parse tree.  This is then run thru an optimization system.  Then the
-trimmed/pruned/optimized tree is run thru a code generator.
+   New functions may be defined in scripts, and may be defined public.  Public
+   functions are accessible to any other source file that is loaded afterwards,
+   while non-public functions are only accessible to the source file they were
+   declared in.
 
-Types:
-Types are fairly simple.  A type is nothing more than a name, a collection
-of methods, and a parent type.
+   All basic operations are supported, including math, string concatenation,
+   array indexing, and so forth.
 
-An object can be created.  Each object inherits from a type.  An object is
-generally just a collection of members.  Methods, or type functions, are part
-of the types themselves, and can be defined on a per-type basis only.
+   Scriptix is threadable; it uses it's own (simplistic) threading interface to
+   allow multiple scripts to be running at the same time.  Threads can be
+   either cooperatively or pre-emptively threaded.  Cooperative threads must
+   give up control explicitly, while pre-emptive threads have control taken
+   away after a set number of instructions have been executed.
 
-In addition, each core type can define additional parameters/members of an
-instance.  For example, you could create a special core type for containing
-references to a custom C datatype, and then add methods to the type for
-interacting with the data type.
 
-Scriptix code can derive types from core type, or make custom "bare"
-types.  A bare type would be nothing more than a collection of methods -
-no operator overloading or other special functionality.
+3. Documentation
+   =============
+   Yes, we're seriously lacking it.
+   
 
-A derived type based on a core type can be made to do a number of
-interesting things, depending on the core type.  A derived type cannot
-overload a core type's operator overloading code, however, the total
-usefulness *is* limited.  This shouldn't be too much of an issue given
-Scriptix' problem domain, however.
+5. Legal
+   =====
+   Scriptix comes with no warranty.  If something bad happens to you because of
+   your use of Scriptix, we (the authors, distributors, builders, and testers)
+   are not responsible for your misfortune and/or mistakes.  See the disclaimer
+   section below.
+
+   Scriptix is licensed under the BSD license.  See the COPYING file for more
+   details.  As a summary, the BSD license gives you rights to do whatever you
+   want with the code.  Note: you can NOT change the license of our code, or
+   modify copyrights.  Our code is our code, and it is released under the BSD
+   license - end of story.  You can, however, add new code or modify existing
+   code.  Any code you write is yours, and licensed under whichever license you
+   choose - end of story.  The BSD license grants you the right to distribute
+   binaries; the license does NOT guarantee receivers of the binaries rights to
+   the source code, original or modified.  The BSD license is ideal if you wish
+   to release a modified codebase in a commercial setting.
+
+   We do appreciate being given credit if you distribute binaries, but it is
+   not legally required.
+
+
+6. Disclaimer
+   ==========
+   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+   ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR
+   ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+   DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+   CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+   LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+   OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+   DAMAGE.

@@ -1,3 +1,40 @@
+2003-07-10 20:47:51  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Upgraded the cvs and autogen scripts.
+
+2003-07-10  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Added a string concatenation operator (@).
+  * Nicer README.
+
+2003-07-05  Sean Middleditch <elanthis@awemud.net>
+
+  * Make autogen.sh call libtoolize.
+
+2003-07-04  Sean Middleditch <elanthis@awemud.net>
+
+  * The make distcheck command now works.
+
+2003-06-29  Sean Middleditch <elanthis@awemud.net>
+
+  * System::WaitOn's retval is a full value now.
+
+2003-06-16  Sean Middleditch <elanthis@awemud.net>
+
+  * Scriptix will find the numeric type with sizeof== sizeof(void*),
+    instead of requiring sizeof(long)==sizeof(void*).  This will
+    probably help portability a good deal.
+
+2003-06-13  Sean Middleditch <elanthis@awemud.net>
+
+  * String type now uses std::string for better C++ memory usage.
+    (String methods could probably use some optimizing for the C++
+    std::string daatype now.)
+
+2003-06-11  Sean Middleditch <elanthis@awemud.net>
+
+  * Small header fix for compilation.
+
 2003-05-31  Sean Middleditch <elanthis@awemud.net>
 
   * Fix iterator crash bug.

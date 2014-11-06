@@ -23,10 +23,20 @@ public main()
 		return 1;
 	}
 
-	// concat and substr check
+	// substr check
 	string = 'Sean Middleditch';
-	if (String.concat(string.substr(5, 16), ', ', string.substr(0,4)) != 'Middleditch, Sean') {
-		printl ('Failure: concat() and/or substr() methods');
+	if (string.substr(5, 16) != 'Middleditch' || string.substr(0,4) != 'Sean') {
+		printl ('Failure: substr() method');
+		return 1;
+	}
+
+	// concat check
+	string1 = 'This ';
+	string2 = 'is ';
+	string3 = 'a ';
+	string4 = 'test';
+	if (String.concat(string1 @ string2, string3 @ string4) != 'This is a test') {
+		printl('Failure: concatenation');
 		return 1;
 	}
 

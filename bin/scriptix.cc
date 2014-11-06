@@ -80,7 +80,7 @@ main (int argc, const char **argv) {
 			// copy in values
 			for (int i = 2; i < argc; ++i) {
 				// crate String for each arguments
-				sargv[i - 2] = String::Create(system, argv[i]);
+				sargv[i - 2] = new String(system, argv[i]);
 			}
 		} else {
 			// no args, empty

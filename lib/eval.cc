@@ -90,6 +90,7 @@ OpCode Scriptix::OpCodeDefs[] = {
 	{ "SET_MEMBER", 1 },
 	{ "GET_MEMBER", 1 },
 	{ "ITER", 1 },
+	{ "CONCAT", 0 },
 };
 
 Value*
@@ -192,6 +193,7 @@ Thread::Eval (void) {
 	int op;
 	Value* ret;
 	Value* value;
+	Value* value2;
 	Call* curcall;
 	const Type* type;
 	const Method* method;
@@ -324,6 +326,16 @@ run_code:
 					index = curcall->func->nodes[curcall->op_ptr++];
 					ret = GetValue(1);
 					curcall->items[index] = ret;
+					break;
+				case SX_OP_CONCAT:
+					value = GetValue(2);
+					value2 = GetValue(1);
+					PopValue(2);
+					if (!Value::IsA<String>(value) || !Value::IsA<String>(value2)) {
+						RaiseError(SXE_BADTYPE, "Only strings may be used in concatenation");
+					} else {
+						PushValue(new String(system, ((String*)value)->GetStr() + ((String*)value2)->GetStr()));
+					}
 					break;
 				case SX_OP_INDEX:
 					value = GetValue(2);

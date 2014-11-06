@@ -7,3 +7,7 @@ html-stamp: ../include/scriptix.h
 		@PATH_CCDOC@ -db ccdoc.db -index -html html/ ../include/scriptix.h ; \
 	fi
 	touch html-stamp
+
+clean-local:
+	rm -f html-stamp
+	rm -fr html/

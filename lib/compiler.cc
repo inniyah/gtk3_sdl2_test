@@ -47,7 +47,7 @@ _sxp_node_error (ParserNode* node, const char *msg, ...)
 	va_end (va);
 
 	if (node->info->system->error_hook != NULL) {
-		node->info->system->error_hook (node->file ? ((String*)node->file)->GetStr() : "<input>", node->line, buffer);
+		node->info->system->error_hook (node->file ? ((String*)node->file)->GetCStr() : "<input>", node->line, buffer);
 	}
 }
 
@@ -455,6 +455,11 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				func->func->AddOpcode(system, SX_OP_POP);
 				break;
 			}
+			case SXP_CONCAT:
+				_test(CompileNode (func, node->parts.nodes[0]));
+				_test(CompileNode (func, node->parts.nodes[1]));
+				func->func->AddOpcode(system, SX_OP_CONCAT);
+				break;
 
 			// NOOP - special
 			case SXP_NOOP:

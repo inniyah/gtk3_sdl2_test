@@ -48,6 +48,21 @@
  */
 namespace Scriptix {
 
+// type to use for numeric data
+#if SIZEOF_LONG==SIZEOF_VOIDP
+typedef long int_t;
+#else // LONG
+#if SIZEOF_LONG_LONG==SIZEOF_VOIDP
+typedef long long int_t;
+#else // LONG LONG
+#if SIZEOF_INT==SIZEOF_VOIDP
+typedef int int_t;
+#else // INT
+#error "None of long, long long, or int match the sizeof void*"
+#endif // INT
+#endif // LONG LONG
+#endif // LONG
+
 // various stack sizes
 #define SX_DEF_DATA_CHUNK 50
 #define SX_DEF_CONTEXT_CHUNK 10
@@ -144,6 +159,7 @@ typedef enum {
 	SX_OP_SET_MEMBER,
 	SX_OP_GET_MEMBER,
 	SX_OP_ITER,
+	SX_OP_CONCAT,
 } sx_op_type;
 
 // Thread flags
@@ -228,7 +244,7 @@ const char *Version (void);
 #define SX_TOSTRING(val) ((Scriptix::String*)(val))
 #define SX_TOARRAY(val) ((Scriptix::Array*)(val))
 #define SX_TOASSOC(val) ((Scriptix::Assoc*)(val))
-#define SX_TONUM(val) ((long)(val))
+#define SX_TONUM(val) ((int_t)val)
 #define SX_TOTYPE(val) ((Scriptix::TypeValue*)(val))
 #define SX_TOITER(val) ((Scriptix::Iterator*)(val))
 
@@ -737,19 +753,19 @@ class Number : public Value {
 
 	/**
 	 * Create new numeric value.
-	 * Given a long value, create an encoded pointer usable in the rest
+	 * Given an int_t value, create an encoded pointer usable in the rest
 	 * of the Scriptix system.
 	 * @param i Numeric value.
 	 * @return Encoded numeric value.
 	 */
-	static Value* Create (long i) { return ((Value* )((i << 1) | SX_NUM_MARK)); }
+	static Value* Create (int_t i) { return ((Value* )((i << 1) | SX_NUM_MARK)); }
 	/**
 	 * Decode numeric value.
-	 * Given an encoded numeric value, return a normal long numeric value.
+	 * Given an encoded numeric value, return a normal int_t numeric value.
 	 * @param num Encoded numeric value.
-	 * @return Decoded long numeric value.
+	 * @return Decoded int_t numeric value.
 	 */
-	static long ToInt (Value* num) { return (long)num >> 1; }
+	static int_t ToInt (Value* num) { return (int_t)num >> 1; }
 };
 
 /**
@@ -769,9 +785,7 @@ struct String : public Value {
 	SX_TYPEDEF
 
 	private:
-	typedef char ctype;	///< Type of each character in the string.
-	size_t len;		///< Length of the string.
-	ctype str[0];		///< Fake array, data of string.
+	std::string data;
 
 	// Methods
 	private:
@@ -784,62 +798,10 @@ struct String : public Value {
 
 	static Value* SMethodConcat (Thread* thread, Value* self, size_t argc, Value** argv);
 
-	private:
-	String (System* system, const ctype* src, size_t len);
-	// Our specialized new operator
-	void* operator new (size_t size, size_t slen) { return new ctype[size + ((slen + 1) * sizeof(ctype))]; }
-
-	/**
-	 * Alloc space for a string.
-	 * This is an internally used method to create an empty string of a
-	 * given length.  This is needed in methods that must construct a
-	 * string piece by piece: they need the space allocated, but don't
-	 * have the character data actually ready.
-	 * @param system The system the string is to be created in.
-	 * @param length Length in ctypeacters of the new string.
-	 * @return A new string instance, or NULL on error.
-	 */
-	static String* Alloc (System* system, size_t length)
-	{
-		return new(length) String(system, NULL, length);
-	}
-
-	// Convenience allocators
 	public:
-	/**
-	 * Create a new string instance.
-	 * This method must be used versus the new operator due to the memory
-	 * allocation needs of the string class.  This method copies the
-	 * input string.
-	 * @param system The system the string is to be created in.
-	 * @param src A C string that the new instance will contain.
-	 * @return A new string instance, or NULL on error.
-	 */
-	static String* Create (System* system, const ctype* src)
-	{
-		size_t len = src ? strlen(src) : 0;
-		return new(len) String(system, src, len);
-	}
-	/**
-	 * Create a new string instance.
-	 * This method must be used versus the new operator due to the memory
-	 * allocation needs of the string class.  This method copies the
-	 * input string.  If the input string is longer than the maximum
-	 * specified, the resulting string instance will contain a truncated
-	 * copy.
-	 * @param system The system the string is to be created in.
-	 * @param src A C string that the new instance will contain.
-	 * @param max Maximum length in ctypeacters of the new string.
-	 * @return A new string instance, or NULL on error.
-	 */
-	static String* Create (System* system, const ctype* src, size_t max)
-	{
-		size_t len = src ? strlen(src) : 0;
-		if (len < max)
-			return new(len) String(system, src, len);
-		else
-			return new(max) String(system, src, max);
-	}
+	String (System* system, const char* src, size_t len);
+	String (System* system, const char* src);
+	String (System* system, const std::string& src);
 
 	// Query data
 	public:
@@ -847,13 +809,19 @@ struct String : public Value {
 	 * Get length of string.
 	 * @return Length of the string.
 	 */
-	size_t GetLen (void) const { return len; }
+	size_t GetLen (void) const { return data.length(); }
 	/**
 	 * Get C string.
 	 * Returns a pointer type to be used in C/C++ code.
 	 * @return A pointer to an array of the ctypeacter type.
 	 */
-	const ctype* GetStr (void) const { return str; }
+	const char* GetCStr (void) const { return data.c_str(); }
+	/**
+	 * Get C++ string.
+	 * Returns a reference of the C++ string member.
+	 * @return const reference of data.
+	 */
+	const std::string& GetStr (void) const { return data; }
 
 	// Operations
 	protected:
@@ -991,7 +959,7 @@ class Function : public Value {
 	sx_name_id id; // name of function
 	size_t argc; // number of arguments to function
 	size_t varc; // number of variables in function
-	long* nodes; // byte codes
+	int_t* nodes; // byte codes
 	size_t count; // number of valid bytecode nodes
 	size_t size; // size of nods
 	bool varg; // name of variable argument - FIXME: should be a flag or something
@@ -1146,7 +1114,7 @@ class System : public SGC::Root {
 
 	// Running threads
 	int Run (void);
-	int WaitOn (sx_thread_id id, int *retval);
+	int WaitOn (sx_thread_id id, Value** retval);
 	int NestedRun (Thread* thread, Value** retval);
 
 	// Pools
@@ -1258,18 +1226,20 @@ class Thread {
 //  These have to be down here, in the header, thanks to stupid C++ and it's inline linking
 
 // --- Type Checking/Casting ---
+inline
 const Type*
 Value::TypeOf (Value* value)
 {
 	if (value == NULL)
 		return NULL;
 
-	if ((long)value & 0x01)
+	if ((int_t)value & 0x01)
 		return Number::GetType();
 
 	return value->GetMyType();
 }
 
+inline
 bool
 Value::IsA (Value* value, const Type* type)
 {
@@ -1285,6 +1255,7 @@ Value::IsA (Value* value, const Type* type)
 }
 
 template <typename TTYPE>
+inline
 bool
 Value::_TypeCheck<TTYPE>::Check(Value* value)
 {
@@ -1292,13 +1263,15 @@ Value::_TypeCheck<TTYPE>::Check(Value* value)
 }
 
 template <>
+inline
 bool
 Value::_TypeCheck<Number>::Check(Value* value)
 {
-	return ((long)value) & 0x01;
+	return ((int_t)value) & 0x01;
 }
 
 // --- Value --- 
+inline
 void
 Value::Mark (Value* self)
 {
@@ -1306,6 +1279,7 @@ Value::Mark (Value* self)
 		if (!self->IsMarked())
 			self->SGC::Collectable::Mark();
 }
+inline
 void
 Value::Print (System* system, Value* self)
 {
@@ -1316,6 +1290,7 @@ Value::Print (System* system, Value* self)
 	else
 		std::cout << "(nil)";
 }
+inline
 bool
 Value::Equal (System* system, Value* self, Value* other)
 {
@@ -1327,6 +1302,7 @@ Value::Equal (System* system, Value* self, Value* other)
 	else
 		return false;
 }
+inline
 int
 Value::Compare (System* system, Value* self, Value* other)
 {
@@ -1343,6 +1319,7 @@ Value::Compare (System* system, Value* self, Value* other)
 	} else
 		return 1; // default
 }
+inline
 bool
 Value::True (System* system, Value* self)
 {
@@ -1356,6 +1333,7 @@ Value::True (System* system, Value* self)
 
 // ---- Magic NEW operator constructor ----
 template <class CTYPE>
+inline
 Value*
 _CreateNew (Thread* thread, Value*, size_t, Value**)
 {

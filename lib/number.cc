@@ -41,7 +41,7 @@ Number::MethodTostr (Thread* thread, Value* self, size_t argc, Value** argv)
 {
 	char buf[20];
 	snprintf (buf, 20, "%ld", Number::ToInt (self));
-	return String::Create (thread->GetSystem(), buf);
+	return new String(thread->GetSystem(), buf);
 }
 
 SX_TYPEIMPL(Number, "Int", Value)

@@ -125,7 +125,7 @@ SX_NOSMETHODS(TypeValue)
 Value*
 TypeValue::MethodName (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	return String::Create (thread->GetSystem(), ((TypeValue*)self)->type->name);
+	return new String (thread->GetSystem(), ((TypeValue*)self)->type->name);
 }
 
 bool

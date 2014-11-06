@@ -67,7 +67,7 @@ StdlibLookup (Thread* thread, size_t argc, Value** argv)
 		return NULL;
 	}
 
-	return (Value*)thread->GetSystem()->GetFunction(NameToID(((String*)argv[0])->GetStr()));
+	return (Value*)thread->GetSystem()->GetFunction(NameToID(((String*)argv[0])->GetCStr()));
 }
 
 static

@@ -67,7 +67,7 @@ Thread::RaiseError (int err, const char *format, ...) {
 	if (system->error_hook != NULL) {
 		call = GetCall();
 		if (call) {
-			system->error_hook (call->file ? call->file->GetStr(): "n/a", call->line, buf);
+			system->error_hook (call->file ? call->file->GetCStr(): "n/a", call->line, buf);
 		} else {
 			system->error_hook ("n/a", 0, buf);
 		}
