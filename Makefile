@@ -110,3 +110,11 @@ ifeq (.depend,$(wildcard .depend))
 include .depend
 endif
 
+test: $(PROGRAM)
+	for PRG in test/*.sx; do \
+		echo ; \
+		echo Testing $${PRG}...  ; \
+		LD_LIBRARY_PATH="." ./$(PROGRAM) $${PRG} || exit 1 ; \
+		done
+	echo ; echo Tests OK!
+
