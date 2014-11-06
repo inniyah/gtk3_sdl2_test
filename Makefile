@@ -41,9 +41,9 @@ PROGRAM_OBJS = $(PRG_SRC:.cpp=.o)
 #PKG_CONFIG_LIBS=`pkg-config --libs $(PKG_CONFIG)`
 
 CFLAGS=-O2 -g -Wall 
-EXTRA_CFLAGS=-I$(INCLUDE_DIR) 
-#EXTRA_CFLAGS=-I$(INCLUDE_DIR) $(PKG_CONFIG_CFLAGS)
-STATIC_CFLAGS= -O2 -g -Wall $(CFLAGS) $(EXTRA_CFLAGS)
+INCLUDE=-I$(INCLUDE_DIR) 
+#INCLUDE=-I$(INCLUDE_DIR) $(PKG_CONFIG_CFLAGS)
+STATIC_CFLAGS= -O2 -g -Wall $(CFLAGS) $(INCLUDE)
 SHARED_CFLAGS= $(STATIC_CFLAGS) -fPIC
 
 LDFLAGS= -Wl,-z,defs -Wl,--as-needed -Wl,--no-undefined
@@ -103,9 +103,8 @@ clean:
 	rm -f src/grammar.cpp src/grammar.h
 	rm -f *.so *.so* *.a *~
 
-.depend depend dep:
-	g++ $(CFLAGS) -MM $(LIB_SRC) $(PRG_SRC) $(INCS) $(PKG_CONFIG_CFLAGS) > .depend
-	$(MAKE) -C slmath .depend
+.depend depend dep: $(LIB_SRC) $(PRG_SRC)
+	g++ $(CFLAGS) -MM $(LIB_SRC) $(PRG_SRC) $(INCLUDE) $(PKG_CONFIG_CFLAGS) > .depend
 
 ifeq (.depend,$(wildcard .depend))
 include .depend
