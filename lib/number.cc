@@ -40,7 +40,7 @@ Value*
 Number::MethodTostr (Thread* thread, Value* self, size_t argc, Value** argv)
 {
 	char buf[20];
-	snprintf (buf, 20, "%ld", Number::ToInt (self));
+	snprintf (buf, 20, "%d", Number::ToInt (self));
 	return new String(thread->GetSystem(), buf);
 }
 

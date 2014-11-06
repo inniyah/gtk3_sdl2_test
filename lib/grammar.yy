@@ -54,7 +54,7 @@
 	/* stupid BISON fix */
 	#define __attribute__(x)
 
-	#define malloc GC_MALLOC
+	#define malloc GC_MALLOC_UNCOLLECTABLE
 	#define free GC_FREE
 %}
 
@@ -108,8 +108,8 @@ program:
 	| program new
 	;
 
-function: name '(' arg_names ')' '{' block '}' { parser->AddFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, 0, false); delete $3.args; }
-	| TPUBLIC name '(' arg_names ')' '{' block '}' { parser->AddFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, 0, true); delete $4.args; }
+function: name '(' arg_names ')' '{' block '}' { parser->AddFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, 0, false); }
+	| TPUBLIC name '(' arg_names ')' '{' block '}' { parser->AddFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, 0, true); }
 	| name name { 
 		if (!parser->GetSystem()->ValidFunctionTag($1)) {
 			yyerror ("Error: Unrecognized function tag");
@@ -117,7 +117,7 @@ function: name '(' arg_names ')' '{' block '}' { parser->AddFunc($1, ($3.args ? 
 		}
 		$<id>1 = $1;
 		$<id>2 = $2;
-	} '(' arg_names ')' '{' block '}' { parser->AddFunc($<id>2, ($5.args ? *$5.args : NameList()), $5.varg, $8, $<id>1, false); delete $5.args; }
+	} '(' arg_names ')' '{' block '}' { parser->AddFunc($<id>2, ($5.args ? *$5.args : NameList()), $5.varg, $8, $<id>1, false); }
 	;
 
 global: name '=' data ';' { parser->SetGlobal($1, $3); }
@@ -126,8 +126,8 @@ global: name '=' data ';' { parser->SetGlobal($1, $3); }
 extend: TEXTEND type { if (!parser->AddExtend ($2)) YYERROR; } '{' extend_methods '}'
 	;
 
-extend_method: name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, false); delete $3.args; }
-	| TSTATIC name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, true); delete $4.args; }
+extend_method: name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($1, ($3.args ? *$3.args : NameList()), $3.varg, $6, false); }
+	| TSTATIC name '(' arg_names ')' '{' block '}' { parser->AddExtendFunc($2, ($4.args ? *$4.args : NameList()), $4.varg, $7, true); }
 	;
 
 extend_methods: extend_method
@@ -135,7 +135,7 @@ extend_methods: extend_method
 	;
 
 construct_method:
-	| TNEW '(' arg_names ')' '{' block '}' { parser->AddExtendFunc(NameToID("new"), ($3.args ? *$3.args : NameList()), $3.varg, $6, false); delete $3.args; }
+	| TNEW '(' arg_names ')' '{' block '}' { parser->AddExtendFunc(NameToID("new"), ($3.args ? *$3.args : NameList()), $3.varg, $6, false); }
 	;
 
 new: TNEW name { if (!parser->AddType ($2, parser->GetSystem()->GetStructType())) YYERROR; } '{' construct_method extend_methods '}'
@@ -289,7 +289,7 @@ yywrap (void) {
 }
 
 int
-Scriptix::System::LoadFile(const std::string& file) {
+Scriptix::System::LoadFile(const std::string& file, SecurityLevel access) {
 	int ret;
 
 	if (file.empty()) {
@@ -311,6 +311,7 @@ Scriptix::System::LoadFile(const std::string& file) {
 	}
 	if (!file.empty())
 		parser->SetFile(file);
+	parser->SetAccess(access);
 
 	sxp_parser_inbuf = NULL;
 
@@ -324,13 +325,11 @@ Scriptix::System::LoadFile(const std::string& file) {
 	if (!ret)
 		ret = parser->Compile();
 
-	delete parser;
-
 	return ret;
 }
 
 int
-Scriptix::System::LoadString(const std::string& buf, const std::string& name, size_t lineno) {
+Scriptix::System::LoadString(const std::string& buf, const std::string& name, size_t lineno, SecurityLevel access) {
 	int ret;
 
 	if (buf.empty())
@@ -341,6 +340,7 @@ Scriptix::System::LoadString(const std::string& buf, const std::string& name, si
 		std::cerr << "Failed to create Compiler context" << std::endl;
 		return SXE_INTERNAL;
 	}
+	parser->SetAccess(access);
 	parser->SetFile(name);
 	parser->SetLine(lineno);
 
@@ -353,8 +353,6 @@ Scriptix::System::LoadString(const std::string& buf, const std::string& name, si
 
 	if (!ret)
 		ret = parser->Compile();
-
-	delete parser;
 
 	return ret;
 }

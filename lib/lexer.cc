@@ -461,7 +461,7 @@ char *yytext;
 	const char *sxp_parser_inbuf = NULL;
 	static void sxp_parser_input (char *buf, int *result, int max);
 
-	#define malloc GC_MALLOC_ATOMIC
+	#define malloc GC_MALLOC_UNCOLLECTABLE
 	#define free GC_FREE
 #define BCOMMENT 1
 
@@ -1841,13 +1841,7 @@ sxp_parser_input (char *buf, int *result, int max_size) {
 
 		*result = max_size;
 	} else {
-		errno = 0;
-		while ((*result = fread (buf, 1, max_size, yyin)) == 0 && ferror (yyin)) {
-			if (errno != EINTR) {
-				break;
-			}
-			errno = 0;
-			clearerr (yyin);
-		}
+		if ((*result = fread (buf, 1, max_size, yyin)) == 0 && ferror (yyin))
+			YY_FATAL_ERROR("fread() failed");
 	}
 }

@@ -166,7 +166,7 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 				// search for function
 				for (FunctionList::iterator dfunc = funcs.begin(); dfunc != funcs.end(); ++dfunc) {
 					if ((*dfunc)->name == node->parts.name) {
-						func->func->AddValue(system, SX_TOVALUE((*dfunc)->func));
+						func->func->AddValue(system, (Value*)((*dfunc)->func));
 						found = 1;
 						break;
 					}
@@ -213,7 +213,7 @@ ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
 					index = GetGlobal(node->parts.name);
 					if (index >= 0) {
 						// do a lookup
-						func->func->AddValue(system, SX_TOVALUE(globals));
+						func->func->AddValue(system, (Value*)globals);
 						func->func->AddValue(system, Number::Create(index));
 						_test(CompileNode (func, node->parts.nodes[0]))
 						func->func->AddOpcode(system, OP_SETINDEX);
@@ -601,6 +601,7 @@ Scriptix::ParserState::Compile(void) {
 			Error("Failed to create function");
 			return -1;
 		}
+		(*func)->func->access = access;
 	}
 
 	// create type extensions
@@ -631,6 +632,7 @@ Scriptix::ParserState::Compile(void) {
 				Error("Failed to create function");
 				return -1;
 			}
+			(*func)->func->access = access;
 		}
 	}
 

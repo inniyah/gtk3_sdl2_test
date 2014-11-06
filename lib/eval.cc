@@ -152,7 +152,6 @@ int
 Thread::Eval (void) {
 	unsigned long count;
 	unsigned long op_count = system->GetRunLength();
-	unsigned long index;
 	int op;
 	Value* ret;
 	Value* value;
@@ -247,14 +246,14 @@ run_code:
 						break;
 					}
 
-					if (SX_TOFUNC(value)->cfunc != NULL) {
-						ret = InvokeCFunc(SX_TOFUNC(value), count);
+					if (((Function*)value)->cfunc != NULL) {
+						ret = InvokeCFunc(((Function*)value), count);
 						PopValue(count);
 						PushValue(ret);
 						break;
 					}
 
-					PushFrame(SX_TOFUNC(value), count);
+					PushFrame(((Function*)value), count);
 					goto run_code; // jump to executation stage
 				case OP_GT:
 					ret = Number::Create (Value::Compare (system, GetValue(2), GetValue()) > 0);
@@ -321,7 +320,7 @@ run_code:
 				case OP_TYPECAST:
 					// get type
 					value = GetValue();
-					type = SX_TOTYPE(value)->GetTypePtr();
+					type = ((TypeValue*)value)->GetTypePtr();
 
 					// get value
 					value = GetValue(2);
@@ -466,7 +465,7 @@ run_code:
 						RaiseError(SXE_NILCALL, "Value is not a type for method call");
 						break;
 					}
-					type = SX_TOTYPE(value)->GetTypePtr();
+					type = ((TypeValue*)value)->GetTypePtr();
 					method = type->GetStaticMethod(name);
 					if (method == NULL) {
 						PopValue(count);
@@ -539,7 +538,7 @@ run_code:
 					// have we an iterator?
 					} else if (Value::IsA<Iterator>(system, value)) {
 						// get next
-						if (!SX_TOITER(value)->Next(system, value)) {
+						if (!((Iterator*)value)->Next(system, value)) {
 							// remove true flag
 							cframe->flags &= ~CFLAG_TTRUE;
 						} else {
@@ -560,7 +559,7 @@ run_code:
 						}
 
 						// get next
-						if (!SX_TOITER(value)->Next(system, value)) {
+						if (!((Iterator*)value)->Next(system, value)) {
 							// remove true flag
 							cframe->flags &= ~CFLAG_TTRUE;
 						} else {

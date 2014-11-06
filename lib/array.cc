@@ -79,9 +79,9 @@ SX_BEGINMETHODS(Array)
 SX_ENDMETHODS
 SX_NOSMETHODS(Array)
 
-Array::Array (System* system) : List(system, system->GetArrayType()), size(0), count(0), list(NULL) { }
+Array::Array (const System* system) : List(system, system->GetArrayType()), size(0), count(0), list(NULL) { }
 
-Array::Array (System* system, size_t n_size, Value** n_list) : List(system, system->GetArrayType())
+Array::Array (const System* system, size_t n_size, Value** n_list) : List(system, system->GetArrayType())
 {
 	list = NULL;
 	size = n_size;
@@ -97,7 +97,7 @@ Array::Array (System* system, size_t n_size, Value** n_list) : List(system, syst
 };
 
 void
-Array::Print (System* system)
+Array::Print (System* system) const
 {
 	cout << "[";
 	size_t i;
@@ -111,13 +111,13 @@ Array::Print (System* system)
 }
 
 bool
-Array::True (System* system)
+Array::True (const System* system) const
 {
 	return count > 0;
 }
 
 Value*
-Array::GetIndex (System* system, Value* vindex)
+Array::GetIndex (const System* system, const Value* vindex) const
 {
 	long index;
 
@@ -147,7 +147,7 @@ Array::GetIndex (System* system, Value* vindex)
 }
 
 Value*
-Array::SetIndex (System* system, Value* vindex, Value* value)
+Array::SetIndex (const System* system, const Value* vindex, Value* value)
 {
 	long index;
 
@@ -177,7 +177,7 @@ Array::SetIndex (System* system, Value* vindex, Value* value)
 }
 
 Value*
-Array::Append (System* system, Value* value)
+Array::Append (const System* system, Value* value)
 {
 	Value** nlist;
 
@@ -196,7 +196,7 @@ Array::Append (System* system, Value* value)
 }
 
 bool
-Array::Has (System* system, Value* value)
+Array::Has (const System* system, const Value* value) const
 {
 	size_t i;
 	for (i = 0; i < count; ++ i)
@@ -206,13 +206,13 @@ Array::Has (System* system, Value* value)
 }
 
 Iterator*
-Array::GetIter (System* system)
+Array::GetIter (const System* system)
 {
 	return new ArrayIterator(system, this);
 }
 
 bool
-Array::ArrayIterator::Next(System* system, Value*& value)
+Array::ArrayIterator::Next(const System* system, Value*& value)
 {
 	if (index >= array->GetCount()) {
 		return false;

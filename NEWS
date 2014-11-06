@@ -1,3 +1,11 @@
+Version 0.30
+============
+
+  * Garbage collection fixes.
+  * Const-ification in the API for Value pointers.
+  * Split scriptix.h into many headers.
+  * Updated security levels to the final model.
+
 Version 0.29
 ============
 

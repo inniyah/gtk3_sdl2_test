@@ -37,31 +37,31 @@ SX_NOMETHODS(List);
 SX_NOSMETHODS(List);
 
 Value*
-List::GetIndex (System* system, Value* index)
+List::GetIndex (const System* system, const Value* index) const
 {
 	return NULL;
 }
 
 Value*
-List::SetIndex (System* system, Value* index, Value* set)
+List::SetIndex (const System* system, const Value* index, Value* set)
 {
 	return NULL;
 }
 
 Value*
-List::Append (System* system, Value* value)
+List::Append (const System* system, Value* value)
 {
 	return NULL;
 }
 
 bool
-List::Has (System* system, Value* value)
+List::Has (const System* system, const Value* value) const
 {
 	return false;
 }
 
 Iterator*
-List::GetIter (System* system)
+List::GetIter (const System* system)
 {
 	return NULL;
 }

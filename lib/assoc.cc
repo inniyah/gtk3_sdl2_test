@@ -91,14 +91,14 @@ SX_BEGINMETHODS(Assoc)
 SX_ENDMETHODS
 SX_NOSMETHODS(Assoc)
 
-Assoc::Assoc (System* system) : List(system, system->GetAssocType())
+Assoc::Assoc (const System* system) : List(system, system->GetAssocType())
 {
 	list = NULL;
 	size = 0;
 	count = 0;
 }
 
-Assoc::Assoc (System* system, size_t n_size, Value** n_list) : List(system, system->GetAssocType())
+Assoc::Assoc (const System* system, size_t n_size, Value** n_list) : List(system, system->GetAssocType())
 {
 	list = NULL;
 	size = n_size;
@@ -114,7 +114,7 @@ Assoc::Assoc (System* system, size_t n_size, Value** n_list) : List(system, syst
 };
 
 void
-Assoc::Print (System* system)
+Assoc::Print (System* system) const
 {
 	size_t i;
 	if (count > 0) {
@@ -136,12 +136,14 @@ Assoc::Print (System* system)
 }
 
 bool
-Assoc::True (System* system) {
+Assoc::True (const System* system) const
+{
 	return count > 0;
 }
 
 Value* 
-Assoc::GetIndex (System* system, Value* vindex) {
+Assoc::GetIndex (const System* system, const Value* vindex) const
+{
 	if (Value::IsA<Number>(system, vindex)) {
 		long index = Number::ToInt(vindex);
 
@@ -173,7 +175,8 @@ Assoc::GetIndex (System* system, Value* vindex) {
 }
 
 Value* 
-Assoc::SetIndex (System* system, Value* vindex, Value* value) {
+Assoc::SetIndex (const System* system, const Value* vindex, Value* value)
+{
 	if (Value::IsA<Number>(system, vindex)) {
 		long index = Number::ToInt(vindex);
 
@@ -220,7 +223,8 @@ Assoc::SetIndex (System* system, Value* vindex, Value* value) {
 }
 
 Value* 
-Assoc::Append (System* system, Value* add) {
+Assoc::Append (const System* system, Value* add)
+{
 	if (count == size) {
 		_scriptix_assoc_node* nlist = (_scriptix_assoc_node*)GC_REALLOC (list, (count + system->GetArrayChunk()) * sizeof (_scriptix_assoc_node));
 		if (nlist == NULL) {
@@ -238,7 +242,8 @@ Assoc::Append (System* system, Value* add) {
 }
 
 bool
-Assoc::Has (System* system, Value* value) {
+Assoc::Has (const System* system, const Value* value) const
+{
 	size_t i;
 	for (i = 0; i < count; ++ i) {
 		if (Value::Equal (system, list[i].value, value)) {

@@ -166,7 +166,7 @@
 	/* stupid BISON fix */
 	#define __attribute__(x)
 
-	#define malloc GC_MALLOC
+	#define malloc GC_MALLOC_UNCOLLECTABLE
 	#define free GC_FREE
 
 
@@ -1456,12 +1456,12 @@ yyreduce:
     {
         case 8:
 #line 111 "grammar.yy"
-    { parser->AddFunc(yyvsp[-6].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, 0, false); delete yyvsp[-4].args.args; }
+    { parser->AddFunc(yyvsp[-6].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, 0, false); }
     break;
 
   case 9:
 #line 112 "grammar.yy"
-    { parser->AddFunc(yyvsp[-6].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, 0, true); delete yyvsp[-4].args.args; }
+    { parser->AddFunc(yyvsp[-6].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, 0, true); }
     break;
 
   case 10:
@@ -1478,7 +1478,7 @@ yyreduce:
 
   case 11:
 #line 120 "grammar.yy"
-    { parser->AddFunc(yyvsp[-7].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, yyvsp[-8].id, false); delete yyvsp[-4].args.args; }
+    { parser->AddFunc(yyvsp[-7].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, yyvsp[-8].id, false); }
     break;
 
   case 12:
@@ -1493,17 +1493,17 @@ yyreduce:
 
   case 15:
 #line 129 "grammar.yy"
-    { parser->AddExtendFunc(yyvsp[-6].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, false); delete yyvsp[-4].args.args; }
+    { parser->AddExtendFunc(yyvsp[-6].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, false); }
     break;
 
   case 16:
 #line 130 "grammar.yy"
-    { parser->AddExtendFunc(yyvsp[-6].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, true); delete yyvsp[-4].args.args; }
+    { parser->AddExtendFunc(yyvsp[-6].id, (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, true); }
     break;
 
   case 20:
 #line 138 "grammar.yy"
-    { parser->AddExtendFunc(NameToID("new"), (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, false); delete yyvsp[-4].args.args; }
+    { parser->AddExtendFunc(NameToID("new"), (yyvsp[-4].args.args ? *yyvsp[-4].args.args : NameList()), yyvsp[-4].args.varg, yyvsp[-1].node, false); }
     break;
 
   case 21:
@@ -2155,7 +2155,7 @@ yywrap (void) {
 }
 
 int
-Scriptix::System::LoadFile(const std::string& file) {
+Scriptix::System::LoadFile(const std::string& file, SecurityLevel access) {
 	int ret;
 
 	if (file.empty()) {
@@ -2177,6 +2177,7 @@ Scriptix::System::LoadFile(const std::string& file) {
 	}
 	if (!file.empty())
 		parser->SetFile(file);
+	parser->SetAccess(access);
 
 	sxp_parser_inbuf = NULL;
 
@@ -2190,13 +2191,11 @@ Scriptix::System::LoadFile(const std::string& file) {
 	if (!ret)
 		ret = parser->Compile();
 
-	delete parser;
-
 	return ret;
 }
 
 int
-Scriptix::System::LoadString(const std::string& buf, const std::string& name, size_t lineno) {
+Scriptix::System::LoadString(const std::string& buf, const std::string& name, size_t lineno, SecurityLevel access) {
 	int ret;
 
 	if (buf.empty())
@@ -2207,6 +2206,7 @@ Scriptix::System::LoadString(const std::string& buf, const std::string& name, si
 		std::cerr << "Failed to create Compiler context" << std::endl;
 		return SXE_INTERNAL;
 	}
+	parser->SetAccess(access);
 	parser->SetFile(name);
 	parser->SetLine(lineno);
 
@@ -2219,8 +2219,6 @@ Scriptix::System::LoadString(const std::string& buf, const std::string& name, si
 
 	if (!ret)
 		ret = parser->Compile();
-
-	delete parser;
 
 	return ret;
 }

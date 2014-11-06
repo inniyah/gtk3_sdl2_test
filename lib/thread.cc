@@ -52,15 +52,12 @@ System::EndThread (Thread* thread) {
 		thread->next->prev = thread->prev;
 	}
 	-- valid_threads;
-
-	delete thread;
 }
 
 Thread::Thread (System* sys, SecurityLevel sl, int fl) {
 	static size_t _free_id = 0; // ID tag for threads
 
 	system = sys;
-	sec_flags = sl;
 	flags = fl;
 	ret = NULL;
 	state = STATE_READY;
@@ -86,6 +83,11 @@ Thread::PushFrame (Function* func, size_t argc, Value* argv[], int flags) {
 		items = NULL;
 	}
 
+	// new access level
+	SecurityLevel access = func->access;
+	if (!frames.empty())
+		access &= frames.back().access;
+
 	// push new frame
 	frames.resize(frames.size() + 1);
 	Frame& frame = frames.back();
@@ -95,6 +97,7 @@ Thread::PushFrame (Function* func, size_t argc, Value* argv[], int flags) {
 	frame.argc = argc;
 	frame.func = func;
 	frame.items = items;
+	frame.access = access;
 
 	// define variables for non-cfuncs
 	if (func->cfunc == NULL && func->cmethod == NULL) {

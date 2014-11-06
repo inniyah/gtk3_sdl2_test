@@ -8,6 +8,7 @@ lib_LTLIBRARIES=libscriptix-@INTERFACE_VERSION@.la libsxparse-@INTERFACE_VERSION
 libscriptix_@INTERFACE_VERSION@_la_SOURCES=\
 	array.cc \
 	assoc.cc \
+	collectable.cc \
 	error.cc \
 	eval.cc \
 	function.cc \
@@ -30,7 +31,7 @@ libsxparse_@INTERFACE_VERSION@_la_SOURCES=\
 	lexer.cc \
 	parser.cc \
 	compiler.cc \
-	transform.cc 
+	optimize.cc 
 libsxparse_@INTERFACE_VERSION@_la_LDFLAGS=-version-info @SO_VERSION@
 
 

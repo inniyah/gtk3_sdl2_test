@@ -65,6 +65,7 @@ Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg) : V
 	size = 0;
 	argc = s_argc;
 	id = s_id;
+	access = SEC_DEFAULTS; // just defaults
 }
 
 Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_cfunc s_cfunc) : Value(system, system->GetFunctionType())
@@ -78,6 +79,7 @@ Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_
 	size = 0;
 	argc = s_argc;
 	id = s_id;
+	access = ~0; // all privs; it's a C func
 }
 
 Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_cmethod s_cmethod) : Value(system, system->GetFunctionType())
@@ -91,8 +93,8 @@ Function::Function (System* system, NameID s_id, size_t s_argc, bool s_varg, sx_
 	size = 0;
 	argc = s_argc;
 	id = s_id;
+	access = ~0; // all privs; it's a C method
 }
-
 
 int
 Function::AddValue (System* system, Value* value) {

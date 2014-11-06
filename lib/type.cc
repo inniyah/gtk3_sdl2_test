@@ -173,6 +173,10 @@ Type::AddStaticMethod (Function* method)
 	return SXE_OK;
 }
 
+TypeValue::TypeValue(System* system, const Type* s_type) :
+	Value(system, system->GetTypeValueType()), type(s_type)
+{}
+
 SX_TYPEIMPL(TypeValue, "Type", Value, SX_TYPECREATENONE(TypeValue))
 
 SX_BEGINMETHODS(TypeValue)

@@ -83,7 +83,7 @@ StdlibFork (Thread* thread, size_t argc, Value** argv)
 		return NULL;
 
 	// FIXME: error on failure
-	Thread* nthread = thread->GetSystem()->CreateThread(SX_TOFUNC(argv[0]), argc - 1, &argv[1]);
+	Thread* nthread = thread->GetSystem()->CreateThread((Function*)argv[0], argc - 1, &argv[1]);
 	if (nthread)
 		return Number::Create (nthread->GetID());
 	else

@@ -32,6 +32,10 @@
 
 using namespace Scriptix;
 
+Iterator::Iterator(const System* system) :
+	Value(system, system->GetIteratorType())
+{}
+
 Value*
 Iterator::MethodNext(Thread* thread, Value* self, size_t argc, Value** argv)
 {

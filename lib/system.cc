@@ -119,10 +119,8 @@ System::CreateThread (Function* function, size_t argc, Value* argv[], SecurityLe
 		return NULL;
 	}
 
-	if (thread->PushFrame(function, argc, argv, 0) != SXE_OK) {
-		delete thread;
+	if (thread->PushFrame(function, argc, argv, 0) != SXE_OK)
 		return NULL;
-	}
 
 	AddThread(thread);
 	return thread;

@@ -1,8 +1,94 @@
-2004-02-15 06:27:56  Sean Middleditch <elanthis@home.awesomeplay.com>
+2004-07-02 02:25:26  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Version 0.30.
+
+2004-06-11 17:42:29  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Update version and NEWS for 0.30-rc1.
+
+2004-06-07 03:14:25  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * The Thread class wasn't using GC::Collectable, so it wasn't
+    getting its destructor called, which it currently needs.
+
+2004-05-16 22:40:07  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Update version stamp for AweMUD requires (to make sure the
+    bug fix is included).
+
+2004-05-16 22:36:19  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Cleaned up the GC::Collectable code a bit.
+  * Removed all explicit delete operators, not needed when we have
+    a GC.
+  * Added a new test, big.sx, whose pupose is to help find the
+    "unexpected $end" bug that keeps popping up in AweMUD.
+  * Used GC_MALLOC_UNCOLLECTABLE in lexer.ll and grammar.yy,
+    which *appears* to fix the above bug.  Never can tell with
+    this bug, though.
+
+2004-04-30 18:04:50  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * The gc_allocator.h file doesn't have include guards; wrap in
+    our own.
+
+2004-04-30 17:46:20  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * So ya, we need to use AM_CONFIG_HEADER vs AC_CONFIG_HEADER.
+    That little letter is pretty important there.  Automake sucks.
+    :P
+
+2004-04-23 18:42:59  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Changed from the new_gc_alloc.h interface to the gc_allocator.h
+    interface.
+  * Moved Scriptix::Collectable to Scriptix::GC::Collectable.
+  * Added some special wrappers for std::vector, std::list, and
+    std::map to Scriptix::Collectable since the "new" standard
+    complient C++ allocator interface is a complete pain in the ass.
+  * Fixed a formed-ness error in bin/scriptix.cc (putting the type
+    of a new[] operator call in paranthesis).
+
+2004-04-17 14:46:04  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Const-ification of the API regarding Value pointers.
+  * Added include/sysdep.h, needed because we can't include config.h
+    in headers as it conflicts with embedders' config.h files.
+
+2004-04-17 14:45:55  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Const-ification of the API regarding Value pointers.
+  * Added include/sysdep.h, needed because we can't include config.h
+    in headers as it conflicts with embedders' config.h files.
+
+2004-03-31 03:34:03  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Added all the missing headers.  Whoops.
+
+2004-03-12 20:23:32  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Only include inttypes.h if the configure script indicates
+    it's available.
+
+2004-02-26 21:39:28  Sean Middleditch <elanthis@awemud.net>
+
+  * The symlink is just include/scriptix, not include/scriptix-0.
+
+2004-02-26 21:30:46  Sean Middleditch <elanthis@awemud.net>
+
+  * Split scriptix.h into a number of headers.
+  * Added automatic symlink include/scriptix-0 to make the header
+    includes work properly during build and after install.
+
+2004-02-26 19:58:51  Sean Middleditch <elanthis@awemud.net>
+
+  * Updated security levels to the final model.
+
+2004-02-15 06:27:56  Sean Middleditch <elanthis@awemud.net>
 
   * Make the 0.29 release.
 
-2004-02-13 21:01:22  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2004-02-13 21:01:22  Sean Middleditch <elanthis@awemud.net>
 
   * Fixed tools/Makefile.am to include the right script names.
   * Fixed lib/Makefile.am to not fail on building from grammar.yy.
@@ -20,7 +106,7 @@
     with no way to control it, you jerks.)
   * Fixed tools/note.sh to get rid of GNU-isms.
 
-2004-01-29 16:08:12  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+2004-01-29 16:08:12  Sean Middleditch <elanthis@awemud.net>
 
   * Converted use of internally found int_t to C99 intptr_t.
   * Included inttypes.h in scriptix.h.
@@ -31,12 +117,12 @@
   * Added the CheckArgs() template utility functions for quick
     and easy checking of argument types.
 
-2004-01-07 22:16:40  Sean Middleditch <elanthis@home.awesomeplay.com>
+2004-01-07 22:16:40  Sean Middleditch <elanthis@awemud.net>
 
   * Use xmlto instead of docbook-utils.
   * Finish rest of missing commit from versioning change.
 
-2004-01-07 04:39:21  Sean Middleditch <elanthis@home.awesomeplay.com>
+2004-01-07 04:39:21  Sean Middleditch <elanthis@awemud.net>
 
   * Modified install paths and library names to match the excellent
     advice from http://ometer.com/parallel.html.
@@ -62,7 +148,7 @@
     operators work on any lvalue now.
   * Added mult/div-assign operators.
 
-2003-12-04 19:43:50  Sean Middleditch <elanthis@home.awesomeplay.com>
+2003-12-04 19:43:50  Sean Middleditch <elanthis@awemud.net>
 
   * Release 0.28.
   * Build fixes.
@@ -75,7 +161,7 @@
     member and method usage in the 'self' variable.  I.e., .foo='hi'
     is equivalent to self.foo='hi'.
 
-2003-11-14 18:21:11  Sean Middleditch <elanthis@home.awesomeplay.com>
+2003-11-14 18:21:11  Sean Middleditch <elanthis@awemud.net>
 
   * Recode ID<->Name code to be much, much more efficient.
     (Names are stored in an STL set, and IDs are encoded pointers,
@@ -94,7 +180,7 @@
     as the second operand in numeric addition will be interpreted
     as garbage, no conversion or checking is done.
 
-2003-11-11 04:18:39  Sean Middleditch <elanthis@home.awesomeplay.com>
+2003-11-11 04:18:39  Sean Middleditch <elanthis@awemud.net>
 
   * Small fix to SX_TYPECREATE* for proper namespace usage.
 

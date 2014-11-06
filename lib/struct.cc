@@ -30,6 +30,14 @@
 
 using namespace Scriptix;
 
+// constructors
+Struct::Struct (const System* system) :
+	Value(system, system->GetStructType()), data()
+{}
+Struct::Struct (const System* system, const Type* type) :
+	Value(system, type), data()
+{}
+
 SX_TYPEIMPL(Struct, "Struct", Value, SX_TYPECREATE(Struct));
 
 SX_NOMETHODS(Struct);
@@ -39,13 +47,13 @@ SX_NOSMETHODS(Struct)
 
 // Default undefined member operations
 void
-Struct::SetUndefMember (System* system, NameID id, Value* value)
+Struct::SetUndefMember (const System* system, NameID id, Value* value)
 {
 	data[id] = value;
 }
 
 Value*
-Struct::GetUndefMember (System*, NameID)
+Struct::GetUndefMember (const System*, NameID) const
 {
 	// no-op
 	return NULL;
@@ -53,7 +61,7 @@ Struct::GetUndefMember (System*, NameID)
 
 // Member operations
 void
-Struct::SetMember (System* system, NameID id, Value* value)
+Struct::SetMember (const System* system, NameID id, Value* value)
 {
 	// try to set value
 	datalist::iterator i = data.find(id);
@@ -67,10 +75,10 @@ Struct::SetMember (System* system, NameID id, Value* value)
 }
 
 Value*
-Struct::GetMember (System* system, NameID id)
+Struct::GetMember (const System* system, NameID id) const
 {
 	// try to find member
-	datalist::iterator i = data.find(id);
+	datalist::const_iterator i = data.find(id);
 	if (i != data.end()) {
 		return i->second;
 	}

@@ -39,40 +39,41 @@ MethodDef Value::_MyMethods[] = { { NULL, 0, 0, NULL } };
 
 // DEFAULT IMPLEMENTATIONS
 void
-Value::Print (System* system)
+Value::Print (System* system) const
 {
 	std::cout << this;
 }
 
 bool
-Value::Equal (System* system, Value* other)
+Value::Equal (const System* system, const Value* other) const
 {
 	return this == other;
 }
 
 int
-Value::Compare (System* system, Value* other)
+Value::Compare (const System* system, const Value* other) const
 {
 	return !(this == other);
 }
 
 bool
-Value::True (System* system)
+Value::True (const System* system) const
 {
 	return true;
 }
 
 // COMPLEX WRAPPERS
 Value*
-Value::ToString(System* system, Value* self)
+Value::ToString(const System* system, const Value* self)
 {
 	if (self == NULL) {
 		return NULL;
 	} else if (IsA<String>(system, self)) {
-		return self;
+		// safe to un-const-ify because strings are immutable anyway
+		return const_cast<Value*>(self);
 	} else if (IsA<Number>(system, self)) {
 		char buf[20];
-		snprintf (buf, 20, "%ld", Number::ToInt (self));
+		snprintf (buf, 20, "%d", Number::ToInt (self));
 		return new String(system, buf);
 	} else {
 		return self->ToString(system);
@@ -80,7 +81,7 @@ Value::ToString(System* system, Value* self)
 }
 
 Value*
-Value::DoToInt(System* system, Value* self)
+Value::DoToInt(const System* system, const Value* self)
 {
 	if (self == NULL) {
 		return NULL;

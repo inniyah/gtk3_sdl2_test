@@ -45,7 +45,6 @@ main (int argc, const char **argv) {
 
 	// initialize GC
 	GC_INIT();
-	GC_enable_incremental();
 
 	// create a system context
 	system = new System();
@@ -80,7 +79,7 @@ main (int argc, const char **argv) {
 		// have we more than one arg, to pass to our function?
 		if (argc > 2) {
 			// allocate array for values
-			sargv = new (UseGC) (Value*)[argc - 2];
+			sargv = new (UseGC) Value*[argc - 2];
 			// copy in values
 			for (int i = 2; i < argc; ++i) {
 				// crate String for each arguments
@@ -117,7 +116,7 @@ main (int argc, const char **argv) {
 	}
 
 	// free system context
-	delete system;
+	system = NULL;
 
 	return 0;
 }

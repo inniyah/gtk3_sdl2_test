@@ -52,18 +52,19 @@ SX_BEGINSMETHODS(String)
 	SX_DEFMETHOD(SMethodConcat, "concat", 2, 0)
 SX_ENDMETHODS
 
-String::String (System* system, const char* src, size_t size) : Value(system, system->GetStringType()), data(src, size) {}
-String::String (System* system, const char* src) : Value(system, system->GetStringType()), data(src) {}
-String::String (System* system, const std::string& src) : Value(system, system->GetStringType()), data(src) {}
+String::String (const System* system, const char* src, size_t size) : Value(system, system->GetStringType()), data(src, size) {}
+String::String (const System* system, const char* src) : Value(system, system->GetStringType()), data(src) {}
+String::String (const System* system, const std::string& src) : Value(system, system->GetStringType()), data(src) {}
 
 void
-String::Print (System* system)
+String::Print (System* system) const
 {
 	std::cout << data;
 }
 
 bool
-String::Equal (System* system, Value* other) {
+String::Equal (const System* system, const Value* other) const
+{
 	if (!Value::IsA<String>(system, other))
 		return false;
 
@@ -71,7 +72,8 @@ String::Equal (System* system, Value* other) {
 }
 
 int
-String::Compare (System* system, Value* other) {
+String::Compare (const System* system, const Value* other) const
+{
 	if (!Value::IsA<String>(system, other))
 		return -1;
 
@@ -86,12 +88,14 @@ String::Compare (System* system, Value* other) {
 }
 
 bool
-String::True (System* system) {
+String::True (const System* system) const
+{
 	return !data.empty();
 }
 
 bool
-String::Has (System* system, Value* value) {
+String::Has (const System* system, const Value* value) const
+{
 	const char *c;
 
 	if (!Value::IsA<String>(system, value))
@@ -114,7 +118,8 @@ String::Has (System* system, Value* value) {
 }
 
 Value* 
-String::GetIndex (System* system, Value* vindex) {
+String::GetIndex (const System* system, const Value* vindex) const
+{
 	long index;
 
 	if (!Value::IsA<Number>(system, vindex))

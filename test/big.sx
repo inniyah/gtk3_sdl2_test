@@ -1,0 +1,1190 @@
+TEST_A = 1;
+TEST_B = 2;
+TEST_C = 3;
+
+new Custom {
+	test1 () {
+		.test2('test');
+		.test3();
+		return new Custom;
+	}
+	test2 (str) {
+		printl(str);
+		.str = str.upper();
+	}
+	test3 () {
+		printl('Upper:',.str);
+	}
+}
+
+public main ()
+{
+	function1();
+	function2();
+	function3();
+
+	obj = new Custom;
+	printl(obj.test1());
+
+	printl('Success');
+}
+
+function1 ()
+{
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	a = TEST_A;
+	if (a == 1)
+		printl('OK');
+	else if (a == 2)
+		printl('No2');
+	else if (a == 3)
+		printl('No3');
+	else if (a == 4)
+		printl('No4');
+	else if (a == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	b = TEST_B;
+	if (b == 1)
+		printl('No1');
+	else if (b == 2)
+		printl('OK');
+	else if (b == 3)
+		printl('No3');
+	else if (b == 4)
+		printl('No4');
+	else if (b == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+
+	c = TEST_C;
+	if (c == 1)
+		printl('No1');
+	else if (c == 2)
+		printl('No2');
+	else if (c == 3)
+		printl('OK');
+	else if (c == 4)
+		printl('No4');
+	else if (c == 5)
+		printl('No5');
+	else
+		printl('NoD');
+}
+
+function2 ()
+{
+	self = "test string";
+
+	printl(.length());
+	printl(.substr(1,2));
+	printl(.upper());
+}
+
+function3 ()
+{
+	foreach (i in ['one','two','three']) {
+		if (i == 'one')
+			printl(i, ':', 'one');
+		if (i == 'two')
+			printl(i, ':', 'two');
+		if (i == 'three')
+			printl(i, ':', 'three');
+		function1();
+		function2();
+	}
+}

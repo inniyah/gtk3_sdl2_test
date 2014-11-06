@@ -1,6 +1,6 @@
 /*
  * Scriptix - Lite-weight scripting interface
- * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
+ * Copyright (c) 2002, 2003, 2004  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
@@ -79,16 +79,16 @@ enum {
 
 namespace Scriptix {
 
-typedef std::vector<NameID> NameList;
+typedef GC::vector<NameID> NameList;
 
-struct ParserBlock : public gc {
+struct ParserBlock : public GC::Collectable {
 	Function* func;
 	unsigned long start;
 	std::vector<unsigned long> breaks;
 	std::vector<unsigned long> continues;
 };
 
-struct ParserFunction : public gc {
+struct ParserFunction : public GC::Collectable {
 	NameID name;
 	NameID varg;
 	NameList vars;
@@ -99,32 +99,34 @@ struct ParserFunction : public gc {
 	bool staticm; // for extend methods only
 };
 
-struct ParserExtend : public gc {
+struct ParserExtend : public GC::Collectable {
 	Type* type;
-	typedef std::vector<ParserFunction*, gc_alloc > MethodList;
+	typedef GC::vector<ParserFunction*> MethodList;
 	MethodList methods;
 };
 
-class ParserState : public gc
+class ParserState : public GC::Collectable
 {
 	public: // FIXME
 	System* system;
 	ParserNode* nodes;
-	typedef std::list<ParserFunction*, gc_alloc > FunctionList;
+	typedef GC::list<ParserFunction*> FunctionList;
 	FunctionList funcs;
-	typedef std::vector<ParserExtend*, gc_alloc > ExtendList;
+	typedef GC::vector<ParserExtend*> ExtendList;
 	ExtendList extends;
-	typedef std::vector<Type*, gc_alloc > TypeList;
+	typedef GC::vector<Type*> TypeList;
 	TypeList types;
-	std::vector<unsigned long> returns;
+	typedef std::vector<unsigned long> ReturnList;
+	ReturnList returns;
 	String* last_file;
 	size_t last_line;
 	String* file;
 	size_t line;
-	typedef std::list<ParserBlock*, gc_alloc > BlockList;
+	typedef GC::list<ParserBlock*> BlockList;
 	BlockList blocks;
 	Array* globals;
 	NameList gnames;
+	SecurityLevel access;
 
 	// compiler helopers
 	bool CompileNode (ParserFunction* func, ParserNode* node);
@@ -150,6 +152,7 @@ class ParserState : public gc
 	inline void LineIncr(void) { ++line; }
 	inline String* GetFile(void) const { return file; }
 	inline size_t GetLine(void) const { return line; }
+	inline void SetAccess(SecurityLevel s_access) { access = s_access; }
 
 	// compile
 	int Compile(void);
@@ -178,7 +181,7 @@ class ParserState : public gc
 	Type* GetType(NameID name);
 };
 
-struct ParserNode : public gc {
+struct ParserNode : public GC::Collectable {
 	int type;
 	Scriptix::ParserState* info;
 	ParserNode* next;

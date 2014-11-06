@@ -75,31 +75,6 @@ Scriptix::ParserState::ParserState(System* s_system) : funcs(), returns(), block
 
 Scriptix::ParserState::~ParserState(void)
 {
-	ParserNode* nnext;
-
-	while (nodes != NULL) {
-		nnext = nodes->inext;
-		delete nodes;
-		nodes = nnext;
-	}
-
-	while (!funcs.empty()) {
-		delete funcs.front();
-		funcs.erase(funcs.begin());
-	}
-
-	while (!extends.empty()) {
-		while (!extends.back()->methods.empty()) {
-			delete extends.back()->methods.back();
-			extends.back()->methods.pop_back();
-		}
-		delete extends.back();
-		extends.pop_back();
-	}
-
-	/* free jumps */
-	while (!blocks.empty())
-		PopBlock ();
 }
 
 ParserFunction *
@@ -174,17 +149,13 @@ Scriptix::ParserState::AddType(NameID name, const Type* parent)
 
 	// create type
 	Type* type = new Type(system, name, parent, NULL);
-	if (!type) {
-		delete type;
+	if (!type)
 		return NULL;
-	}
 	types.push_back(type);
 
 	// create extend
-	if (!AddExtend(type)) {
-		delete type;
+	if (!AddExtend(type))
 		return NULL;
-	}
 
 	// success
 	return type;
@@ -224,16 +195,18 @@ ParserState::PopBlock (void)
 	if (blocks.empty())
 		return;
 
+	ParserBlock* block = blocks.back();
+
 	// breaks
-	while (!blocks.back()->breaks.empty()) {
-		blocks.back()->func->nodes[blocks.back()->breaks.front()] = (long)blocks.back()->func->count - blocks.back()->breaks.front();
-		blocks.back()->breaks.erase(blocks.back()->breaks.begin());
+	while (!block->breaks.empty()) {
+		block->func->nodes[block->breaks.front()] = (long)block->func->count - block->breaks.front();
+		block->breaks.erase(block->breaks.begin());
 	}
 
 	// continues
-	while (!blocks.back()->continues.empty()) {
-		blocks.back()->func->nodes[blocks.back()->continues.front()] = (long)blocks.back()->start - blocks.back()->continues.front();
-		blocks.back()->continues.erase(blocks.back()->continues.begin());
+	while (!block->continues.empty()) {
+		block->func->nodes[block->continues.front()] = (long)block->start - block->continues.front();
+		block->continues.erase(block->continues.begin());
 	}
 
 	blocks.pop_back();
