@@ -33,9 +33,11 @@ using namespace Scriptix;
 
 #include "parser.h"
 
+#define _test(expr) {if(!(expr)) return false;}
+
 static
 void
-_sxp_node_error (SXP_NODE* node, const char *msg, ...)
+_sxp_node_error (ParserNode* node, const char *msg, ...)
 {
 	char buffer[512];
 	va_list va;
@@ -51,7 +53,7 @@ _sxp_node_error (SXP_NODE* node, const char *msg, ...)
 
 static
 int
-_sxp_count (SXP_NODE *node) {
+_sxp_count (ParserNode *node) {
 	int i = 0;
 	while (node != NULL) {
 		++ i;
@@ -62,491 +64,453 @@ _sxp_count (SXP_NODE *node) {
 
 static
 void
-_sxp_put_line (SXP_FUNC* func, SXP_NODE *node) {
+_sxp_put_line (ParserFunction* func, ParserNode *node) {
 	func->func->AddValue(node->info->system, (Value*)node->file);
 	func->func->AddValue(node->info->system, Number::Create (node->line));
-	func->func->AddCode(node->info->system, SX_OP_SETFILELINE);
+	func->func->AddOpcode(node->info->system, SX_OP_SETFILELINE);
 }
 
-static
-int
-_sxp_comp (SXP_FUNC* func, SXP_NODE *node) {
-	/* for the jumps necessary */
+bool
+ParserState::CompileNode (ParserFunction* func, ParserNode *node) {
+	// for the jumps necessary
 	unsigned long pos;
 	unsigned long pos2;
-	unsigned long pos3;
 
 	while (node != NULL) {
-		if (node->file != node->info->last_file) {
+		// output debug info
+		if (node->file != last_file) {
 			_sxp_put_line (func, node);
-		} else if (node->line == node->info->last_line + 1) {
-			func->func->AddCode(node->info->system, SX_OP_NEXTLINE);
-		} else if (node->line != node->info->last_line) {
+		} else if (node->line == last_line + 1) {
+			func->func->AddOpcode(system, SX_OP_NEXTLINE);
+		} else if (node->line != last_line) {
 			_sxp_put_line (func, node);
 		}
 
-		node->info->last_file = node->file;
-		node->info->last_line = node->line;
+		// store line
+		last_file = node->file;
+		last_line = node->line;
 
 		switch (node->type) {
 			case SXP_MATH:
-				if (_sxp_comp (func, node->data.math.left))
-					return 1; /* failed */
-				if (_sxp_comp (func, node->data.math.right))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, (sx_op_type)node->data.math.op);
+				_test(CompileNode (func, node->parts.nodes[0]))
+				_test(CompileNode (func, node->parts.nodes[1]))
+				func->func->AddOpcode(system, (sx_op_type)node->parts.op);
 				break;
 			case SXP_DATA:
-				func->func->AddValue(node->info->system, node->data.data);
+				func->func->AddValue(system, node->parts.value);
 				break;
-			case SXP_NEGA:
-				if (_sxp_comp (func, node->data.node))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_NEGATE);
+			case SXP_NEGATE:
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_NEGATE);
 				break;
 			case SXP_NOT:
-				if (_sxp_comp (func, node->data.node))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_NOT);
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_NOT);
 				break;
 			case SXP_OR:
-				if (_sxp_comp (func, node->data.logic.left))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_TEST);
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_TEST);
+				func->func->AddOpcode(system, SX_OP_TJUMP);
 				pos = func->func->count;
-				func->func->AddValue(node->info->system, SX_NIL);
-				func->func->AddCode(node->info->system, SX_OP_TJUMP);
-				func->func->AddCode(node->info->system, SX_OP_POP);
-				if (_sxp_comp (func, node->data.logic.right))
-					return 1; /* failed */
-				func->func->nodes[pos + 1] = (long)Number::Create (func->func->count);
+				func->func->AddOparg(system, 0);
+				func->func->AddOpcode(system, SX_OP_POP);
+				_test(CompileNode (func, node->parts.nodes[1]))
+				func->func->nodes[pos] = func->func->count - pos;
 				break;
 			case SXP_AND:
-				if (_sxp_comp (func, node->data.logic.left))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_TEST);
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_TEST);
+				func->func->AddOpcode(system, SX_OP_FJUMP);
 				pos = func->func->count;
-				func->func->AddValue(node->info->system, SX_NIL);
-				func->func->AddCode(node->info->system, SX_OP_FJUMP);
-				func->func->AddCode(node->info->system, SX_OP_POP);
-				if (_sxp_comp (func, node->data.logic.right))
-					return 1; /* failed */
-				func->func->nodes[pos + 1] = (long)Number::Create (func->func->count);
+				func->func->AddOparg(system, 0);
+				func->func->AddOpcode(system, SX_OP_POP);
+				_test(CompileNode (func, node->parts.nodes[1]))
+				func->func->nodes[pos] = func->func->count - pos;
 				break;
-			case SXP_CALL:
-				if (_sxp_comp (func, node->data.call.args))
-					return 1; /* failed */
-				func->func->AddValue(node->info->system, Number::Create (_sxp_count (node->data.call.args)));
-				if (_sxp_comp (func, node->data.call.expr))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_CALL);
+			case SXP_INVOKE:
+				_test(CompileNode (func, node->parts.nodes[1]))
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_INVOKE);
+				func->func->AddOparg (system, _sxp_count (node->parts.nodes[1]));
 				break;
-			case SXP_LOOK:
+			case SXP_LOOKUP:
 			{
 				Value* lfunc;
-				SXP_FUNC* dfunc;
+				ParserFunction* dfunc;
 				Value* gval;
 				char found = 0;
 				long index;
 
-				/* do variable lookup */
-				index = sxp_get_var (node->info, func, node->data.name);
+				// do variable lookup
+				index = GetVar(func, node->parts.names[0]);
 				if (index >= 0) {
-					func->func->AddValue(node->info->system, Number::Create (index));
-					func->func->AddCode(node->info->system, SX_OP_LOOKUP);
+					func->func->AddOpcode(system, SX_OP_LOOKUP);
+					func->func->AddOparg(system, index);
 					break;
 				}
 
-				/* search for function */
-				for (dfunc = node->info->funcs; dfunc != NULL; dfunc = dfunc->next) {
-					if (dfunc->name == node->data.name) {
-						func->func->AddValue(node->info->system, SX_TOVALUE(dfunc->func));
+				// search for function
+				for (dfunc = funcs; dfunc != NULL; dfunc = dfunc->next) {
+					if (dfunc->name == node->parts.names[0]) {
+						func->func->AddValue(system, SX_TOVALUE(dfunc->func));
 						found = 1;
 						break;
 					}
 				}
-				/* found, done, ok */
+				// found, done, ok
 				if (found) {
 					break;
 				}
 
-				/* external function? */
-				lfunc = node->info->system->GetFunction(node->data.name);
+				// external function?
+				lfunc = system->GetFunction(node->parts.names[0]);
 				if (lfunc) {
-					/* add function */
-					func->func->AddValue(node->info->system, lfunc);
+					// add function
+					func->func->AddValue(system, lfunc);
 					break;
 				}
 
-				/* global variable? */
-				index = sxp_get_global (node->info, node->data.name);
+				// global variable?
+				index = GetGlobal(node->parts.names[0]);
 				if (index >= 0) {
-					func->func->AddValue(node->info->system, node->info->globals);
-					func->func->AddValue(node->info->system, Number::Create(index));
-					func->func->AddCode(node->info->system, SX_OP_INDEX);
+					func->func->AddValue(system, globals);
+					func->func->AddValue(system, Number::Create(index));
+					func->func->AddOpcode(system, SX_OP_INDEX);
 					break;
 				}
 
-				/* global constant? */
-				gval = node->info->system->GetGlobal(node->data.name);
+				// global constant?
+				gval = system->GetGlobal(node->parts.names[0]);
 				if (gval) {
-					func->func->AddValue(node->info->system, gval);
+					func->func->AddValue(system, gval);
 					break;
 				}
 
-				/* failure... */
-				_sxp_node_error (node, "Unknown identifier '%s'", IDToName (node->data.name));
-				return 1;
+				// failure...
+				_sxp_node_error (node, "Unknown identifier '%s'", IDToName (node->parts.names[0]));
+				return false;
 			}
-			case SXP_ASSI:
+			case SXP_ASSIGN:
 			{
-				long index = sxp_get_var (node->info, func, node->data.assi.name);
+				long index = GetVar(func, node->parts.names[0]);
 				if (index < 0) {
-					/* global variable? */
-					index = sxp_get_global (node->info, node->data.name);
+					// global variable?
+					index = GetGlobal(node->parts.names[0]);
 					if (index >= 0) {
-						/* do a lookup */
-						func->func->AddValue(node->info->system, SX_TOVALUE(node->info->globals));
-						func->func->AddValue(node->info->system, Number::Create(index));
-						if (_sxp_comp (func, node->data.assi.node))
-							return 1; /* failed */
-						func->func->AddCode(node->info->system, SX_OP_SETINDEX);
+						// do a lookup
+						func->func->AddValue(system, SX_TOVALUE(globals));
+						func->func->AddValue(system, Number::Create(index));
+						_test(CompileNode (func, node->parts.nodes[0]))
+						func->func->AddOpcode(system, SX_OP_SETINDEX);
 						break;
 						
 					}
-					index = sxp_add_var (node->info, func, node->data.assi.name);
+					index = AddVar(func, node->parts.names[0]);
 				}
-				func->func->AddValue(node->info->system, Number::Create (index));
-				if (_sxp_comp (func, node->data.assi.node))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_ASSIGN);
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_ASSIGN);
+				func->func->AddOparg(system, index);
 				break;
 			}
-			case SXP_STMT:
-				if (_sxp_comp (func, node->data.node))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_POP);
+			case SXP_STATEMENT:
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_POP);
 				break;
 			case SXP_IF:
-				if (_sxp_comp (func, node->data.ifd.test))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_TEST);
-				func->func->AddCode(node->info->system, SX_OP_POP);
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_TEST);
+				func->func->AddOpcode(system, SX_OP_POP);
+				func->func->AddOpcode(system, SX_OP_FJUMP);
 				pos = func->func->count;
-				func->func->AddValue(node->info->system, SX_NIL);
-				func->func->AddCode(node->info->system, SX_OP_FJUMP);
-				if (_sxp_comp (func, node->data.ifd.th))
-					return 1; /* failed */ /* then */
-				if (node->data.ifd.el) { /* else */
+				func->func->AddOparg(system, 0);
+				_test(CompileNode (func, node->parts.nodes[1]))
+				if (node->parts.nodes[2]) { // else
+					func->func->AddOpcode(system, SX_OP_JUMP);
 					pos2 = func->func->count;
-					func->func->AddValue(node->info->system, SX_NIL);
-					func->func->AddCode(node->info->system, SX_OP_JUMP);
-					func->func->nodes[pos + 1] = (long)Number::Create (func->func->count);
-					if (_sxp_comp (func, node->data.ifd.el))
-						return 1; /* failed */
-					func->func->nodes[pos2 + 1] = (long)Number::Create (func->func->count);
+					func->func->AddOparg(system, 0);
+					func->func->nodes[pos] = func->func->count - pos;
+					_test(CompileNode (func, node->parts.nodes[2]))
+					func->func->nodes[pos2] = func->func->count - pos2;
 				} else {
-					func->func->nodes[pos + 1] = (long)Number::Create (func->func->count);
+					func->func->nodes[pos] = func->func->count - pos;
 				}
 				break;
-			case SXP_WHIL:
-				sxp_push_block (node->info);
-				pos = func->func->count;
+			case SXP_LOOP:
+				PushBlock(func->func);
 				_sxp_put_line (func, node);
-				switch (node->data.whil.type) {
-					case SXP_W_WD:
-						/* while... do - test true, loop */
-						if (_sxp_comp (func, node->data.whil.test))
-							return 1; /* failed */
-						func->func->AddCode(node->info->system, SX_OP_TEST);
-						func->func->AddCode(node->info->system, SX_OP_POP);
-						pos2 = func->func->count;
-						func->func->AddValue(node->info->system, SX_NIL);
-						func->func->AddCode(node->info->system, SX_OP_FJUMP);
-						if (_sxp_comp (func, node->data.whil.block))
-							return 1; /* failed */
-						func->func->AddValue(node->info->system, Number::Create (pos));
-						func->func->AddCode(node->info->system, SX_OP_JUMP);
-						func->func->nodes[pos2 + 1] = (long)Number::Create (func->func->count);
+				switch (node->parts.op) {
+					case SXP_LOOP_WHILE:
+						// while... do - test true, loop
+						_test(CompileNode (func, node->parts.nodes[0]))
+						func->func->AddOpcode(system, SX_OP_TEST);
+						func->func->AddOpcode(system, SX_OP_POP);
+						_test(AddBreakOnFalse())
+						_test(CompileNode (func, node->parts.nodes[1]))
+						_test(AddContinue())
 						break;
-					case SXP_W_UD:
-						/* until... do - test false, loop */
-						if (_sxp_comp (func, node->data.whil.test))
-							return 1; /* failed */
-						func->func->AddCode(node->info->system, SX_OP_TEST);
-						func->func->AddCode(node->info->system, SX_OP_POP);
-						pos2 = func->func->count;
-						func->func->AddValue(node->info->system, SX_NIL);
-						func->func->AddCode(node->info->system, SX_OP_TJUMP);
-						if (_sxp_comp (func, node->data.whil.block))
-							return 1; /* failed */
-						func->func->AddValue(node->info->system, Number::Create (pos));
-						func->func->AddCode(node->info->system, SX_OP_JUMP);
-						func->func->nodes[pos2 + 1] = (long)Number::Create (func->func->count);
+					case SXP_LOOP_UNTIL:
+						// until... do - test false, loop
+						_test(CompileNode (func, node->parts.nodes[0]))
+						func->func->AddOpcode(system, SX_OP_TEST);
+						func->func->AddOpcode(system, SX_OP_POP);
+						_test(AddBreakOnTrue())
+						_test(CompileNode (func, node->parts.nodes[1]))
+						_test(AddContinue())
 						break;
-					case SXP_W_DW:
-						/* do... while - loop, test true */
-						if (_sxp_comp (func, node->data.whil.block))
-							return 1; /* failed */
-						if (_sxp_comp (func, node->data.whil.test))
-							return 1; /* failed */
-						func->func->AddCode(node->info->system, SX_OP_TEST);
-						func->func->AddCode(node->info->system, SX_OP_POP);
-						func->func->AddValue(node->info->system, Number::Create (pos));
-						func->func->AddCode(node->info->system, SX_OP_TJUMP);
+					case SXP_LOOP_DOWHILE:
+						// do... while - loop, test true
+						_test(CompileNode (func, node->parts.nodes[1]))
+						_test(CompileNode (func, node->parts.nodes[0]))
+						func->func->AddOpcode(system, SX_OP_TEST);
+						func->func->AddOpcode(system, SX_OP_POP);
+						func->func->AddOpcode(system, SX_OP_TJUMP);
+						func->func->AddOparg(system, BlockStart() - func->func->count);
 						break;
-					case SXP_W_DU:
-						/* do... until - loop, test false */
-						if (_sxp_comp (func, node->data.whil.block))
-							return 1; /* failed */
-						if (_sxp_comp (func, node->data.whil.test))
-							return 1; /* failed */
-						func->func->AddCode(node->info->system, SX_OP_TEST);
-						func->func->AddCode(node->info->system, SX_OP_POP);
-						func->func->AddValue(node->info->system, Number::Create (pos));
-						func->func->AddCode(node->info->system, SX_OP_FJUMP);
+					case SXP_LOOP_DOUNTIL:
+						// do... until - loop, test false
+						_test(CompileNode (func, node->parts.nodes[1]))
+						_test(CompileNode (func, node->parts.nodes[0]))
+						func->func->AddOpcode(system, SX_OP_TEST);
+						func->func->AddOpcode(system, SX_OP_POP);
+						func->func->AddOpcode(system, SX_OP_FJUMP);
+						func->func->AddOparg(system, BlockStart() - func->func->count);
 						break;
-					case SXP_W_PE:
-						/* permanent loop - loop */
-						if (_sxp_comp (func, node->data.whil.block))
-							return 1; /* failed */
-						func->func->AddValue(node->info->system, Number::Create (pos));
-						func->func->AddCode(node->info->system, SX_OP_JUMP);
+					case SXP_LOOP_FOREVER:
+						// permanent loop - loop
+						_test(CompileNode (func, node->parts.nodes[1]))
+						_test(AddContinue())
 						break;
 				}
-				sxp_pop_block (node->info, func->func, func->func->count, pos);
+				PopBlock();
 				break;
-			case SXP_SET:
-				if (_sxp_comp (func, node->data.set.array))
-					return 1; /* failed */
-				if (_sxp_comp (func, node->data.set.index))
-					return 1; /* failed */
-				if (_sxp_comp (func, node->data.set.node))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_SETINDEX);
+			case SXP_SETINDEX:
+				_test(CompileNode (func, node->parts.nodes[0]))
+				_test(CompileNode (func, node->parts.nodes[1]))
+				_test(CompileNode (func, node->parts.nodes[2]))
+				func->func->AddOpcode(system, SX_OP_SETINDEX);
 				break;
-			case SXP_INDX:
-				if (_sxp_comp (func, node->data.set.array))
-					return 1; /* failed */
-				if (_sxp_comp (func, node->data.set.index))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_INDEX);
+			case SXP_GETINDEX:
+				_test(CompileNode (func, node->parts.nodes[0]))
+				_test(CompileNode (func, node->parts.nodes[1]))
+				func->func->AddOpcode(system, SX_OP_INDEX);
 				break;
-			case SXP_ARRY:
-				if (_sxp_comp (func, node->data.node))
-					return 1; /* failed */
-				func->func->AddValue(node->info->system, Number::Create (_sxp_count (node->data.node)));
-				func->func->AddCode(node->info->system, SX_OP_NEWARRAY);
+			case SXP_ARRAY:
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_NEWARRAY);
+				func->func->AddOparg(system, _sxp_count(node->parts.nodes[0]));
 				break;
-			case SXP_ASSC:
-				if (_sxp_comp (func, node->data.node))
-					return 1; /* failed */
-				func->func->AddValue(node->info->system, Number::Create (_sxp_count (node->data.node) / 2)); // half the nodes
-				func->func->AddCode(node->info->system, SX_OP_NEWASSOC);
-				break;
-			case SXP_PRIC:
+			case SXP_PREINC:
 			{
 				long index;
-				/* do variable lookup */
-				index = sxp_get_var (node->info, func, node->data.name);
-				/* FIXME: error for undefined... */
+				// do variable lookup
+				index = GetVar(func, node->parts.names[0]);
+				if (index < 0) {
+					_sxp_node_error (node, "Undefined variable '%s'", IDToName (node->parts.names[0]));
+					break;
+				}
 
-				func->func->AddValue(node->info->system, Number::Create (index));
-				if (_sxp_comp (func, node->data.inc.amount))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_PREINCREMENT);
+				func->func->AddValue(system, Number::Create (index));
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_PREINCREMENT);
 				break;
 			}
-			case SXP_POIC:
+			case SXP_POSTINC:
 			{
 				long index;
-				/* do variable lookup */
-				index = sxp_get_var (node->info, func, node->data.name);
-				/* FIXME: error for undefined... */
+				// do variable lookup
+				index = GetVar(func, node->parts.names[0]);
+				if (index < 0) {
+					_sxp_node_error (node, "Undefined variable '%s'", IDToName (node->parts.names[0]));
+					break;
+				}
 
-				func->func->AddValue(node->info->system, Number::Create (index));
-				if (_sxp_comp (func, node->data.inc.amount))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_POSTINCREMENT);
+				func->func->AddValue(system, Number::Create (index));
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_POSTINCREMENT);
 				break;
 			}
-			case SXP_RETR:
-				if (node->data.node) {
-					if (_sxp_comp (func, node->data.node))
-						return 1; /* failed */
-				 } else
-					func->func->AddValue(node->info->system, SX_NIL);
-				sxp_new_return (node->info, func->func->count);
-				func->func->AddValue(node->info->system, SX_NIL);
-				func->func->AddCode(node->info->system, SX_OP_JUMP);
+			case SXP_RETURN:
+				if (node->parts.nodes[0] != NULL)
+					_test(CompileNode (func, node->parts.nodes[0]))
+				else
+					func->func->AddValue(system, SX_NIL);
+				func->func->AddOpcode(system, SX_OP_JUMP);
+				returns.push_back(func->func->count);
+				func->func->AddOparg(system, 0);
 				break;
-			case SXP_BRAK:
-				sxp_new_break (node->info, func->func->count);
-				func->func->AddValue(node->info->system, SX_NIL);
-				func->func->AddCode(node->info->system, SX_OP_JUMP);
+			case SXP_BREAK:
+				_test(AddBreak())
 				break;
-			case SXP_CONT:
-				sxp_new_continue (node->info, func->func->count);
-				func->func->AddValue(node->info->system, SX_NIL);
-				func->func->AddCode(node->info->system, SX_OP_JUMP);
+			case SXP_CONTINUE:
+				_test(AddContinue())
 				break;
-			case SXP_METH:
-				if (node->data.meth.node)
-					if (_sxp_comp (func, node->data.meth.node))
-						return 1; /* failed */
-				func->func->AddValue(node->info->system, Number::Create (_sxp_count (node->data.meth.node)));
-				if (_sxp_comp (func, node->data.meth.base))
-					return 1; /* failed */
-				func->func->AddValue(node->info->system, Number::Create (node->data.meth.name));
-				func->func->AddCode(node->info->system, SX_OP_METHOD);
+			case SXP_METHOD:
+				if (node->parts.nodes[1])
+					_test(CompileNode (func, node->parts.nodes[1]))
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_METHOD);
+				func->func->AddOparg (system, node->parts.names[0]);
+				func->func->AddOparg (system, _sxp_count (node->parts.nodes[1]));
 				break;
 			case SXP_CAST:
-				if (_sxp_comp (func, node->data.cast.node))
-					return 1; /* failed */
-				func->func->AddValue(node->info->system, new TypeValue (node->info->system, node->info->system->GetType(node->data.cast.name)));
-				func->func->AddCode(node->info->system, SX_OP_TYPECAST);
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddValue(system, new TypeValue (system, system->GetType(node->parts.names[0])));
+				func->func->AddOpcode(system, SX_OP_TYPECAST);
 				break;
-			case SXP_CFOR:
-				sxp_push_block (node->info);
-				if (_sxp_comp (func, node->data.cfor.start))
-					return 1; /* failed */
+			case SXP_FOR:
+				// setup
+				_test(CompileNode (func, node->parts.nodes[0]))
+				// skip first increment
+				func->func->AddOpcode(system, SX_OP_JUMP);
 				pos = func->func->count;
+				func->func->AddOparg(system, 0);
+				// begin loop
+				_test(PushBlock(func->func));
+				// increment
+				_test(CompileNode (func, node->parts.nodes[2]))
+				func->func->nodes[pos] = func->func->count - pos;
 				_sxp_put_line (func, node);
-				if (_sxp_comp (func, node->data.cfor.test))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_TEST);
-				func->func->AddCode(node->info->system, SX_OP_POP);
-				pos2 = func->func->count;
-				func->func->AddValue(node->info->system, SX_NIL);
-				func->func->AddCode(node->info->system, SX_OP_FJUMP);
-				if (_sxp_comp (func, node->data.cfor.body))
-					return 1; /* failed */
-				pos3 = func->func->count;
-				if (_sxp_comp (func, node->data.cfor.inc))
-					return 1; /* failed */
-				func->func->AddValue(node->info->system, Number::Create (pos));
-				func->func->AddCode(node->info->system, SX_OP_JUMP);
-				func->func->nodes[pos2 + 1] = (long)Number::Create (func->func->count);
-				sxp_pop_block (node->info, func->func, func->func->count, pos3);
+				// loop test
+				_test(CompileNode (func, node->parts.nodes[1]))
+				func->func->AddOpcode(system, SX_OP_TEST);
+				func->func->AddOpcode(system, SX_OP_POP);
+				_test(AddBreakOnFalse())
+				// body
+				_test(CompileNode (func, node->parts.nodes[3]))
+				// loop
+				_test(AddContinue())
+				// end
+				PopBlock();
 				break;
-			case SXP_SMET:
-				if (node->data.smet.args)
-					if (_sxp_comp (func, node->data.smet.args))
-						return 1; /* failed */
-				func->func->AddValue(node->info->system, Number::Create (_sxp_count (node->data.smet.args)));
-				func->func->AddValue(node->info->system, new TypeValue (node->info->system, node->info->system->GetType(node->data.smet.type)));
-				func->func->AddValue(node->info->system, Number::Create (node->data.smet.func));
-				func->func->AddCode(node->info->system, SX_OP_STATIC_METHOD);
+			case SXP_SMETHOD:
+				if (node->parts.nodes[0])
+					_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddValue(system, new TypeValue (system, system->GetType(node->parts.names[0])));
+				func->func->AddOpcode(system, SX_OP_STATIC_METHOD);
+				func->func->AddOparg (system, node->parts.names[1]);
+				func->func->AddOparg(system, _sxp_count (node->parts.nodes[0]));
 				break;
-			case SXP_YELD:
-				func->func->AddCode(node->info->system, SX_OP_YIELD);
+			case SXP_YIELD:
+				func->func->AddOpcode(system, SX_OP_YIELD);
 				break;
 			case SXP_IN:
 				// first put in list to check
-				if (node->data.logic.right) {
-					if (_sxp_comp (func, node->data.logic.right))
-						return 1; /* failed */
+				if (node->parts.nodes[1]) {
+					_test(CompileNode (func, node->parts.nodes[1]))
 				} else {
-					func->func->AddValue(node->info->system, SX_NIL);
+					func->func->AddValue(system, SX_NIL);
 				}
 				// then put in item to check for
-				if (node->data.logic.left) {
-					if (_sxp_comp (func, node->data.logic.left))
-						return 1; /* failed */
+				if (node->parts.nodes[0]) {
+					_test(CompileNode (func, node->parts.nodes[0]))
 				} else {
-					func->func->AddValue(node->info->system, SX_NIL);
+					func->func->AddValue(system, SX_NIL);
 				}
 				// set op
-				func->func->AddCode(node->info->system, SX_OP_IN);
+				func->func->AddOpcode(system, SX_OP_IN);
 				break;
 			case SXP_NEW:
-				func->func->AddValue(node->info->system, Number::Create (0));
-				func->func->AddValue(node->info->system, new TypeValue (node->info->system, node->info->system->GetType(node->data.name)));
-				func->func->AddValue(node->info->system, Number::Create (NameToID("new")));
-				func->func->AddCode(node->info->system, SX_OP_STATIC_METHOD);
+				func->func->AddValue(system, new TypeValue (system, system->GetType(node->parts.names[0])));
+				func->func->AddOpcode(system, SX_OP_STATIC_METHOD);
+				func->func->AddOparg(system, NameToID("new"));
+				func->func->AddOparg(system, 0);
 				break;
-			case SXP_AFNC:
-				func->func->AddValue(node->info->system, SX_TOVALUE(node->data.func->func));
-				break;
-			case SXP_CLOS:
-				if (_sxp_comp (func, node->data.clos.args))
-					return 1; /* failed */
-				func->func->AddValue(node->info->system, Number::Create (_sxp_count (node->data.clos.args)));
-				func->func->AddValue(node->info->system, SX_TOVALUE(node->data.clos.func->func));
-				func->func->AddCode(node->info->system, SX_OP_CLOSURE);
-				break;
-			case SXP_NAME_DATA:
-				func->func->AddValue(node->info->system, Number::Create(node->data.name));
-				break;
-			case SXP_SET_MEMBER:
+			case SXP_SETMEMBER:
 				// object
-				if (_sxp_comp (func, node->data.nodes.nodea))
-					return 1; /* failed */
-				// member name
-				if (_sxp_comp (func, node->data.nodes.nodeb))
-					return 1; /* failed */
+				_test(CompileNode (func, node->parts.nodes[0]))
 				// value
-				if (_sxp_comp (func, node->data.nodes.nodec))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_SET_MEMBER);
+				_test(CompileNode (func, node->parts.nodes[1]))
+				func->func->AddOpcode(system, SX_OP_SET_MEMBER);
+				func->func->AddOparg(system, node->parts.names[0]);
 				break;
-			case SXP_GET_MEMBER:
+			case SXP_GETMEMBER:
 				// object
-				if (_sxp_comp (func, node->data.nodes.nodea))
-					return 1; /* failed */
-				// member name
-				if (_sxp_comp (func, node->data.nodes.nodeb))
-					return 1; /* failed */
-				func->func->AddCode(node->info->system, SX_OP_GET_MEMBER);
+				_test(CompileNode (func, node->parts.nodes[0]))
+				func->func->AddOpcode(system, SX_OP_GET_MEMBER);
+				func->func->AddOparg(system, node->parts.names[0]);
 				break;
+			case SXP_FOREACH:
+			{
+				// set variable
+				long index = GetVar(func, node->parts.names[0]);
+				if (index < 0) {
+					index = AddVar(func, node->parts.names[0]);
+				}
 
+				// set iterator object
+				_test(CompileNode (func, node->parts.nodes[0]))
+				// set start
+				PushBlock(func->func);
+				// iterator call
+				func->func->AddOpcode(system, SX_OP_ITER);
+				func->func->AddOparg(system, index);
+				// jump on end
+				_test(AddBreakOnFalse())
+				// body
+				_test(CompileNode (func, node->parts.nodes[1]))
+				// jump to begin
+				_test(AddContinue())
+				// end
+				PopBlock();
+				func->func->AddOpcode(system, SX_OP_POP);
+				break;
+			}
+
+			// NOOP - special
 			case SXP_NOOP:
-				/* ignore */
+				// ignore
 				break;
 		}
 		node = node->next;
 	}
 
-	return 0;
+	return true;
 }
 
 int
-sxp_compile (SXP_INFO *info) {
-	SXP_FUNC *func;
+Scriptix::ParserState::Compile(void) {
+	ParserFunction *func;
 
-	/* make function data */
-	for (func = info->funcs; func != NULL; func = func->next) {
-		func->func = new Function (info->system, func->name, sx_sizeof_namelist(func->vars), func->varg);
+	// make function data
+	for (func = funcs; func != NULL; func = func->next) {
+		func->func = new Function (system, func->name, sx_sizeof_namelist(func->vars), func->varg);
 		if (!func->func) {
-			sxp_error (info, "Failed to create function");
-			return 1;
+			Error("Failed to create function");
+			return -1;
 		}
 	}
 
-	/* compile blocks */
-	for (func = info->funcs; func != NULL; func = func->next) {
+	// compile blocks
+	for (func = funcs; func != NULL; func = func->next) {
 		if (func->varg)
-			func->vars = sx_namelist_append(info->system, func->vars, func->varg);
+			func->vars = sx_namelist_append(system, func->vars, func->varg);
 		func->body = sxp_transform (func->body);
-		if (_sxp_comp (func, func->body))
-			return 1; /* failed */
-		func->func->AddValue(info->system, SX_NIL);
-		sxp_do_returns (info, func->func, func->func->count);
+		if (!CompileNode (func, func->body))
+			return -1; // failed
+		func->func->AddValue(system, SX_NIL);
+
+		// return calls
+		while (!returns.empty()) {
+			func->func->nodes[returns.front()] = (long)func->func->count - returns.front();
+			returns.erase(returns.begin());
+		}
+
+		// variable count
 		func->func->varc = sx_sizeof_namelist(func->vars);
 	}
 
-	/* everything went right, publicize */
-	for (func = info->funcs; func != NULL; func = func->next) {
-		/* make public if public */
+	// everything went right, publicize
+	for (func = funcs; func != NULL; func = func->next) {
+		// make public if public
 		if (func->pub)
-			info->system->AddFunction(func->func);
+			system->AddFunction(func->func);
 	}
 
-	/* everything went right, tag callbacks */
-	for (func = info->funcs; func != NULL; func = func->next) {
-		/* gotta tag?  call back */
+	// everything went right, tag callbacks
+	for (func = funcs; func != NULL; func = func->next) {
+		// gotta tag?  call back
 		if (func->tag)
-			info->system->HandleFunctionTag (func->tag, func->func);
+			system->HandleFunctionTag (func->tag, func->func);
 	}
 
 	return 0;

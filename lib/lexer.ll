@@ -59,25 +59,25 @@
 %%
 
 <BCOMMENT>[^*\n]+ { /* IGNORE */ }
-<BCOMMENT>[\n] { sxp_parser_info->line ++; }
+<BCOMMENT>[\n] { parser->LineIncr(); }
 <BCOMMENT>"*"+[^*/\n]	{ /* IGNORE */ }
 <BCOMMENT>"*/" { BEGIN INITIAL; }
 
 <LCOMMENT>[^\n]+ { /* IGNORE */ }
-<LCOMMENT>[\n] { sxp_parser_info->line ++; BEGIN INITIAL; }
+<LCOMMENT>[\n] { parser->LineIncr(); BEGIN INITIAL; }
 
 <SSTRING,DSTRING>\\. { sx_lex_str_escape (yytext[1]); }
 <SSTRING>[^'\n] { sx_lex_str_push (yytext[0]); }
 <DSTRING>[^"\n] { sx_lex_str_push (yytext[0]); }
-<SSTRING,DSTRING>[\n] { sxp_parser_info->line ++; sx_lex_str_push ('\n'); }
-<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = String::Create(sxp_parser_info->system, sx_lex_str); return STRING; } 
-<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = String::Create(sxp_parser_info->system, sx_lex_str); return STRING; } 
+<SSTRING,DSTRING>[\n] { parser->LineIncr(); sx_lex_str_push ('\n'); }
+<DSTRING>\" { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = String::Create(parser->GetSystem(), sx_lex_str); return STRING; } 
+<SSTRING>' { BEGIN INITIAL; sx_lex_str[sx_lex_str_i] = 0; yylval.value = String::Create(parser->GetSystem(), sx_lex_str); return STRING; } 
 
 [ \t]+ { /* IGNORE */ }
 "/*"  { BEGIN BCOMMENT; }
 "//"  { BEGIN LCOMMENT; }
 # { BEGIN LCOMMENT; }
-[\n] { sxp_parser_info->line ++; }
+[\n] { parser->LineIncr(); }
 [a-zA-Z_][a-zA-Z0-9_]* { 
 		LEX_NAME("if", IF)
 		LEX_NAME("else", ELSE)
@@ -89,16 +89,18 @@
 		LEX_NAME("nil", TNIL)
 		LEX_NAME("in", TIN)
 		LEX_NAME("for", TFOR)
+		LEX_NAME("foreach", TFOREACH)
 		LEX_NAME("continue", TCONTINUE)
 		LEX_NAME("yield", TYIELD)
 		LEX_NAME("new", TNEW)
 		LEX_NAME("public", TPUBLIC)
 		{
 			yylval.id = NameToID (yytext);
-			if (sxp_parser_info->system->GetType(yylval.id))
+			if (parser->GetSystem()->GetType(yylval.id) != NULL) {
 				return TYPE;
-			else
+			} else {
 				return IDENTIFIER;
+			}
 		}
 	}
 [0-9]+ { yylval.value = Number::Create (atoi (yytext)); return NUMBER; }

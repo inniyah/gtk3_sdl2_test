@@ -71,25 +71,14 @@ Assoc::MethodRemove (Thread* thread, Value* self, size_t argc, Value** argv)
 }
 
 Value*
-Assoc::MethodForeach (Thread* thread, Value* self, size_t argc, Value** argv)
+Assoc::MethodIter (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	size_t i;
-	Invocable* call = (Invocable*)argv[0];
-
-	if (!Value::IsA<Invocable>(call)) {
-		thread->RaiseError(SXE_BADARGS, "Argument passed to Assoc.for_each() is not a function");
-		return NULL;
-	}
-
-	for (i = 0; i < ((Assoc*)self)->count; ++ i) {
-		thread->Invoke(call, 2, &((Assoc*)self)->list[i].name, &((Assoc*)self)->list[i].value);
-	}
-
+	// FIXME
 	return NULL;
 }
 
 // Define type parameters
-SX_TYPEIMPL(Assoc, "Array", List)
+SX_TYPEIMPL(Assoc, "Assoc", List)
 
 // Our methods
 SX_BEGINMETHODS(Assoc)
@@ -98,7 +87,7 @@ SX_BEGINMETHODS(Assoc)
 	SX_DEFMETHOD(MethodSet, "set", 2, 0)
 	SX_DEFMETHOD(MethodAppend, "append", 1, 0)
 	SX_DEFMETHOD(MethodRemove, "remove", 1, 0)
-	SX_DEFMETHOD(MethodForeach, "foreach", 0, 0)
+	SX_DEFMETHOD(MethodIter, "iter", 0, 0)
 SX_ENDMETHODS
 
 // Our static methods

@@ -65,9 +65,7 @@ System::System (void)
 
 	AddType (String::GetType());
 	AddType (Number::GetType());
-	AddType (Invocable::GetType());
 	AddType (Function::GetType());
-	AddType (Closure::GetType());
 	AddType (Array::GetType());
 	AddType (Assoc::GetType());
 	AddType (TypeValue::GetType());

@@ -1,6 +1,6 @@
 EXTRA_DIST=grammar.hh grammar.cc lexer.cc grammar.yy lexer.ll
 
-CXXFLAGS := $(CXXFLAGS) @SGC_CFLAGS@
+CXXFLAGS := @CXXFLAGS@ @SGC_CFLAGS@
 
 libdir=${exec_prefix}/lib
 lib_LTLIBRARIES=libscriptix.la libsxparse.la
@@ -8,11 +8,11 @@ lib_LTLIBRARIES=libscriptix.la libsxparse.la
 libscriptix_la_SOURCES=\
 	array.cc \
 	assoc.cc \
-	closure.cc \
 	error.cc \
 	eval.cc \
 	function.cc \
 	global.cc \
+	iter.cc \
 	list.cc \
 	name.cc \
 	number.cc \

@@ -37,7 +37,7 @@ int
 main (int argc, const char **argv) {
 	// variables
 	System* system;
-	Invocable* func;
+	Function* func;
 	Value** sargv;
 
 	// initialize gc

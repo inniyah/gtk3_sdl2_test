@@ -1,7 +1,7 @@
-BASE_VERSION=0.23
-VERSION=0.23
+BASE_VERSION=0.24
+VERSION=0.24
 
-AC_INIT([Scriptix], 0.23, [http://www.awemud.net/bugs/submit.php])
+AC_INIT([Scriptix], 0.24, [http://www.awemud.net/bugs/submit.php])
 AC_CONFIG_SRCDIR(bin/scriptix.cc)
 AM_INIT_AUTOMAKE(scriptix, "$PACKAGE_VERSION")
 AM_CONFIG_HEADER(include/config.h)

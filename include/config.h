@@ -41,19 +41,19 @@
 #define PACKAGE_NAME "Scriptix"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Scriptix 0.23"
+#define PACKAGE_STRING "Scriptix 0.24"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "scriptix"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.23"
+#define PACKAGE_VERSION "0.24"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Our version */
-#define SX_VERSION "0.23"
+#define SX_VERSION "0.24"
 
 /* Version number of package */
-#define VERSION "0.23"
+#define VERSION "0.24"

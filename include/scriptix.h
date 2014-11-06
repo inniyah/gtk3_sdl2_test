@@ -100,9 +100,10 @@ typedef enum {
 	SXE_INVALID,	// generic invalid request
 	SXE_DISABLED, 	// operation disabled
 	SXE_BUSY,	// busy, cannot complete request
-	SXE_INTERNAL, // internal, unknown error
+	SXE_INTERNAL,	// internal, unknown error
 	SXE_BADARGS,	// bad set or arguments; count or type
 	SXE_EXISTS,	// already exists (duplicate)
+	SXE_DIVZERO,	// divide by zero
 } sx_err_type;
 
 // Byte-code ops
@@ -110,14 +111,14 @@ typedef enum {
 	SX_OP_PUSH = 0,
 	SX_OP_ADD,
 	SX_OP_SUBTRACT,
-	SX_OP_NEGATE,
-	SX_OP_CALL,
 	SX_OP_MULTIPLY,
 	SX_OP_DIVIDE,
+	SX_OP_NEGATE,
+	SX_OP_INVOKE,
 	SX_OP_GT,
 	SX_OP_LT,
 	SX_OP_GTE,
-	SX_OP_LTE,
+	SX_OP_LTE = 10,
 	SX_OP_EQUAL,
 	SX_OP_NEQUAL,
 	SX_OP_NOT,
@@ -127,8 +128,7 @@ typedef enum {
 	SX_OP_PREINCREMENT,
 	SX_OP_POSTINCREMENT,
 	SX_OP_NEWARRAY,
-	SX_OP_NEWASSOC,
-	SX_OP_TYPECAST,
+	SX_OP_TYPECAST = 20,
 	SX_OP_SETINDEX,
 	SX_OP_METHOD,
 	SX_OP_SETFILELINE,
@@ -138,12 +138,12 @@ typedef enum {
 	SX_OP_TEST,
 	SX_OP_TJUMP,
 	SX_OP_FJUMP,
-	SX_OP_STATIC_METHOD,
+	SX_OP_STATIC_METHOD = 30,
 	SX_OP_YIELD,
 	SX_OP_IN,
-	SX_OP_CLOSURE,
 	SX_OP_SET_MEMBER,
 	SX_OP_GET_MEMBER,
+	SX_OP_ITER,
 } sx_op_type;
 
 // Thread flags
@@ -177,6 +177,14 @@ typedef enum {
 	SX_OPT_PATH,
 } sx_option_type;
 
+// Define opcodes
+struct OpCode {
+	const char* name;
+	unsigned char args;
+};
+
+extern OpCode OpCodeDefs[];
+
 #define SX_NUM_MARK 0x01
 
 // core structures
@@ -193,9 +201,8 @@ class Number;
 class String;
 class Array;
 class Assoc;
-class Invocable;
 class Function;
-class Closure;
+class Iterator;
 class TypeValue;
 #define SX_NIL (NULL)
 
@@ -217,14 +224,13 @@ const char *Version (void);
 
 // easy convert
 #define SX_TOVALUE(val) ((Scriptix::Value*)(val))
-#define SX_TOINVOCABLE(val) ((Scriptix::Invocable*)(val))
 #define SX_TOFUNC(val) ((Scriptix::Function*)(val))
-#define SX_TOCLOSURE(val) ((Scriptix::Closure*)(val))
 #define SX_TOSTRING(val) ((Scriptix::String*)(val))
 #define SX_TOARRAY(val) ((Scriptix::Array*)(val))
 #define SX_TOASSOC(val) ((Scriptix::Assoc*)(val))
 #define SX_TONUM(val) ((long)(val))
 #define SX_TOTYPE(val) ((Scriptix::TypeValue*)(val))
+#define SX_TOITER(val) ((Scriptix::Iterator*)(val))
 
 // Name<->ID translation
 sx_name_id NameToID(const char *name);
@@ -456,6 +462,44 @@ class Value : public SGC::Collectable {
 };
 
 /**
+ * Iterator base type.
+ * Iterators provide a language-based feature for iterating thru any
+ * sort of list or collection.  Iterators can be used with the foreach()
+ * language construct, or on their own uses normal method calls.
+ */
+class Iterator : public Value {
+	SX_TYPEDEF // Implemented in iter.cc
+
+	// operations
+	public:
+	/**
+	 * Fetch next item in the collection.
+	 * This is the main part of an iterator.  Each call to this method
+	 * returns the next item in the collection, until the end of the
+	 * collection is reached.
+	 * @note Over-ride in your derived iterator to provide functionality.
+	 * @param system System the value should be in.
+	 * @param value A value if true is returned, undefined otherwise.
+	 * @return false if there are no more items, true if there are.
+	 */
+	virtual bool Next (System* system, Value*& value) = 0;
+
+	// Methods
+	private:
+	/**
+	 * Method: Get next item.
+	 * Get next item from collection.  Skips nil items due to implementation
+	 *   details.
+	 * @return Next item, or nil if there are no more.
+	 */
+	static Value* MethodNext (Thread* thread, Value* self, size_t argc, Value** argv);
+
+	// Constructor
+	public:
+	Iterator (System* system) : Value(system) {}
+};
+
+/**
  * List base type.
  * This is the base type for list types (such as arrays).  It provides
  * functionality for setting, getting, appending, checking a list.
@@ -506,6 +550,13 @@ class List : public Value {
 	 * @return True if the value/key exists, or false otherwise.
 	 */
 	virtual bool Has (System* system, Value* value);
+	/**
+	 * Get an iterator.
+	 * Create an iterator for the list.
+	 * @param system System iterator is in.
+	 * @return An iterator, or NULL on error.
+	 */
+	virtual Iterator* GetIter (System* system);
 
 	public:
 	/**
@@ -567,6 +618,16 @@ class List : public Value {
 	static bool Has (System* system, List* list, Value* value)
 	{
 		return list->Has(system, value);
+	}
+	/**
+	 * Get an iterator.
+	 * Create an iterator for the list.
+	 * @param system System iterator is in.
+	 * @return An iterator, or NULL on error.
+	 */
+	static Iterator* GetIter (System* system, List* list)
+	{
+		return list->GetIter(system);
 	}
 };
 
@@ -812,7 +873,7 @@ class Array : public List {
 	static Value* MethodLength (Thread* thread, Value* self, size_t argc, Value** argv);
 	static Value* MethodAppend (Thread* thread, Value* self, size_t argc, Value** argv);
 	static Value* MethodRemove (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodForeach (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodIter (Thread* thread, Value* self, size_t argc, Value** argv);
 
 	protected:
 	size_t size;
@@ -836,6 +897,7 @@ class Array : public List {
 	virtual Value* SetIndex (System* system, Value* index, Value* set);
 	virtual Value* Append (System* system, Value* value);
 	virtual bool Has (System* system, Value* value);
+	virtual Iterator* GetIter (System* system);
 
 	// Custom
 	public:
@@ -843,6 +905,29 @@ class Array : public List {
 	Value* GetIndex (size_t i) const { return list[i]; }
 	// NOTE: the following should only be used on ranges 0 thru (count - 1)
 	Value* SetIndex (size_t i, Value* value) { return list[i] = value; }
+
+	// Iterators
+	public:
+	class ArrayIterator : public Scriptix::Iterator
+	{
+		// data
+		private:
+		Array* array;
+		size_t index;
+
+		// mark
+		protected:
+		virtual void MarkChildren (void);
+
+		// Next iterator
+		public:
+		virtual bool Next (System* system, Value*& value);
+
+		// Constructor
+		public:
+		ArrayIterator (System* system, Array* s_arr) :
+			Scriptix::Iterator(system), array(s_arr), index(0) {}
+	};
 };
 
 struct Assoc : public List {
@@ -867,7 +952,7 @@ struct Assoc : public List {
 	static Value* MethodSet (Thread* thread, Value* self, size_t argc, Value** argv);
 	static Value* MethodAppend (Thread* thread, Value* self, size_t argc, Value** argv);
 	static Value* MethodRemove (Thread* thread, Value* self, size_t argc, Value** argv);
-	static Value* MethodForeach (Thread* thread, Value* self, size_t argc, Value** argv);
+	static Value* MethodIter (Thread* thread, Value* self, size_t argc, Value** argv);
 
 	public:
 	Assoc (System* system);
@@ -894,15 +979,7 @@ struct Assoc : public List {
 	Value* SetIndex (size_t i, Value* value) { return list[i].value = value; }
 };
 
-// "proxy" class
-class Invocable : public Value {
-	SX_TYPEDEF // implemented in function.cc
-
-	public:
-	Invocable (System* system) : Value(system) {}
-};
-
-class Function : public Invocable {
+class Function : public Value {
 	SX_TYPEDEF
 
 	public:
@@ -928,27 +1005,8 @@ class Function : public Invocable {
 	// Build byte-codes
 	public:
 	int AddValue (System* system, Value* value);
-	int AddCode (System* system, sx_op_type code);
-};
-
-class Closure : public Invocable {
-	SX_TYPEDEF
-
-	protected:
-	Array* args;
-	Function* func;
-
-	public:
-	Closure (System* system, Function* s_func, Array* s_args) : Invocable(system), args(s_args), func(s_func) {}
-
-	// Operator
-	protected:
-	virtual void MarkChildren (void);
-
-	// Query
-	public:
-	Array* GetArgs (void) const { return args; }
-	Function* GetFunc (void) const { return func; }
+	int AddOpcode (System* system, sx_op_type code) { return AddOparg(system,code); } // same thing
+	int AddOparg (System* system, long arg);
 };
 
 // "wrap" an Type - in type.cc
@@ -1157,8 +1215,8 @@ class Thread {
 	void Thread::PopValue (size_t len) { data -= len; }
 
 	// Manipulate data stack
-	int PushCall (Invocable* called, size_t argc, Value* argv[], unsigned char flags);
-	int PushCall (Invocable* called, size_t argc) { return PushCall (called, argc, &data_stack[data - argc], 0); }
+	int PushCall (Function* called, size_t argc, Value* argv[], unsigned char flags);
+	int PushCall (Function* called, size_t argc) { return PushCall (called, argc, &data_stack[data - argc], 0); }
 	void PopCall (void);
 	Call* GetCall (void) { return &call_stack[call - 1]; }
 
@@ -1167,8 +1225,8 @@ class Thread {
 
 	public:
 	// Contructor/destructor
-	Thread (System* system, Invocable* called, unsigned char flags, size_t argc, Value* argv[]);
-	Thread (System* system, Invocable* called, unsigned char flags, size_t argc, ...);
+	Thread (System* system, Function* called, unsigned char flags, size_t argc, Value* argv[]);
+	Thread (System* system, Function* called, unsigned char flags, size_t argc, ...);
 	~Thread (void);
 
 	// Misc
@@ -1188,8 +1246,8 @@ class Thread {
 	Value* Thread::GetValue (size_t index) { return data_stack[data - index]; }
 
 	// Invoke a callable
-	Value* Invoke (Invocable* called, size_t argc, Value* array[]);
-	Value* Invoke (Invocable* called, size_t argc, ...);
+	Value* Invoke (Function* called, size_t argc, Value* array[]);
+	Value* Invoke (Function* called, size_t argc, ...);
 
 	// System can control me
 	friend class System;

@@ -53,17 +53,12 @@ System::GetFunction (sx_name_id id)
 	return NULL;
 }
 
-// INVOCABLE IMPLEMENTATION
-SX_TYPEIMPL(Invocable, "Invocable", Value)
-SX_NOMETHODS(Invocable)
-SX_NOSMETHODS(Invocable)
-
 // FUNCTION IMPLEMENTATION
-SX_TYPEIMPL(Function, "Function", Invocable)
+SX_TYPEIMPL(Function, "Function", Value)
 SX_NOMETHODS(Function)
 SX_NOSMETHODS(Function)
 
-Function::Function (System* system, sx_name_id s_id, size_t s_argc, bool s_varg) : Invocable (system)
+Function::Function (System* system, sx_name_id s_id, size_t s_argc, bool s_varg) : Value(system)
 {
 	cfunc = NULL;
 	varg = s_varg;
@@ -76,7 +71,7 @@ Function::Function (System* system, sx_name_id s_id, size_t s_argc, bool s_varg)
 	fnext = NULL;
 }
 
-Function::Function (System* system, sx_name_id s_id, size_t s_argc, bool s_varg, sx_cfunc s_cfunc) : Invocable (system)
+Function::Function (System* system, sx_name_id s_id, size_t s_argc, bool s_varg, sx_cfunc s_cfunc) : Value(system)
 {
 	cfunc = s_cfunc;
 	varg = s_varg;
@@ -98,9 +93,11 @@ Function::~Function (void)
 void
 Function::MarkChildren (void)
 {
-	for (size_t i = 0; i < count; ++ i)
-		if (nodes[i] == SX_OP_PUSH)
-			Value::Mark ((Value*)nodes[++ i]);
+	for (size_t i = 0; i < count; ++ i) {
+		if (nodes[i] == SX_OP_PUSH)  // data
+			Value::Mark ((Value*)nodes[i + 1]);
+		i += OpCodeDefs[nodes[i]].args; // skip args
+	}
 }
 
 int
@@ -122,7 +119,7 @@ Function::AddValue (System* system, Value* value) {
 }
 
 int
-Function::AddCode (System* system, sx_op_type code) {
+Function::AddOparg (System* system, long value) {
 	long* sx_new_nodes;
 
 	/* need at least two open places */
@@ -133,7 +130,7 @@ Function::AddCode (System* system, sx_op_type code) {
 		nodes = sx_new_nodes;
 		size += system->GetBlockChunk();
 	}
-	nodes[count++] = code;
+	nodes[count++] = value;
 
 	return SXE_OK;
 }

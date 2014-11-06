@@ -1,5 +1,5 @@
 /*
- * Scriptix - Lite-weight scripting longerface
+ * Scriptix - Lite-weight scripting interface
  * Copyright (c) 2002, 2003  AwesomePlay Productions, Inc.
  * All rights reserved.
  * 
@@ -25,71 +25,36 @@
  * DAMAGE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
-#include <stdlib.h>
-
 #include "scriptix.h"
+#include "system.h"
+
+#include <iostream>
 
 using namespace Scriptix;
 
-SX_TYPEIMPL(Closure, "Closure", Invocable)
-
-SX_NOMETHODS(Closure)
-
-SX_NOSMETHODS(Closure)
-
-void
-Closure::MarkChildren (void) {
-	if (func != NULL)
-		Value::Mark (func);
-	if (args != NULL)
-		Value::Mark (args);
-}
-
-#if 0
-
-Type* 
-sx_init_closure (System* system) {
-	Type* type;
-
-	type = sx_new_type (system, "Closure");
-	if (type == NULL) {
-		return NULL;
-	}
-
-	type->fmark = (sx_type_mark)_sx_closure_mark;
-
-	return type;
-}
-
 Value*
-sx_new_closure (System* system, Value* func, size_t argc, Value* args[])
+Iterator::MethodNext(Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	Value* arglist;
-	Closure* value;
+	Iterator* iter = (Iterator*)self;
 
-	if (!Value::IsA<Function>(func)) {
-		/* FIXME: ERROR: TYPE */
-		return SX_NIL;
-	}
-	
-	arglist = sx_new_array (system, argc, args);
+	// so long as we have a value...
+	Value* ret;
+	while (iter->Next(thread->GetSystem(), ret))
+		// skip nil values, those signify end
+		if (ret != NULL)
+			return ret;
 
-	value = (Closure* )malloc ( sizeof (Closure));
-	if (value == NULL) {
-		/* FIXME: ERROR: MEM */
-		return SX_NIL;
-	}
-
-	value->func = SX_TOFUNC(func);
-	value->args = SX_TOARRAY(arglist);
-
-	sx_clear_value (system, value, system->ClosureType());
-
-	return SX_TOVALUE(value);
+	// no more, return nil
+	return NULL;
 }
 
-#endif
+// Define type parameters
+SX_TYPEIMPL(Iterator, "Iterator", Value)
+
+// Our methods
+SX_BEGINMETHODS(Iterator)
+	SX_DEFMETHOD(MethodNext, "next", 0, 0)
+SX_ENDMETHODS
+
+// Our static methods
+SX_NOSMETHODS(Iterator)

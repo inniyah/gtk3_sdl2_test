@@ -1,2 +1,19 @@
-For general information on LibSGC, see README
-For licensing information on LibSGC, see COPYING
+Version 0.24
+============
+
+  * Removed closures and anonymous functions.
+  * Added iterator system similar to C# 2.0's proposed iterators.
+  * Removed associate array syntactical sugar constructor.
+  * Added infinite do {} loop syntax.
+  * Lots of internal cleanups, especially in the compiler.
+
+Version 0.23
+============
+
+  * Build work (Switch to automake/libtool).
+  * Globals.
+  * Tons of String bug fixes.
+  * Structs.
+  * Began documenting API.
+  * Rewrote in C++.
+  * Depend on libsgc.

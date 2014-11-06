@@ -1,11 +1,11 @@
 test (a) {
 	msg = 'In - ';
-	a.foreach() do (i ; msg) {
-			printl ('--', i);
-			for (n = 3; n <= 9; n += 3) {
-				printl (msg, n, ':', i);
-			}
-		};
+	foreach (i in a) {
+		printl ('--', i);
+		for (n = 3; n <= 9; n += 3) {
+			printl (msg, n, ':', i);
+		}
+	}
 }
 
 public

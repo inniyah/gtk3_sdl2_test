@@ -53,6 +53,45 @@ char *alloca ();
 
 using namespace Scriptix;
 
+OpCode Scriptix::OpCodeDefs[] = {
+	{ "PUSH", 1 },
+	{ "ADD", 0 },
+	{ "SUBTRACT", 0 },
+	{ "MULTIPLY", 0 },
+	{ "DIVIDE", 0 },
+	{ "NEGATE", 0 },
+	{ "INVOKE", 1 },
+	{ "GT", 0 },
+	{ "LT", 0 },
+	{ "GTE", 0 },
+	{ "LTE", 0 },
+	{ "EQUAL", 0 },
+	{ "NEQUAL", 0 },
+	{ "NOT", 0 },
+	{ "LOOKUP", 1 },
+	{ "ASSIGN", 1 },
+	{ "INDEX", 0 },
+	{ "PREINCREMENT", 0 },
+	{ "POSTINCREMENT", 0 },
+	{ "NEWARRAY", 1 },
+	{ "TYPECAST", 0 },
+	{ "SETINDEX", 0 },
+	{ "METHOD", 2 },
+	{ "SETFILELINE", 0 },
+	{ "NEXTLINE", 0 },
+	{ "JUMP", 1 },
+	{ "POP", 0 },
+	{ "TEST", 0 },
+	{ "TJUMP", 1 },
+	{ "FJUMP", 1 },
+	{ "STATIC_METHOD", 2 },
+	{ "YIELD", 0 },
+	{ "IN", 0 },
+	{ "SET_MEMBER", 1 },
+	{ "GET_MEMBER", 1 },
+	{ "ITER", 0 },
+};
+
 Value*
 Thread::InvokeMethod (Value* self, const Method* method, size_t argc)
 {
@@ -206,34 +245,40 @@ run_code:
 					PushValue(ret);
 					break;
 				case SX_OP_DIVIDE:
-					ret = Number::Create (Number::ToInt (GetValue(2)) / Number::ToInt (GetValue(1)));
-					PopValue(2);
-					PushValue(ret);
+					// divide by 0 check
+					if (Number::ToInt(GetValue(1)) == 0) {
+						PopValue(2);
+						RaiseError(SXE_DIVZERO, "Division by zero");
+					} else {
+						ret = Number::Create (Number::ToInt (GetValue(2)) / Number::ToInt (GetValue(1)));
+						PopValue(2);
+						PushValue(ret);
+					}
 					break;
 				case SX_OP_NEGATE:
 					ret = Number::Create (- Number::ToInt (GetValue(1)));
 					PopValue(1);
 					PushValue(ret);
 					break;
-				case SX_OP_CALL:
-					count = Number::ToInt (GetValue(2));
+				case SX_OP_INVOKE:
+					count = curcall->func->nodes[curcall->op_ptr++];
 					value = GetValue(1);
-					PopValue(2);
+					PopValue(1);
 
-					if (!Value::IsA<Invocable>(value)) {
+					if (!Value::IsA<Function>(value)) {
 						PopValue(count);
 						RaiseError(SXE_BADTYPE, "Invoked data is not a function");
 						break;
 					}
 
-					if (Value::IsA<Function>(value) && SX_TOFUNC(value)->cfunc != NULL) {
+					if (SX_TOFUNC(value)->cfunc != NULL) {
 						ret = InvokeCFunc(SX_TOFUNC(value), count);
 						PopValue(count);
 						PushValue(ret);
 						break;
 					}
 
-					PushCall(SX_TOINVOCABLE(value), count);
+					PushCall(SX_TOFUNC(value), count);
 					goto run_code; // jump to executation stage
 					break;
 				case SX_OP_GT:
@@ -272,24 +317,13 @@ run_code:
 					PushValue(ret);
 					break;
 				case SX_OP_LOOKUP:
-					index = Number::ToInt(GetValue(1));
-					if (index < 0 || index >= curcall->func->varc) {
-						RaiseError(SXE_BOUNDS, "Variable index out of allowable range (%lu/%lu)", index, curcall->func->varc);
-					} else {
-						PopValue(1);
-						PushValue(curcall->items[index]);
-					}
+					index = curcall->func->nodes[curcall->op_ptr++];
+					PushValue(curcall->items[index]);
 					break;
 				case SX_OP_ASSIGN:
+					index = curcall->func->nodes[curcall->op_ptr++];
 					ret = GetValue(1);
-					index = Number::ToInt(GetValue(2));
-					if (index < 0 || index >= curcall->func->varc) {
-						RaiseError(SXE_BOUNDS, "Variable index out of allowable range (%lu/%lu)", index, curcall->func->varc);
-					} else {
-						curcall->items[index] = ret;
-						PopValue(2); // FIXME: optimize, shouldn't pop the value then push back on
-						PushValue(ret);
-					}
+					curcall->items[index] = ret;
 					break;
 				case SX_OP_INDEX:
 					value = GetValue(2);
@@ -305,30 +339,20 @@ run_code:
 				case SX_OP_PREINCREMENT:
 					ret = NULL;
 					index = Number::ToInt(GetValue(2));
-					if (index < 0 || index >= curcall->func->varc) {
-						RaiseError(SXE_BOUNDS, "Variable index out of allowable range (%lu/%lu)", index, curcall->func->varc);
-					} else {
-						ret = curcall->items[index] = Number::Create (Number::ToInt (curcall->items[index]) + Number::ToInt (GetValue(1)));
-						PopValue(2);
-						PushValue(ret);
-					}
+					ret = curcall->items[index] = Number::Create (Number::ToInt (curcall->items[index]) + Number::ToInt (GetValue(1)));
+					PopValue(2);
+					PushValue(ret);
 					break;
 				case SX_OP_POSTINCREMENT:
 					ret = NULL;
 					index = Number::ToInt(GetValue(2));
-					if (index < 0 || index >= curcall->func->varc) {
-						PopValue(2);
-						RaiseError(SXE_BOUNDS, "Variable index out of allowable range (%lu/%lu)", index, curcall->func->varc);
-					} else {
-						ret = curcall->items[index];
-						curcall->items[index] = Number::Create (Number::ToInt (curcall->items[index]) + Number::ToInt (GetValue(1)));
-						PopValue(2);
-						PushValue(ret);
-					}
+					ret = curcall->items[index];
+					curcall->items[index] = Number::Create (Number::ToInt (curcall->items[index]) + Number::ToInt (GetValue(1)));
+					PopValue(2);
+					PushValue(ret);
 					break;
 				case SX_OP_NEWARRAY:
-					count = Number::ToInt (GetValue(1));
-					PopValue(1);
+					count = curcall->func->nodes[curcall->op_ptr++];
 					if (count > 0) {
 						ret = new Array(system, count, &data_stack[data - count]);
 					} else {
@@ -336,17 +360,6 @@ run_code:
 					}
 					PopValue(count);
 					PushValue(ret);
-					break;
-				case SX_OP_NEWASSOC:
-					count = Number::ToInt (GetValue(1));
-					PopValue(1);
-					if (count > 0) {
-						ret = new Assoc (system, count, &data_stack[data - (count*2)]);
-					} else {
-						ret = new Assoc (system);
-					}
-					PopValue(count * 2);
-					PushValue (ret);
 					break;
 				case SX_OP_SETINDEX:
 					value = GetValue(3);
@@ -376,10 +389,10 @@ run_code:
 					}
 					break;
 				case SX_OP_METHOD:
-					count = Number::ToInt (GetValue(3));
-					value = GetValue(2); // the type
-					name = Number::ToInt (GetValue(1));
-					PopValue(3);
+					name = curcall->func->nodes[curcall->op_ptr++];
+					count = curcall->func->nodes[curcall->op_ptr++];
+					value = GetValue(1); // the type
+					PopValue(1);
 
 					if (value == NULL) {
 						RaiseError(SXE_NILCALL, "Value is nil for method call");
@@ -395,7 +408,7 @@ run_code:
 					if (count < method->argc) {
 						PopValue(count);
 						type = Value::TypeOf(value);
-						RaiseError(SXE_UNDEFINED, "Too few arguments to method '%s' on type '%s' (%d or %d)", IDToName (name), type->name, count, (long)method->argc);
+						RaiseError(SXE_UNDEFINED, "Too few arguments to method '%s' on type '%s'", IDToName (name), type->name);
 						break;
 					}
 					ret = InvokeMethod (value, method, count);
@@ -403,10 +416,10 @@ run_code:
 					PushValue(ret);
 					break;
 				case SX_OP_STATIC_METHOD:
-					count = Number::ToInt (GetValue(3));
-					value = GetValue(2); // the type
-					name = Number::ToInt (GetValue(1));
-					PopValue(3);
+					name = curcall->func->nodes[curcall->op_ptr++];
+					count = curcall->func->nodes[curcall->op_ptr++];
+					value = GetValue(1); // the type
+					PopValue(1);
 
 					if (!Value::IsA<TypeValue>(value)) {
 						RaiseError(SXE_NILCALL, "Value is not a type for method call");
@@ -453,27 +466,28 @@ run_code:
 				case SX_OP_POP:
 					PopValue(1);
 					break;
-				case SX_OP_JUMP:
-					curcall->op_ptr = Number::ToInt (GetValue(1));
-					PopValue(1);
-					break;
 				case SX_OP_TEST:
 					if (Value::True (system, GetValue(1)))
 						curcall->flags |= SX_CFLAG_TTRUE;
 					else
 						curcall->flags &= ~SX_CFLAG_TTRUE;
 					break;
+				case SX_OP_JUMP:
+					curcall->op_ptr += curcall->func->nodes[curcall->op_ptr];
+					break;
 				case SX_OP_TJUMP:
 					if (curcall->flags & SX_CFLAG_TTRUE) {
-						curcall->op_ptr = Number::ToInt (GetValue(1));
+						curcall->op_ptr += curcall->func->nodes[curcall->op_ptr];
+					} else {
+						++curcall->op_ptr;
 					}
-					PopValue(1);
 					break;
 				case SX_OP_FJUMP:
 					if ((curcall->flags & SX_CFLAG_TTRUE) == 0) {
-						curcall->op_ptr = Number::ToInt (GetValue(1));
+						curcall->op_ptr += curcall->func->nodes[curcall->op_ptr];
+					} else {
+						++curcall->op_ptr;
 					}
-					PopValue(1);
 					break;
 				case SX_OP_YIELD:
 					// break - switch
@@ -494,23 +508,10 @@ run_code:
 						RaiseError(SXE_BADTYPE, "Instance is not a list type in has operation");
 					}
 					break;
-				case SX_OP_CLOSURE:
-					count = Number::ToInt (GetValue(2));
-					value = GetValue(1);
-					PopValue(2);
-					if (Value::IsA<Function>(value)) {
-						Array* argv = new Array(system, count, &data_stack[data - count]);
-						PopValue(count);
-						PushValue(new Closure (system, (Function*)value, argv));
-					} else {
-						PopValue(count);
-						RaiseError(SXE_BADTYPE, "Closure value is not a function");
-					}
-					break;
 				case SX_OP_GET_MEMBER:
-					value = GetValue(2);
-					name = Number::ToInt(GetValue(1));
-					PopValue(2);
+					value = GetValue(1);
+					name = curcall->func->nodes[curcall->op_ptr++];
+					PopValue(1);
 					if (Value::IsA<Struct>(value)) {
 						ret = ((Struct*)value)->GetMember(system, name);
 						PushValue(ret);
@@ -519,15 +520,59 @@ run_code:
 					}
 					break;
 				case SX_OP_SET_MEMBER:
-					value = GetValue(3);
-					name = Number::ToInt(GetValue(2));
+					value = GetValue(2);
+					name = curcall->func->nodes[curcall->op_ptr++];
 					if (Value::IsA<Struct>(value)) {
 						((Struct*)value)->SetMember(system, name, GetValue(1));
-						PopValue(3);
-						PushValue(value);
+						PopValue(1);
 					} else {
-						PopValue(3);
+						PopValue(2);
 						RaiseError(SXE_BADTYPE, "Attempt to get member value on non-structure");
+					}
+					break;
+				case SX_OP_ITER:
+					name = curcall->func->nodes[curcall->op_ptr++];
+					value = GetValue(1);
+					// have we a nil?
+					if (value == NULL) {
+						// remove true flag
+						curcall->flags &= ~SX_CFLAG_TTRUE;
+					// have we an iterator?
+					} else if (Value::IsA<Iterator>(value)) {
+						// get next
+						if (!SX_TOITER(value)->Next(system, value)) {
+							// remove true flag
+							curcall->flags &= ~SX_CFLAG_TTRUE;
+						} else {
+							// set variable
+							curcall->items[name] = value;
+							curcall->flags |= SX_CFLAG_TTRUE;
+						}
+					// have we a list?
+					} else if (Value::IsA<List>(value)) {
+						// generate iterator
+						value = List::GetIter(system, (List*)value);
+						if (!value) {
+							// remove true flag
+							curcall->flags &= ~SX_CFLAG_TTRUE;
+						} else {
+							PopValue(1);
+							PushValue(value);
+						}
+
+						// get next
+						if (!SX_TOITER(value)->Next(system, value)) {
+							// remove true flag
+							curcall->flags &= ~SX_CFLAG_TTRUE;
+						} else {
+							// set variable
+							curcall->items[name] = value;
+							curcall->flags |= SX_CFLAG_TTRUE;
+						}
+					// bad type
+					} else {
+						PopValue(1); // remove type
+						RaiseError(SXE_BADTYPE, "Value is not an iterator or a list");
 					}
 					break;
 			}
@@ -535,7 +580,7 @@ run_code:
 			// exit out of function on thread switch
 			if ((flags & SX_TFLAG_PREEMPT) && (state == SX_STATE_RUNNING)) {
 				if (-- op_count == 0) {
-					// berak - switch
+					// break - switch
 					return state;
 				}
 			}

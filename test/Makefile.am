@@ -1,10 +1,10 @@
 TESTS=\
 	test-fact test-comments test-inc test-logic test-array \
-	test-closure test-assoc test-thread test-global test-struct \
+	test-assoc test-thread test-global test-struct test-iter \
 	test-string
 SCRIPT_TESTS=\
 	fact.sx comments.sx inc.sx logic.sx array.sx \
-	closure.sx assoc.sx thread.sx global.sx struct.sx \
+	assoc.sx thread.sx global.sx struct.sx iter.sx \
 	string.sx
 
 EXTRA_DIST=$(SCRIPT_TESTS)
@@ -42,9 +42,9 @@ test-array: array.sx $(SX)
 	$(SX) array.sx 2>&1 | tee -a test.log | grep -q Success
 	touch $@
 
-test-closure: closure.sx $(SX)
-	echo '>> closure.sx:' >> test.log
-	$(SX) closure.sx 2>&1 | tee -a test.log | grep -q 2046
+test-iter: iter.sx $(SX)
+	echo '>> iter.sx:' >> test.log
+	$(SX) iter.sx 2>&1 | tee -a test.log | grep -q Success
 	touch $@
 
 test-thread: thread.sx $(SX)

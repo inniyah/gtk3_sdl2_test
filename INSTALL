@@ -1,21 +1,3 @@
-AweMUD Installation
-
-If you want to run a dedicated AweMUD server, I suggest creating a new
-user (awemud) and matching group.  'Install' (i.e. just unpack the
-tarball) AweMUD into /home/awemud, build, and start the server as a
-daemon as the user awemud.  This way, AweMUD can more or less be
-seperated from your main user accounts, allow safe writable directories,
-and (in the event of a security breach, as much as I try to make those
-impossible) only give an attacker access to the system as user awemud,
-whom you intelligently would have done everything you knew how to deny
-privileges too.
-
-If you really want to try running 'make install' then go ahead.  In
-theory, it should work.  If you have any problems doing this, send
-me an e-mail, send the mailing list a message, or submit a bug report.
-
-http://www.awemud.net
-
 Basic Installation
 ==================
 

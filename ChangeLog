@@ -1,3 +1,55 @@
+2003-05-28  Sean Middleditch <elanthis@awemud.net>
+
+  * Release 0.24.
+
+2003-05-25  Sean Middleditch <elanthis@awemud.net>
+
+  * Iterator::Next takes a system argument now.
+
+2003-05-22  Sean Middleditch <elanthis@awemud.net>
+
+  * More work on using opargs fully.
+
+2003-05-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Finished stage 1 of compiler cleanup.
+
+2003-05-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Tons of work simplifying compiler.
+
+2003-05-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Began adding op arg support (so there's no need to use the
+    data stack so much).
+
+2003-05-21  Sean Middleditch <elanthis@awemud.net>
+
+  * Jump operator uses relative distances now.  (Pita to debug,
+    let me tell you...)
+
+2003-05-21  Sean Middleditch <elanthis@awemud.net>
+
+
+2003-05-20  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Made iter.sx actually test something (it can fail).
+
+2003-05-20  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Lots more compiler cleanups.
+  * Removal of the associative array syntactic sugar.
+  * Restructued the c-for bytecode emissions.
+  * Removed the AweMUD comment in INSTALL.
+  * Divide by 0 won't crash the app anymore.
+
+2003-05-19  Sean Middleditch <elanthis@awemud.net>
+
+  * Added iterator functionality (foreach construct).
+  * Began cleaning up compiler.
+  * Removed closures and anonymous functions (yes, BIG change).
+  * Removed the proxy Invocable type.
+
 2003-04-06  Sean Middleditch <elanthis@awemud.net>
 
   * Release 0.23.

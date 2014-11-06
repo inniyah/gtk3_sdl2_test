@@ -1,0 +1,39 @@
+public
+main () {
+	a = ['abc','def','ghi'];
+	b = [1, 2, 3];
+
+	printl(a);
+	printl(b);
+
+	str = '';
+	foreach(i in a)
+		str = String.concat(str, i);
+	num = 0;
+	foreach(i in b)
+		num += i;
+
+	printl (str, num);
+	if (str != 'abcdefghi' || num != 6) {
+		printl ('Failure');
+		return;
+	}
+
+	str = '';
+	iter = a.iter();
+	while (i = iter.next())
+		str = String.concat(str, i);
+
+	num = 0;
+	iter = b.iter();
+	while (i = iter.next())
+		num += i;
+
+	printl (str, num);
+	if (str != 'abcdefghi' || num != 6) {
+		printl ('Failure');
+		return;
+	}
+
+	printl ('Success');
+} 

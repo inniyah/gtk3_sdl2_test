@@ -51,6 +51,7 @@ const char *sx_error_names[] =
 	"Internal error",
 	"Incorrect arguments",
 	"Already exists",
+	"Divide by zero",
 	NULL
 };
 

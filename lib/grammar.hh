@@ -43,27 +43,28 @@
      TGTE = 269,
      TLTE = 270,
      TNE = 271,
-     TADDASSIGN = 272,
-     TSUBASSIGN = 273,
-     TINCREMENT = 274,
-     TDECREMENT = 275,
-     TNEW = 276,
-     TUNTIL = 277,
-     TNIL = 278,
-     TRESCUE = 279,
-     TIN = 280,
-     TFOR = 281,
-     TCONTINUE = 282,
-     TYIELD = 283,
-     TPUBLIC = 284,
-     TRETURN = 285,
-     TBREAK = 286,
-     TEQUALS = 287,
-     TCAST = 288,
-     TLENGTH = 289,
-     TRANGE = 290,
-     CUNARY = 291,
-     TSTATMETHOD = 292
+     TFOREACH = 272,
+     TADDASSIGN = 273,
+     TSUBASSIGN = 274,
+     TINCREMENT = 275,
+     TDECREMENT = 276,
+     TNEW = 277,
+     TUNTIL = 278,
+     TNIL = 279,
+     TRESCUE = 280,
+     TIN = 281,
+     TFOR = 282,
+     TCONTINUE = 283,
+     TYIELD = 284,
+     TPUBLIC = 285,
+     TRETURN = 286,
+     TBREAK = 287,
+     TEQUALS = 288,
+     TCAST = 289,
+     TLENGTH = 290,
+     TRANGE = 291,
+     CUNARY = 292,
+     TSTATMETHOD = 293
    };
 #endif
 #define NUMBER 258
@@ -80,42 +81,43 @@
 #define TGTE 269
 #define TLTE 270
 #define TNE 271
-#define TADDASSIGN 272
-#define TSUBASSIGN 273
-#define TINCREMENT 274
-#define TDECREMENT 275
-#define TNEW 276
-#define TUNTIL 277
-#define TNIL 278
-#define TRESCUE 279
-#define TIN 280
-#define TFOR 281
-#define TCONTINUE 282
-#define TYIELD 283
-#define TPUBLIC 284
-#define TRETURN 285
-#define TBREAK 286
-#define TEQUALS 287
-#define TCAST 288
-#define TLENGTH 289
-#define TRANGE 290
-#define CUNARY 291
-#define TSTATMETHOD 292
+#define TFOREACH 272
+#define TADDASSIGN 273
+#define TSUBASSIGN 274
+#define TINCREMENT 275
+#define TDECREMENT 276
+#define TNEW 277
+#define TUNTIL 278
+#define TNIL 279
+#define TRESCUE 280
+#define TIN 281
+#define TFOR 282
+#define TCONTINUE 283
+#define TYIELD 284
+#define TPUBLIC 285
+#define TRETURN 286
+#define TBREAK 287
+#define TEQUALS 288
+#define TCAST 289
+#define TLENGTH 290
+#define TRANGE 291
+#define CUNARY 292
+#define TSTATMETHOD 293
 
 
 
 
 #if ! defined (YYSTYPE) && ! defined (YYSTYPE_IS_DECLARED)
-#line 59 "grammar.yy"
+#line 57 "grammar.yy"
 typedef union YYSTYPE {
-	SXP_NODE* node;
+	ParserNode* node;
 	Value* value;
 	sx_name_id id;
 	sx_name_id* name_list;
 	struct _sxp_arg_list args;
 } YYSTYPE;
 /* Line 1240 of yacc.c.  */
-#line 119 "grammar.hh"
+#line 121 "grammar.hh"
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 # define YYSTYPE_IS_TRIVIAL 1

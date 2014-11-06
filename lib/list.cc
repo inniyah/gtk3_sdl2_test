@@ -59,3 +59,9 @@ List::Has (System* system, Value* value)
 {
 	return false;
 }
+
+Iterator*
+List::GetIter (System* system)
+{
+	return NULL;
+}

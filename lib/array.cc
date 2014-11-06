@@ -62,21 +62,9 @@ Array::MethodRemove (Thread* thread, Value* self, size_t argc, Value** argv)
 }
 
 Value*
-Array::MethodForeach (Thread* thread, Value* self, size_t argc, Value** argv)
+Array::MethodIter (Thread* thread, Value* self, size_t argc, Value** argv)
 {
-	size_t i;
-	Invocable* call = (Invocable*)argv[0];
-
-	if (!Value::IsA<Invocable>(call)) {
-		thread->RaiseError(SXE_BADARGS, "Argument passed to Array.for_each() is not a function");
-		return NULL;
-	}
-
-	for (i = 0; i < ((Array*)self)->count; ++ i) {
-		thread->Invoke(call, 1, &((Array*)self)->list[i]);
-	}
-
-	return NULL;
+	return ((Array*)self)->GetIter(thread->GetSystem());
 }
 
 // Define type parameters
@@ -87,7 +75,7 @@ SX_BEGINMETHODS(Array)
 	SX_DEFMETHOD(MethodLength, "length", 0, 0)
 	SX_DEFMETHOD(MethodAppend, "append", 1, 0)
 	SX_DEFMETHOD(MethodRemove, "remove", 1, 0)
-	SX_DEFMETHOD(MethodForeach, "foreach", 0, 0)
+	SX_DEFMETHOD(MethodIter, "iter", 0, 0)
 SX_ENDMETHODS
 
 // Our static methods
@@ -233,4 +221,27 @@ Array::Has (System* system, Value* value)
 		if (Value::Equal(system, value, list[i]))
 			return true;
 	return false;
+}
+
+Iterator*
+Array::GetIter (System* system)
+{
+	return new ArrayIterator(system, this);
+}
+
+void
+Array::ArrayIterator::MarkChildren (void)
+{
+	Value::Mark(array);
+}
+
+bool
+Array::ArrayIterator::Next(System* system, Value*& value)
+{
+	if (index >= array->GetCount()) {
+		return false;
+	} else {
+		value = array->GetIndex(index++);
+		return true;
+	}
 }

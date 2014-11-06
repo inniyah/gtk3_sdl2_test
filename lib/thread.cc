@@ -56,7 +56,7 @@ System::EndThread (Thread* thread) {
 	delete thread;
 }
 
-Thread::Thread (System* sys, Invocable* called, unsigned char fl, size_t argc, Value* argv[]) {
+Thread::Thread (System* sys, Function* called, unsigned char fl, size_t argc, Value* argv[]) {
 	static size_t _free_id = 0; // ID tag for threads
 
 	system = sys;
@@ -78,7 +78,7 @@ Thread::Thread (System* sys, Invocable* called, unsigned char fl, size_t argc, V
 	system->AddThread (this);
 }
 
-Thread::Thread (System* sys, Invocable* called, unsigned char flags, size_t argc, ...) {
+Thread::Thread (System* sys, Function* called, unsigned char flags, size_t argc, ...) {
 	Value* argv[20]; // 20 sounds a good max: FIXME: make this a define somewhere
 	size_t i;
 	va_list va;
@@ -132,20 +132,10 @@ Thread::Mark (void)
 }
 
 int
-Thread::PushCall (Invocable* called, size_t argc, Value* argv[], unsigned char flags) {
-	Function* func;
+Thread::PushCall (Function* func, size_t argc, Value* argv[], unsigned char flags) {
 	Array* var_args;
 	Value** items;
 	size_t ai; // arg index
-	char closure = 0;
-
-	// is it a closure or a func?
-	if (Value::IsA<Function>(called)) {
-		func = (Function*)called;
-	} else {
-		closure = 1;
-		func = ((Closure*)called)->GetFunc();
-	}
 
 	if (func->varc != 0) {
 		items = (Value**)malloc(func->varc * sizeof(Value*));
@@ -182,33 +172,14 @@ Thread::PushCall (Invocable* called, size_t argc, Value* argv[], unsigned char f
 		size_t ni = 0; // name index
 		ai = 0; // start of args
 
-		if (closure) {
-			size_t ci = 0; // closure index
+		// fill func args with arg list
+		while (ai < argc && ni < func->argc) {
+			items[ni++] = argv[ai++];
+		}
 
-			// loop to fill up non-closure args
-			while (ai < func->argc && ni < func->argc - ((Closure*)called)->GetArgs()->GetCount()) {
-				items[ni++] = argv[ai++];
-			}
-
-			// fill up to beginning of closure args
-			while (ni < func->argc - ((Closure*)called)->GetArgs()->GetCount()) {
-				items[ni++] = NULL;
-			}
-
-			// do closure values
-			while (ci < ((Closure*)called)->GetArgs()->GetCount() && ni < func->argc) {
-				items[ni++] = ((Closure*)called)->GetArgs()->GetIndex(ci ++);
-			}
-		} else {
-			// fill func args with arg list
-			while (ai < argc && ni < func->argc) {
-				items[ni++] = argv[ai++];
-			}
-
-			// fill up arg list
-			while (ni < func->argc) {
-				items[ni++] = NULL;
-			}
+		// fill up arg list
+		while (ni < func->argc) {
+			items[ni++] = NULL;
 		}
 
 		// var arg
@@ -233,7 +204,7 @@ Thread::PushCall (Invocable* called, size_t argc, Value* argv[], unsigned char f
 }
 
 Value*
-Thread::Invoke (Invocable* called, size_t argc, Value* argv[]) {
+Thread::Invoke (Function* called, size_t argc, Value* argv[]) {
 	Value* retval;
 
 	if (PushCall(called, argc, argv, SX_CFLAG_BREAK) != SXE_OK)
@@ -245,7 +216,7 @@ Thread::Invoke (Invocable* called, size_t argc, Value* argv[]) {
 }
 
 Value*
-Thread::Invoke (Invocable* called, size_t argc, ...)
+Thread::Invoke (Function* called, size_t argc, ...)
 {
 	va_list va;
 	Value** argv;

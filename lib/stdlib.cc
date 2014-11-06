@@ -74,13 +74,13 @@ static
 Value*
 StdlibFork (Thread* thread, size_t argc, Value** argv) 
 {
-	if (!Value::IsA<Invocable>(argv[0])) {
-		thread->RaiseArgError("lookup", "name", "Function or Closure");
+	if (!Value::IsA<Function>(argv[0])) {
+		thread->RaiseArgError("fork", "name", "Function");
 		return NULL;
 	}
 
 	// FIXME: error on failure
-	Thread* nthread = new Thread (thread->GetSystem(), (Invocable*)argv[0], Number::ToInt (argv[1]), 0, NULL);
+	Thread* nthread = new Thread (thread->GetSystem(), SX_TOFUNC(argv[0]), Number::ToInt (argv[1]), 0, NULL);
 	return Number::Create ((long)nthread >> 2);
 }
 
