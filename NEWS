@@ -1,8 +1,15 @@
 Version 0.31
 ============
 
-  * Single global System per thread.
-  * Big API cleanup.
+  * Removed threading.
+  * String concatenation is a separate operator, ::.
+  * Script API uses camelCase conventions.
+  * Removed static methods.
+  * Removed type extends.
+  * Removed function tags.
+  * Variables must be declared using the 'var' keyword.
+  * Removed associative arrays.
+  * Large C++ API changes.
 
 Version 0.30
 ============
