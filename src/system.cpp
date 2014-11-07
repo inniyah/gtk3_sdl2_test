@@ -25,10 +25,9 @@
  * DAMAGE.
  */
 
-#include <iostream>
-
 #include "scriptix.h"
-#include "config.h"
+
+#include <iostream>
 
 using namespace Scriptix;
 
@@ -100,13 +99,6 @@ System::SetOption (sx_option_type opt, const BaseString& value) {
 			/* unknown option */
 			return SXE_INVALID;
 	}
-}
-
-// VERSION STRING
-const char*
-Scriptix::Version (void)
-{
-	return SX_VERSION;
 }
 
 // NON-THREAD-LOCAL SYSTEM OBJECT 
