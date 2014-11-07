@@ -1,4 +1,5 @@
-LIBRARY=libslmath
+LIBNAME=slmath
+LIBRARY=lib$(LIBNAME)
 
 all: static
 static: $(LIBRARY).a

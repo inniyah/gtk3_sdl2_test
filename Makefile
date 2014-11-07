@@ -1,6 +1,6 @@
 PROGRAM=test
 
-all: $(PROGRAM)
+all: $(PROGRAM) libraries
 
 SRCS = MainGtk3App.cpp Sdl2App.cpp Threads.cpp main.cpp
 OBJS = $(SRCS:.cpp=.o)
@@ -12,10 +12,12 @@ PKG_CONFIG_LIBS=`pkg-config --libs $(PKG_CONFIG)`
 CFLAGS= -O2 -g -Wall
 INCS=-I. -Islmath/include
 LDFLAGS= -Wl,-z,defs -Wl,--as-needed -Wl,--no-undefined
-LIBS=$(PKG_CONFIG_LIBS) -lpthread -lm -Lslmath -lslmath
+LIBS=$(PKG_CONFIG_LIBS) -lgc -lpthread -lm -Lslmath -lslmath
 
-$(PROGRAM): $(OBJS) slmath/libslmath.a
+$(PROGRAM): $(OBJS) libraries
 	g++ $(LDFLAGS) $(OBJS) -o $@ $(LIBS)
+
+libraries: slmath/libslmath.a slmath/libscriptix.a
 
 %.o: %.cpp
 	g++ -o $@ -c $< $(CFLAGS) $(INCS) $(PKG_CONFIG_CFLAGS)
@@ -34,9 +36,16 @@ endif
 slmath/libslmath.a:
 	$(MAKE) -C slmath libslmath.a
 
+slmath/libscriptix.a:
+	$(MAKE) -C scriptix libscriptix.a
+
 clean:
 	rm -f $(OBJS)
 	rm -f $(PROGRAM)
 	rm -f *.o *.a *~
 
-.PHONY: all depend dep clean install
+clean-all: clean
+	$(MAKE) -C slmath clean
+	$(MAKE) -C scriptix clean
+
+.PHONY: all depend dep clean clean-all install

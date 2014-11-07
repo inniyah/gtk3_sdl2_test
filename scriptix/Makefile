@@ -2,7 +2,10 @@ PROGRAM=scriptix
 LIBNAME=scriptix
 LIBRARY=lib$(LIBNAME)
 
-all: $(LIBRARY).a $(LIBRARY).so $(PROGRAM)
+all: static
+static: $(LIBRARY).a
+dynamic: $(LIBRARY).so
+program: $(PROGRAM)
 
 MAJOR=0
 MINOR=0
@@ -117,4 +120,6 @@ test: $(PROGRAM)
 		LD_LIBRARY_PATH="." ./$(PROGRAM) $${PRG} || exit 1 ; \
 		done
 	echo ; echo Tests OK!
+
+.PHONY: all static dynamic program depend dep clean install
 
