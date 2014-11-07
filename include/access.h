@@ -28,7 +28,8 @@
 #ifndef SCRIPTIX_ACCESS_H
 #define SCRIPTIX_ACCESS_H
 
-#include "sysdep.h"
+#include <stdint.h>
+#include <inttypes.h>
 
 namespace Scriptix {
 

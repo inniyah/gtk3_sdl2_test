@@ -28,7 +28,8 @@
 #ifndef SCRIPTIX_FUNCTION_H
 #define SCRIPTIX_FUNCTION_H
 
-#include "sysdep.h"
+#include <stdint.h>
+#include <inttypes.h>
 
 namespace Scriptix {
 
