@@ -28,6 +28,7 @@ libraries: slmath/libslmath.a slmath/libscriptix.a
 .depend depend dep:
 	g++ $(CFLAGS) -MM $(SRCS) $(INCS) $(PKG_CONFIG_CFLAGS) > .depend
 	$(MAKE) -C slmath .depend
+	$(MAKE) -C scriptix .depend
 
 ifeq (.depend,$(wildcard .depend))
 include .depend

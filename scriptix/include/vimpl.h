@@ -28,9 +28,9 @@
 #ifndef SCRIPTIX_VIMPL_H
 #define SCRIPTIX_VIMPL_H
 
-#include "sysdep.h"
-
 #include <iostream>
+#include <stdint.h>
+#include <inttypes.h>
 
 namespace Scriptix {
 

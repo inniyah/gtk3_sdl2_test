@@ -28,7 +28,8 @@
 #ifndef SCRIPTIX_NUMBER_H
 #define SCRIPTIX_NUMBER_H
 
-#include "sysdep.h"
+#include <stdint.h>
+#include <inttypes.h>
 
 namespace Scriptix {
 
