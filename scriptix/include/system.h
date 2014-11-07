@@ -189,8 +189,6 @@ class System : public GC::Collectable {
 	const TypeInfo* t_script_class;
 };
 
-const char *Version (void);
-
 System* Initialize (System*);
 
 namespace _internal {
