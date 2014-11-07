@@ -1,0 +1,28 @@
+public
+main () {
+	// create test struct
+	var struct = new Struct;
+	struct.test = 'hi';
+	struct.test2 = 'blah';
+
+	// has both fields?
+	if (struct.test != 'hi' || struct.test2 != 'blah') {
+		printl ('Missing members');
+		return 1;
+	}
+
+	// fields aren't incorrectly testing?
+	if (struct.test == 'not-test' || struct.test2 == 'not-test2') {
+		printl ('Members are invalid');
+		return 1;
+	}
+
+	// aren't getting weird members, are we?
+	if (struct.blah || struct.foo) {
+		printl ('Getting undefined members');
+		return 1;
+	}
+
+	printl ('Success');
+	return 0;
+}

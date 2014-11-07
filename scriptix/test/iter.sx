@@ -1,0 +1,42 @@
+public
+main () {
+	var a = ['abc','def','ghi'];
+	var b = [1, 2, 3];
+
+	printl(a);
+	printl(b);
+
+	var str = '';
+	foreach(var i in a)
+		str = str :: i;
+	printl(str);
+
+	var num = 0;
+	foreach(var i in b)
+		num += i;
+	printl(num);
+
+	if (str != 'abcdefghi' || num != 6) {
+		printl ('Failure');
+		return;
+	}
+
+	str = '';
+	var iter = a.iter();
+	while (i = iter.next())
+		str = str :: i;
+	printl (str);
+
+	num = 0;
+	iter = b.iter();
+	while (i = iter.next())
+		num += i;
+	printl(num);
+
+	if (str != 'abcdefghi' || num != 6) {
+		printl ('Failure');
+		return;
+	}
+
+	printl ('Success');
+} 

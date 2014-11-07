@@ -1,0 +1,21 @@
+fact (arg) {
+	if (!arg || arg <= 1)
+		return 1;
+	else
+		return fact (arg - 1) * arg;
+}
+
+public
+main (&argv) {
+	var max;
+	if (argv.length () != 1)
+		max = 10000;
+	else
+		max = Int(argv[0]);
+
+	var num = 0;
+	while ((var f = fact (num + 1)) <= max)
+		num ++;
+
+	printl ('Smallest factorial within ', max, ': fact(', num, ') = ', fact (num));
+}

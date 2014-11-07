@@ -1,0 +1,35 @@
+test (a) {
+	var msg = 'In - ';
+	foreach (var i in a) {
+		printl ('--', i);
+		for (var n = 3; n <= 9; n += 3) {
+			printl (msg, n, ':', i);
+		}
+	}
+}
+
+public
+main () {
+	var a = ['abc','def','ghi'];
+	a.append('jkl');
+
+	printl(a);
+
+	test(a);
+
+	if ('def' in a) {
+		printl ('Correct - def in array');
+	} else {
+		printl ('Incorrect - def !in array');
+		return 1;
+	}
+
+	if ('foo' in a) {
+		printl ('Incorrect - foo in array');
+		return 1;
+	} else {
+		printl ('Correct - foo !in array');
+	}
+
+	printl ('Success');
+}

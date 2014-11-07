@@ -1,0 +1,109 @@
+array.o: src/array.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/system.h
+eval.o: src/eval.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h
+grammar.o: src/grammar.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/system.h include/compiler.h
+name.o: src/name.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/config.h
+system.o: src/system.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/config.h
+compiler.o: src/compiler.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/compiler.h
+function.o: src/function.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h
+iter.o: src/iter.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/system.h
+number.o: src/number.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/system.h
+string.o: src/string.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/system.h
+type.o: src/type.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h
+error.o: src/error.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/system.h
+global.o: src/global.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h
+optimize.o: src/optimize.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/compiler.h
+struct.o: src/struct.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/system.h
+value.o: src/value.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/system.h
+parser.o: src/parser.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/system.h include/compiler.h
+lexer.o: src/lexer.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h \
+ include/compiler.h src/grammar.h
+scriptix.o: program/scriptix.cpp include/scriptix.h include/collectable.h \
+ include/error.h include/access.h include/sysdep.h include/opcodes.h \
+ include/name.h include/value.h include/type.h include/number.h \
+ include/sxstring.h include/iterator.h include/struct.h include/array.h \
+ include/function.h include/thread.h include/system.h include/vimpl.h

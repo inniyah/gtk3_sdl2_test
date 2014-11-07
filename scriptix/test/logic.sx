@@ -1,0 +1,17 @@
+attempt (a,b) {
+	return Int(a) > Int(b);
+}
+fail () {
+	printl ('Failure');
+	return 1;
+}
+succeed () {
+	printl ('Success');
+	return 1;
+}
+
+public
+main (one, two) {
+	if ((attempt (one, two) && succeed())) return 0;
+	if ((attempt (one, two) || fail())) return 1;
+}

@@ -1,0 +1,29 @@
+new BaseType {
+	base() {
+		return self.value;
+	}
+	name() {
+		return 'BaseType';
+	}
+}
+new SubClass : BaseType {
+	new() {
+		printl('New!');
+		return self;
+	}
+	sub() {
+		return 'Sub-' :: self.base();
+	}
+	name() {
+		return 'SubClass';
+	}
+}
+
+public main() {
+	var test = new SubClass();
+	test.value = 'Success';
+	if (test.sub() != 'Sub-Success' || test.name() != 'SubClass')
+		printl('Failure');
+	else
+		printl('Success');
+}

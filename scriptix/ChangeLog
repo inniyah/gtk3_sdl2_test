@@ -1,0 +1,755 @@
+2005-08-30 13:40:40  Sean Middleditch <elanthis@localdomain>
+
+  * Remove the scriptix.pc files, as we don't use them.
+
+2005-08-26 01:44:04  Sean Middleditch <elanthis@localdomain>
+
+  * Reverted dereference operator to . (period), as -> is just
+    too damn ugly.
+  * Change the string concatenation operator from .. to :: to avoid
+    bugs from typos between .. and .; yes this conflicts with the
+    very recently removed scope operator, and no I don't care.
+
+2005-08-26 01:26:34  Sean Middleditch <elanthis@localdomain>
+
+  * Change the default script methods to use camelCase.
+    That only affects to_int, to_string, and the very recently
+    added add_method.
+
+2005-08-26 01:09:59  smiddle <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Remove static methods.
+  * Remove type extends.
+  * Clean up grammer to remove errors, although two reduce/reduce
+    conflicts are left due to the pre-increment and pre-decrement
+    operators.
+  * Improved error reporting, only works with Bison 2.0 (we may
+    have to revert this if not enough people have it).
+
+2005-08-24 20:10:40  smiddle <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Removed function tags.
+  * Added CompilerHandler type which can be used to customize
+    behavior of declared functions, types, extends, and globals
+    (only functions and extends right now) during compilation.
+    This replaces and extends the functionality provided with
+    function tags.
+
+2005-07-27 04:35:23  Sean Middleditch <elanthis@localdomain>
+
+  * Corrected line-number calculation, used in error reports.
+
+2005-07-27 04:34:45  Sean Middleditch <elanthis@localdomain>
+
+  * Removed Value::Print() in preference of just using
+    Value::ToString().
+  * Added a to_string method for Array.
+
+2005-07-18 20:46:21  Sean Middleditch <elanthis@localdomain>
+
+  * Removed ccdoc comments from header files.
+  * Moved most of the inline static Value methods to the value.cc
+    file, as they shouldn't be inline.
+  * Got rid of the util functions I just added, made them static
+    methods on Value like they should be.
+  * Fixed bug in evaluation engine where the frame pointer was
+    not recalculated in each loop, causing potential crashes when
+    the frame stack was reallocated; just removed frame pointer
+    altogether and use GetFrame() now, which hopefully will be
+    subject to common sub-expression elimination from the compiler.
+  * Added the .. string concatenation operator.
+  * The + addition operator no longer does string concatenation.
+  * The @ string concatenation operator has been removed.  (It was
+    just an alias for + that printed out a deprecation warning.)
+
+2005-07-17 21:13:44  Sean Middleditch <elanthis@localdomain>
+
+  * Removed the doc/ sub-directory, since the auto-generated APIs
+    aren't very useful and the tutorial was completely out-of-date
+    and useless.
+
+2005-07-17 20:59:12  Sean Middleditch <elanthis@localdomain>
+
+  * Require that new local variables be declared before they are
+    assigned, using a 'var <name> [= <value>]' format.  i.e.,
+    'var a;' or 'var i = 0;'.
+  * Change dereference operator from . to ->
+  * Change scoping operator from . to ::
+  * Added a concat opcode, although there is no operator for it yet.
+  * Remove System::Initialize().
+  * Value no longer has a type member, but uses a virtual GetType()
+    method.
+  * Added a ScriptClass sub-class of Struct for classes/types
+    created in Scriptix code.
+
+2005-07-01 01:27:18  Sean Middleditch <elanthis@localdomain>
+
+  * The old embedded debugging op-codes are removed in favor of a
+    debugging meta-data block.  This is just used to record which
+    lines each opcode came from in the function's source file.
+
+2005-04-19 19:29:34  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * When allocating the items array for C functions, use
+    argc*sizeof(Value*) bytes instead of just argc bytes.
+
+2005-04-19 15:18:38  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Varargs to C functions work correctly again.
+  * C methods no longer have a separate self argument; the self
+    object is the first argument in argv now.
+
+2005-04-18 03:52:48  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Handling of call frames has been revamped to work using the
+    shared frame/data stack.
+  * Fixed examples of custom classes and extends to not include
+    a redundant self argument.
+
+2005-04-17 02:59:22  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * STL containers, while using GC for their own internal memory
+    usage, were not using the GC when the entire container itself
+    was dynamically allocated.  Now fixed.  This is a LONG standing
+    bug that's been haunting me for a year or two.  Yay me for
+    finally finding it!
+
+2005-04-16 15:08:02  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Fixes to GC usage.  There's still a GC bug lurking in the
+    compiler somewhere I tink.
+
+2005-04-15 23:44:57  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Get rid of finalizers on all types, so we don't need
+    destructors to be invoked.  Also make strings GC'd, which
+    makes them incompatible (type-wise) with std::string, but I
+    don't really care.
+
+2005-04-15 19:34:28  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Array set/get operations always work on a long now, since only
+    Arrays use them.
+  * Massively cleaned up type creation code.
+
+2005-04-15 02:14:40  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Removed the Thread class, simplified function execution API,
+    made life wonderful and full of sunshine.
+
+2005-04-14 21:57:49  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * There is now only ever one thread, since I never used
+    multi-threading, and don't plan to.
+
+2005-04-14 20:00:17  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Removed associative arrays, I don't use them.
+  * Removed the List type, it just abstracted between Array
+    and Assoc.
+  * Removed the stdlib as I didn't use any of it, but added printl()
+    to the scriptix binary for testing.
+
+2005-03-02 19:49:49  smiddle <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Make Function::AddOpcode a real function on its own - useful
+    for debugging.
+  * Define YY_NO_UNPUT in lexer.ll so we can compile with -Werror
+    (unused function).
+  * Make key types in GC allocator always be const, since GCC
+    4.0 seems to implicitly force that in its version of the STL,
+    and the type differences would result in the internal map pair
+    type being different than the explicit pair type used in the
+    GC allocator.  Stupid C++.
+  * Fixup the JUMP operators to not call GetOpArg while modifying
+    op_ptr; in GCC 4.0 the resulting code moving the op_ptr++
+    causing the math to be different than in GCC 3.x.  No, that's
+    not a compiler bug, it's entirely my fault for assuming
+    something that I shouldn't have in inline code.
+
+2005-01-12 02:11:54  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * OS X doesn't support TLS, and I don't feel like using POSIX
+    thread variable functions all over the place.  Quite simply,
+    I feel that the cleaner API is more valuable than a thread-safe
+    library.  The use-case for Scriptix simply doesn't make much
+    sense for multiple threads at this point in time.  If an app
+    does have multiple threads that need scripts, the app will
+    simply need to lock all access to the script engine with a
+    mutex, or modify the library to use TLS.  I may or may not
+    decide to fix this before the next release.  If you don't like
+    this change, let me know, and we can discuss alternatives.
+
+2005-01-09 02:20:27  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Associate array now uses STL map.  Note that it has lost
+    the ability to lookup a value by index number or use the
+    in operator.  No, I don't really care.
+  * Struct member fields are now protected, not private.
+  * Various const Value pointers are now non-const, since having
+    them const in a script system that doesn't understand const
+    is pretty daft.
+  * Added Scriptix::Initialize() and Scriptix::GetSystem(), which
+    set and receive a thread-local System object.
+  * Added System::CurrentThread() for retrieving the currently
+    running thread from the System object.
+  * Removed *all* spurious System* and Thread* paramaters to just
+    about every function and method, since that information is
+    now found with GetSystem().
+  * Rename configure.in to configure.ac like all the other cool
+    kids are doing
+
+2004-06-11 17:42:29  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Update version and NEWS for 0.30-rc1.
+
+2004-06-07 03:14:25  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * The Thread class wasn't using GC::Collectable, so it wasn't
+    getting its destructor called, which it currently needs.
+
+2004-05-16 22:40:07  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Update version stamp for AweMUD requires (to make sure the
+    bug fix is included).
+
+2004-05-16 22:36:19  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Cleaned up the GC::Collectable code a bit.
+  * Removed all explicit delete operators, not needed when we have
+    a GC.
+  * Added a new test, big.sx, whose pupose is to help find the
+    "unexpected $end" bug that keeps popping up in AweMUD.
+  * Used GC_MALLOC_UNCOLLECTABLE in lexer.ll and grammar.yy,
+    which *appears* to fix the above bug.  Never can tell with
+    this bug, though.
+
+2004-04-30 18:04:50  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * The gc_allocator.h file doesn't have include guards; wrap in
+    our own.
+
+2004-04-30 17:46:20  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * So ya, we need to use AM_CONFIG_HEADER vs AC_CONFIG_HEADER.
+    That little letter is pretty important there.  Automake sucks.
+    :P
+
+2004-04-23 18:42:59  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Changed from the new_gc_alloc.h interface to the gc_allocator.h
+    interface.
+  * Moved Scriptix::Collectable to Scriptix::GC::Collectable.
+  * Added some special wrappers for std::vector, std::list, and
+    std::map to Scriptix::Collectable since the "new" standard
+    complient C++ allocator interface is a complete pain in the ass.
+  * Fixed a formed-ness error in bin/scriptix.cc (putting the type
+    of a new[] operator call in paranthesis).
+
+2004-04-17 14:46:04  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Const-ification of the API regarding Value pointers.
+  * Added include/sysdep.h, needed because we can't include config.h
+    in headers as it conflicts with embedders' config.h files.
+
+2004-04-17 14:45:55  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Const-ification of the API regarding Value pointers.
+  * Added include/sysdep.h, needed because we can't include config.h
+    in headers as it conflicts with embedders' config.h files.
+
+2004-03-31 03:34:03  Sean Middleditch <elanthis@home.awesomeplay.com>
+
+  * Added all the missing headers.  Whoops.
+
+2004-03-12 20:23:32  Sean Middleditch <smiddle@civic.twp.ypsilanti.mi.us>
+
+  * Only include inttypes.h if the configure script indicates
+    it's available.
+
+2004-02-26 21:39:28  Sean Middleditch <elanthis@awemud.net>
+
+  * The symlink is just include/scriptix, not include/scriptix-0.
+
+2004-02-26 21:30:46  Sean Middleditch <elanthis@awemud.net>
+
+  * Split scriptix.h into a number of headers.
+  * Added automatic symlink include/scriptix-0 to make the header
+    includes work properly during build and after install.
+
+2004-02-26 19:58:51  Sean Middleditch <elanthis@awemud.net>
+
+  * Updated security levels to the final model.
+
+2004-02-15 06:27:56  Sean Middleditch <elanthis@awemud.net>
+
+  * Make the 0.29 release.
+
+2004-02-13 21:01:22  Sean Middleditch <elanthis@awemud.net>
+
+  * Fixed tools/Makefile.am to include the right script names.
+  * Fixed lib/Makefile.am to not fail on building from grammar.yy.
+  * Updated copyright years in COPYING.
+
+2004-02-10 04:15:46  Sean Middleditch <elanthis@awemud.net>
+
+  * Make the bootstrap script use the ACLOCAL_FLAGS environment
+    variable.
+
+2004-02-09 02:26:21  Sean Middleditch <elanthis@awemud.net>
+
+  * Manage movement of gammar.cc.h to grammar.hh (for non C++
+    friendly versions of Bison - thanks for changing output names
+    with no way to control it, you jerks.)
+  * Fixed tools/note.sh to get rid of GNU-isms.
+
+2004-01-29 16:08:12  Sean Middleditch <elanthis@awemud.net>
+
+  * Converted use of internally found int_t to C99 intptr_t.
+  * Included inttypes.h in scriptix.h.
+  * Use AC_HEADERS_STDC and AC_CHECK_TYPE(intptr_t) in configure.in.
+  * Added SecurityLevel for holding permission flags.
+  * Removed the SX_ prefix from any types or values which are
+    already in the Scriptix namespace.
+  * Added the CheckArgs() template utility functions for quick
+    and easy checking of argument types.
+
+2004-01-07 22:16:40  Sean Middleditch <elanthis@awemud.net>
+
+  * Use xmlto instead of docbook-utils.
+  * Finish rest of missing commit from versioning change.
+
+2004-01-07 04:39:21  Sean Middleditch <elanthis@awemud.net>
+
+  * Modified install paths and library names to match the excellent
+    advice from http://ometer.com/parallel.html.
+
+2004-01-05 21:47:28  Sean Middleditch <elanthis@awemud.net>
+
+  * Do not force requirement on -ldl.
+
+2003-12-16 16:59:22  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix Compare method to handle nil values a little better.
+
+2003-12-15 18:49:03  Sean Middleditch <elanthis@awemud.net>
+
+  * Removed the built-in pre-inc/post-inc operators.
+  * Fixed a couple crashes caused by parser errors.
+
+2003-12-08 17:17:32  Sean Middleditch <elanthis@awemud.net>
+
+  * Fixed documentation install locations.
+  * Added a COPY opcode.
+  * The pre/post-increment/decrement and add/sub-assign all
+    operators work on any lvalue now.
+  * Added mult/div-assign operators.
+
+2003-12-04 19:43:50  Sean Middleditch <elanthis@awemud.net>
+
+  * Release 0.28.
+  * Build fixes.
+
+2003-11-21 16:49:58  Sean Middleditch <elanthis@awemud.net>
+
+  * The 'self' argument to type methods is automatic now.
+    (Don't manually put it in the argument list.)
+  * New constructs, .name=, .name, and .name() allow for easy
+    member and method usage in the 'self' variable.  I.e., .foo='hi'
+    is equivalent to self.foo='hi'.
+
+2003-11-14 18:21:11  Sean Middleditch <elanthis@awemud.net>
+
+  * Recode ID<->Name code to be much, much more efficient.
+    (Names are stored in an STL set, and IDs are encoded pointers,
+    resulting in very fast lookups both ways.)
+  * Undid eval jump table lookup, compiler should optimize better
+    than that.
+  * Reorganized eval switch() statement to have numerically
+    increasing opcodes, better compiler optimizations available.
+  * Removed concat operator (deprecated it in the language),
+    use the normal addition operator.
+  * Addition will only work if the first arg is a number or string.
+    (No, I don't care about the performance implications of doing
+    this check.)  In the case of numbers, the second argument is
+    *not* converted, but it is for strings.  As before with addition
+    and as now still with other math operators, non-numbers given
+    as the second operand in numeric addition will be interpreted
+    as garbage, no conversion or checking is done.
+
+2003-11-11 04:18:39  Sean Middleditch <elanthis@awemud.net>
+
+  * Small fix to SX_TYPECREATE* for proper namespace usage.
+
+2003-11-11 03:29:29  Sean Middleditch <elanthis@awemud.net>
+
+  * Rewrote Method handling system to use Functions.
+  * Threads are created with the System::CreateThread() method now.
+  * The 'new' method of a object is called when the new operator is
+    used in function form.  (i.e., new Object() or new Object(arg1,
+    arg2))
+  * Added blurb about bugs and backtrace generation to the README.
+
+2003-11-10 19:00:23  Sean Middleditch <elanthis@awemud.net>
+
+  * Type extends can now add static methods.
+  * Types have a new Construct() method.
+  * Can now create custom types in Scriptix, with or without
+    base types.
+  * Compiler handling of Types cleaned up.
+
+2003-10-16 20:16:02  Sean Middleditch <elanthis@awemud.net>
+
+  * The script loading functions have been changed a bit to be
+    more sane.
+
+2003-10-16 15:33:46  Sean Middleditch <elanthis@awemud.net>
+
+  * Cleanup to TagList (doesn't need to be GC'd).
+  * Make argv[] in main.cc be tracable/collected.
+
+2003-10-15 03:03:13  Sean Middleditch <elanthis@awemud.net>
+
+  * Enhanced GC base class to allow (simple) destructor invocation
+    on collection.
+
+2003-10-14 15:25:03  Sean Middleditch <elanthis@awemud.net>
+
+  * Removed LibSGC, use Boehm-Demer-Weiss GC now.
+
+2003-09-28 03:13:48  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix function tags to work again.
+
+2003-09-26 21:00:44  Sean Middleditch <elanthis@awemud.net>
+
+  * Deprecated the : notation for structs (use . now).
+  * Removed the big select() in the VM for a computed goto (GCC
+    extension - experimenting).
+  * Various byte code cleanups and improvements.
+  * s/Call/Frame.
+  * Thread frames and data stack are STL vector<>s now.
+
+2003-09-14 22:50:46  Sean Middleditch <elanthis@awemud.net>
+
+  * Release 0.27.
+
+2003-09-12 14:41:57  Sean Middleditch <elanthis@awemud.net>
+
+  * When reading source files, text mode is explicitly set,
+    for Cygwin.
+
+2003-08-29 18:58:42  Sean Middleditch <elanthis@awemud.net>
+
+  * Require newer libsgc.  (*gasp*)
+
+2003-08-11 19:57:46  Sean Middleditch <elanthis@awemud.net>
+
+  * Int and String type casting uses automatic conversion.
+
+2003-08-10 02:30:59  Sean Middleditch <elanthis@awemud.net>
+
+  * Fixed IDToName to return the correct name.  (Off-by-error index
+    error.)
+
+2003-08-02 01:28:23  Sean Middleditch <elanthis@awemud.net>
+
+  * Added --add-missing to automake invocation in bootstrap.
+  * More C++-izing.
+
+2003-08-01 18:48:14  Sean Middleditch <elanthis@awemud.net>
+
+  * Make the to_str() method on the Int type work.
+
+2003-08-01 18:19:36  Sean Middleditch <elanthis@awemud.net>
+
+  * Cleanups to extend code.
+  * Don't allow old methods to be over-ridden.
+  * Added .trim(), .ltrim(), and .rtrim() methods to String.
+
+2003-08-01 16:44:23  Sean Middleditch <elanthis@awemud.net>
+
+  * Methods may be Scriptix functions.
+  * The extend syntax works now.
+
+2003-08-01 15:23:57  Sean Middleditch <elanthis@awemud.net>
+
+  * More C++-ization to the compiler.
+  * Added the type 'extend' grammer.  (Not yet working.)
+  * Grammar fixes.
+
+2003-07-31 18:42:16  Sean Middleditch <elanthis@awemud.net>
+
+  * Types are once again dynamically registered with the System
+    object.
+
+2003-07-30 04:26:48  Sean Middleditch <elanthis@awemud.net>
+
+  * Slight cleanups to eval() and return values.
+  * Added exit() stdlib call.
+  * Added Thread->Exit() (to implement exit()).
+
+2003-07-29 00:24:10  Sean Middleditch <elanthis@awemud.net>
+
+  * Remove --force from the automake command in the bootstrap
+    script.
+
+2003-07-26 18:18:30  Sean Middleditch <elanthis@awemud.net>
+
+  * Use bootstrap, not autogen.sh.
+
+2003-07-26 17:53:14  Sean Middleditch <elanthis@awemud.net>
+
+  * Apparantly we must carry ltmain.sh.  Yay autotools.
+
+2003-07-26 17:11:12  Sean Middleditch <elanthis@awemud.net>
+
+  * Updated autogen.sh to work in Cygwin.
+
+2003-07-26 01:21:27  Sean Middleditch <elanthis@awemud.net>
+
+  * Actually, like, you know, _test_ the changes and make sure
+    they work...
+
+2003-07-26 01:13:44  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix to library order for static linking fixes.  (For Cygwin)
+
+2003-07-16 02:24:36  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix a bug where parser nodes are free()d when they should
+    be delete'd.
+
+2003-07-16 00:57:04  Sean Middleditch <elanthis@awemud.net>
+
+  * Autogen.sh runs libtoolize now for CVS users.
+
+2003-07-13 07:06:11  Sean Middleditch <elanthis@awemud.net>
+
+  * Release 0.26.
+
+2003-07-10 20:47:51  Sean Middleditch <elanthis@awemud.net>
+
+  * Upgraded the cvs and autogen scripts.
+
+2003-07-10  Sean Middleditch <elanthis@awemud.net>
+
+  * Added a string concatenation operator (@).
+  * Nicer README.
+
+2003-07-05  Sean Middleditch <elanthis@awemud.net>
+
+  * Make autogen.sh call libtoolize.
+
+2003-07-04  Sean Middleditch <elanthis@awemud.net>
+
+  * The make distcheck command now works.
+
+2003-06-29  Sean Middleditch <elanthis@awemud.net>
+
+  * System::WaitOn's retval is a full value now.
+
+2003-06-16  Sean Middleditch <elanthis@awemud.net>
+
+  * Scriptix will find the numeric type with sizeof== sizeof(void*),
+    instead of requiring sizeof(long)==sizeof(void*).  This will
+    probably help portability a good deal.
+
+2003-06-13  Sean Middleditch <elanthis@awemud.net>
+
+  * String type now uses std::string for better C++ memory usage.
+    (String methods could probably use some optimizing for the C++
+    std::string daatype now.)
+
+2003-06-11  Sean Middleditch <elanthis@awemud.net>
+
+  * Small header fix for compilation.
+
+2003-05-31  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix iterator crash bug.
+  * Release 0.25.
+
+2003-05-29  Sean Middleditch <elanthis@awemud.net>
+
+  * Added System::LoadFile(FILE* file, const char* name) method,
+    for loading from a pre-opened file.
+
+2003-05-28  Sean Middleditch <elanthis@awemud.net>
+
+  * Release 0.24.
+
+2003-05-25  Sean Middleditch <elanthis@awemud.net>
+
+  * Iterator::Next takes a system argument now.
+
+2003-05-22  Sean Middleditch <elanthis@awemud.net>
+
+  * More work on using opargs fully.
+
+2003-05-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Finished stage 1 of compiler cleanup.
+
+2003-05-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Tons of work simplifying compiler.
+
+2003-05-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Began adding op arg support (so there's no need to use the
+    data stack so much).
+
+2003-05-21  Sean Middleditch <elanthis@awemud.net>
+
+  * Jump operator uses relative distances now.  (Pita to debug,
+    let me tell you...)
+
+2003-05-21  Sean Middleditch <elanthis@awemud.net>
+
+
+2003-05-20  Sean Middleditch <elanthis@awemud.net>
+
+  * Made iter.sx actually test something (it can fail).
+
+2003-05-20  Sean Middleditch <elanthis@awemud.net>
+
+  * Lots more compiler cleanups.
+  * Removal of the associative array syntactic sugar.
+  * Restructued the c-for bytecode emissions.
+  * Removed the AweMUD comment in INSTALL.
+  * Divide by 0 won't crash the app anymore.
+
+2003-05-19  Sean Middleditch <elanthis@awemud.net>
+
+  * Added iterator functionality (foreach construct).
+  * Began cleaning up compiler.
+  * Removed closures and anonymous functions (yes, BIG change).
+  * Removed the proxy Invocable type.
+
+2003-04-06  Sean Middleditch <elanthis@awemud.net>
+
+  * Release 0.23.
+
+2003-04-02  Sean Middleditch <elanthis@awemud.net>
+
+  * Removed silly automake lex/yacc rules, used own bison/flex
+    rules.
+
+2003-03-23  elanthis <elanthis@awemud.net>
+
+  * FreeBSD fixes.
+
+2003-03-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Fixed make dist.
+
+2003-03-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Switched to using Automake/Libtool for building.  Ouch.
+
+2003-03-14  Sean Middleditch <elanthis@awemud.net>
+
+  * Fix globals, so you can have more than 1.
+  * Globals test script tests the above.
+
+2003-03-14  Sean Middleditch <elanthis@awemud.net>
+
+  * Lots of bug fixes to String class.
+  * New test for String class.
+  * List type has static methods for its operations, for similarity
+    with Value operations.
+  * Reimplemented String.concat(), String.substr(), String.split(),
+    String.upper(), String.lower().
+
+2003-03-13  Sean Middleditch <elanthis@awemud.net>
+
+  * Objects are now called Struct's (mostly for AweMUD
+    compatibility, secondly because Object is confusing).
+
+2003-03-10  Sean Middleditch <elanthis@awemud.net>
+
+  * Broke list functionality (in array and assoc) into a separate
+    List class.
+  * Created a new Object class which has attributes.
+  * Added syntax for setting/getting attribute.  (object:attr =
+    value, value = object:attr)
+  * Updated VIM syntax file to handle attributes correctly.
+  * Added new operators to Array and Assoc.
+
+2003-03-07  Sean Middleditch <elanthis@awemud.net>
+
+  * Began documenting API.
+
+2003-03-07  Sean Middleditch <elanthis@awemud.net>
+
+  * Re-added "pools" for garbage collection - some things are a
+    pain without it (outside the core engine).
+  * Added bin/scriptix.cc, removed bin/scriptix.c.
+
+2003-03-06  Sean Middleditch <elanthis@awemud.net>
+
+  * Reworked function tag interface.
+  * Renamed Number to Int (on Scriptix side).
+
+2003-03-06  Sean Middleditch <elanthis@awemud.net>
+
+  * Use libsgc's pkg-config setup.
+  * Provide a pkg-config .pc file.
+
+2003-03-05  Sean Middleditch <elanthis@awemud.net>
+
+  * More interface cleanups, class renamings, etc.
+  * Updates to libsgc usage.
+  * Bug fixes.
+
+2003-02-23  Sean Middleditch <elanthis@awemud.net>
+
+  * More API cleanups and other fixes.
+  * Still not usable with AweMUD.
+
+2003-02-18  Sean Middleditch <elanthis@awemud.net>
+
+  * Hmm, actually have the .cc files in the repository.
+
+2003-02-18  Sean Middleditch <elanthis@awemud.net>
+
+  * Rewrote in C++.
+  * Still in need of some fixes and further API cleanups.
+  * WARNING: This will *NOT* work with AweMUD in any way, the
+    whole API has changed.
+
+2003-02-06  Sean Middleditch <elanthis@awemud.net>
+
+  * Compressed byte-code space.
+
+2003-01-22  Sean Middleditch <elanthis@awemud.net>
+
+  * Added a String.subtr() method.
+
+2003-01-16  Sean Middleditch <elanthis@awemud.net>
+
+  * New iterator/closure syntax; old one is there for compat.
+
+2003-01-14  Sean Middleditch <elanthis@awemud.net>
+
+  * Minor schedular improvements.
+
+2003-01-11  Sean Middleditch <elanthis@awemud.net>
+
+  * Added thread flags.
+  * Added thread flag SX_TFLAG_PREEMPT; threads without this flag
+    will run cooperatively, not pre-emptively.
+
+2003-01-11  Sean Middleditch <elanthis@awemud.net>
+
+  * Improved parse error handling.
+  * Renamed some symbol types in compiler for error output (yay
+    Bison and ugly output).
+
+2003-01-03  Sean Middleditch <elanthis@awemud.net>
+
+  * Began using a ChangeLog.
+  * Added useful scripts in tools/
+  * Moved check-api.sh to tools/
+
