@@ -18,12 +18,12 @@ name.o: src/name.cpp include/scriptix.h include/collectable.h \
  include/error.h include/access.h include/opcodes.h include/name.h \
  include/value.h include/type.h include/number.h include/sxstring.h \
  include/iterator.h include/struct.h include/array.h include/function.h \
- include/thread.h include/system.h include/vimpl.h include/config.h
+ include/thread.h include/system.h include/vimpl.h
 system.o: src/system.cpp include/scriptix.h include/collectable.h \
  include/error.h include/access.h include/opcodes.h include/name.h \
  include/value.h include/type.h include/number.h include/sxstring.h \
  include/iterator.h include/struct.h include/array.h include/function.h \
- include/thread.h include/system.h include/vimpl.h include/config.h
+ include/thread.h include/system.h include/vimpl.h
 compiler.o: src/compiler.cpp include/scriptix.h include/collectable.h \
  include/error.h include/access.h include/opcodes.h include/name.h \
  include/value.h include/type.h include/number.h include/sxstring.h \
