@@ -102,6 +102,7 @@ clean:
 	rm -f $(SHARED_OBJS)
 	rm -f $(STATIC_OBJS)
 	rm -f $(PROGRAM_OBJS)
+	rm -f $(PROGRAM)
 	rm -f src/lexer.cpp src/lexer.h
 	rm -f src/grammar.cpp src/grammar.h
 	rm -f *.so *.so* *.a *~
