@@ -2,7 +2,11 @@ PROGRAM=scriptix
 LIBNAME=scriptix
 LIBRARY=lib$(LIBNAME)
 
-all: $(LIBRARY).a $(LIBRARY).so $(PROGRAM)
+all: static dynamic program test
+
+static: $(LIBRARY).a
+dynamic: $(LIBRARY).so
+program: $(PROGRAM)
 
 MAJOR=0
 MINOR=0
@@ -30,25 +34,21 @@ LIB_SRC = \
 PRG_SRC = \
 	program/scriptix.cpp
 
-INCLUDE_DIR = include
-
 SHARED_OBJS = $(LIB_SRC:.cpp=.shared.o)
 STATIC_OBJS = $(LIB_SRC:.cpp=.static.o)
 PROGRAM_OBJS = $(PRG_SRC:.cpp=.o)
 
-#PKG_CONFIG=
-#PKG_CONFIG_CFLAGS=`pkg-config --cflags $(PKG_CONFIG)`
-#PKG_CONFIG_LIBS=`pkg-config --libs $(PKG_CONFIG)`
+PKG_CONFIG=
+PKG_CONFIG_CFLAGS=`pkg-config --cflags $(PKG_CONFIG) 2>/dev/null`
+PKG_CONFIG_LIBS=`pkg-config --libs $(PKG_CONFIG) 2>/dev/null`
 
 CFLAGS=-O2 -g -Wall 
-INCLUDE=-I$(INCLUDE_DIR) 
-#INCLUDE=-I$(INCLUDE_DIR) $(PKG_CONFIG_CFLAGS)
+INCLUDE=-Iinclude $(PKG_CONFIG_CFLAGS)
 STATIC_CFLAGS= -O2 -g -Wall $(CFLAGS) $(INCLUDE)
 SHARED_CFLAGS= $(STATIC_CFLAGS) -fPIC
 
 LDFLAGS= -Wl,-z,defs -Wl,--as-needed -Wl,--no-undefined
-LIBS=-lgc
-#LIBS=$(PKG_CONFIG_LIBS)
+LIBS=-lgc $(PKG_CONFIG_LIBS)
 
 $(PROGRAM): $(PROGRAM_OBJS) $(LIBRARY).a $(LIBRARY).so
 	g++ $(LDFLAGS) $(PROGRAM_OBJS) -o $@ -l$(LIBNAME) -L. $(LIBS)
@@ -112,10 +112,19 @@ include .depend
 endif
 
 test: $(PROGRAM)
-	for PRG in test/*.sx; do \
-		echo ; \
-		echo Testing $${PRG}...  ; \
-		LD_LIBRARY_PATH="." ./$(PROGRAM) $${PRG} || exit 1 ; \
-		done
-	echo ; echo Tests OK!
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/array.sx      >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/big.sx        >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/comments.sx   >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/extend.sx     >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/fact.sx       >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/global.sx     >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/inc.sx        >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/iter.sx       >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/logic.sx 4 3  >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/string.sx     >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/struct.sx     >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/types.sx      >/dev/null
 
+	@echo ; echo Tests OK!
+
+.PHONY: all static dynamic program depend dep clean install

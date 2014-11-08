@@ -30,7 +30,9 @@ public main ()
 	// total should be 375
 	if (total == 375) {
 		printl ('Success: total == 375');
+		return 0;
 	} else {
-		printl ('Faulure: total == ', total);
+		printl ('Failure: total == ', total);
+		return 1;
 	}
 }

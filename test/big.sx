@@ -27,6 +27,7 @@ public main ()
 	printl(obj.test1());
 
 	printl('Success');
+	return 0;
 }
 
 function1 ()

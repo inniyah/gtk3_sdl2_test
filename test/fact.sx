@@ -18,4 +18,5 @@ main (&argv) {
 		num ++;
 
 	printl ('Smallest factorial within ', max, ': fact(', num, ') = ', fact (num));
+	return 0;
 }

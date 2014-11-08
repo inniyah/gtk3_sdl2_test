@@ -2,4 +2,5 @@ public main () {
 	String.addMethod('print', printl);
 
 	"Success".print();
+	return 0;
 }

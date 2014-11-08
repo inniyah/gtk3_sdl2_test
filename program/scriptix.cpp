@@ -52,6 +52,7 @@ main (int argc, const char **argv) {
 	Function* func;
 	Value** sargv;
 	struct timeval start, end;
+	int main_ret = EXIT_SUCCESS;
 
 	// initialize GC
 	GC_INIT();
@@ -69,6 +70,7 @@ main (int argc, const char **argv) {
 	if (argc > 1) {
 		// if first arg is -, read from stdin
 		if (strcmp (argv[1], "-")) {
+			cerr << "Executing: " << argv[1] << endl;
 			// load the file name fiven
 			if (GetSystem()->LoadFile (argv[1]))
 				return 1;
@@ -121,8 +123,13 @@ main (int argc, const char **argv) {
 			cout << "Return: ";
 			Value::Print(retval);
 			cout << endl;
+			if (NULL != retval) {
+				main_ret = Number::ToInt(retval);
+			} else {
+				main_ret = EXIT_FAILURE;
+			}
 		}
 	}
 
-	return 0;
+	return main_ret;
 }
