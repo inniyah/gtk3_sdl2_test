@@ -275,7 +275,6 @@ expr: expr '+' expr { $$ = sxp_new_math (compiler, OP_ADD, $1, $3); }
 	| lval { $$ = $1; }
 	;
 
-	
 data:	NUMBER { $$ = $1;  }
 	| STRING { $$ = $1; }
 	| TNIL { $$ = NULL; }

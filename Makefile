@@ -124,6 +124,7 @@ test: $(PROGRAM)
 	LD_LIBRARY_PATH="." ./$(PROGRAM) test/string.sx     >/dev/null
 	LD_LIBRARY_PATH="." ./$(PROGRAM) test/struct.sx     >/dev/null
 	LD_LIBRARY_PATH="." ./$(PROGRAM) test/types.sx      >/dev/null
+	LD_LIBRARY_PATH="." ./$(PROGRAM) test/loops.sx      >/dev/null
 
 	@echo ; echo Tests OK!
 

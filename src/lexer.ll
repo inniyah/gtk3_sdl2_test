@@ -88,11 +88,13 @@
 "//"  { BEGIN LCOMMENT; }
 # { BEGIN LCOMMENT; }
 [\n] { compiler->LineIncr(); }
+
 [a-zA-Z_][a-zA-Z0-9_]* { 
 		LEX_NAME("var", TVAR)
 		LEX_NAME("if", IF)
 		LEX_NAME("else", ELSE)
 		LEX_NAME("while", WHILE)
+		LEX_NAME("forever", FOREVER)
 		LEX_NAME("do", DO)
 		LEX_NAME("until", TUNTIL)
 		LEX_NAME("return", TRETURN)
@@ -116,6 +118,7 @@
 			}
 		}
 	}
+
 [0-9]+ { yylval.value = Number::Create (atoi (yytext)); return NUMBER; }
 [>]= { return TGTE; }
 [<]= { return TLTE; }
@@ -162,7 +165,7 @@ sx_lex_str_push (char c) {
 	if (sx_lex_str_i < SX_LEX_STR_MAX) 
 		++ sx_lex_str_i;
 }
-	
+
 static
 void
 sxp_compiler_input (char *buf, yy_size_t *result, int max_size) {
