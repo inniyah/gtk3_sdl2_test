@@ -17,7 +17,7 @@ LIBS=$(PKG_CONFIG_LIBS) -lgc -lpthread -lm -Lslmath -lslmath
 $(PROGRAM): $(OBJS) libraries
 	g++ $(LDFLAGS) $(OBJS) -o $@ $(LIBS)
 
-libraries: slmath/libslmath.a slmath/libscriptix.a
+libraries: slmath/libslmath.a scriptix/libscriptix.a
 
 %.o: %.cpp
 	g++ -o $@ -c $< $(CFLAGS) $(INCS) $(PKG_CONFIG_CFLAGS)
@@ -37,7 +37,7 @@ endif
 slmath/libslmath.a:
 	$(MAKE) -C slmath libslmath.a
 
-slmath/libscriptix.a:
+scriptix/libscriptix.a:
 	$(MAKE) -C scriptix libscriptix.a
 
 clean:
