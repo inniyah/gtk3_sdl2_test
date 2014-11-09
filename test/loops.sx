@@ -1,0 +1,69 @@
+public
+main () {
+	var v = 1;
+	foreach (var i in [1, 2, 3, 4]) {
+		if (i != v) {
+			printl('Error in number ', i, ' != ', v);
+			return;
+		}
+		++v;
+	}
+
+	v = 1;
+	for (var n = 1; n <= 4; n += 1) {
+		if (n != v) {
+			printl('Error in number ', n, ' != ', v);
+			return;
+		}
+		++v;
+	}
+
+	v = 1;
+	while (v <= 4) {
+		++v;
+	}
+
+	if (v != 5) {
+		printl('Error in number ', v, ' != ', 4);
+		return;
+	}
+
+	v = 1;
+	do {
+		++v;
+	} while (v <= 4);
+
+	if (v != 5) {
+		printl('Error in number ', v, ' != ', 4);
+		return;
+	}
+
+	v = 1;
+	until (v > 4) {
+		++v;
+	}
+
+	v = 1;
+	do {
+		++v;
+	} until (v > 4);
+
+	if (v != 5) {
+		printl('Error in number ', v, ' != ', 4);
+		return;
+	}
+
+	v = 1;
+	do {
+		++v;
+		if (v > 4) break;
+	} forever;
+
+	if (v != 5) {
+		printl('Error in number ', v, ' != ', 4);
+		return;
+	}
+
+	printl ('Success');
+	return 0;
+} 

@@ -22,8 +22,11 @@ new SubClass : BaseType {
 public main() {
 	var test = new SubClass();
 	test.value = 'Success';
-	if (test.sub() != 'Sub-Success' || test.name() != 'SubClass')
+	if (test.sub() != 'Sub-Success' || test.name() != 'SubClass') {
 		printl('Failure');
-	else
+		return 1;
+	} else {
 		printl('Success');
+		return 0;
+	}
 }

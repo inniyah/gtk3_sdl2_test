@@ -39,4 +39,5 @@ main () {
 	}
 
 	printl ('Success');
+	return 0;
 } 
