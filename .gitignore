@@ -1,0 +1,10 @@
+*~
+*.o
+*.a
+*.so
+*.so.*
+src/grammar.cpp
+src/grammar.h
+src/lexer.cpp
+src/lexer.h
+scriptix
